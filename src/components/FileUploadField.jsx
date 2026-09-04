@@ -78,7 +78,7 @@ function FileUploadField({
       {error && <div className="file-upload-status error">{error}</div>}
 
       {!uploading && kind === 'image' && value && (
-        <img src={value} alt="preview" className="file-upload-preview" />
+        <img src={value} alt="preview" className="file-upload-preview" style={{ width: '120px', height: '160px', objectFit: 'cover', display: 'block', marginTop: '10px', borderRadius: '4px' }} />
       )}
 
       {!uploading && kind === 'audio' && value && (

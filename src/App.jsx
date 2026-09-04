@@ -56,7 +56,7 @@ const seedStories = [
         number: 1,
         title: 'Episode 01',
         type: 'audio',
-        src: '/audio/episode-01.mp3',
+        src: '',
         available: true,
         accessType: 'free',
       },
@@ -234,7 +234,7 @@ const loadList = (key) => {
 const saveList = (key, value) => {
   try {
     localStorage.setItem(key, JSON.stringify(value))
-  } catch {}
+  } catch { }
 }
 
 /* =========================================================
@@ -337,7 +337,7 @@ function App() {
   const speechRunRef = useRef(0)
 
   const pendingAutoReadRef = useRef(false)
-  const readAloudRef = useRef(() => {})
+  const readAloudRef = useRef(() => { })
 
   const sleepTimerRef = useRef(null)
 
@@ -427,7 +427,7 @@ function App() {
 
   const [user, setUser] =
     useState(null)
-    
+
   const [purchasedStoryIds, setPurchasedStoryIds] = useState(new Set())
 
   const loggedIn = !!user
@@ -435,7 +435,7 @@ function App() {
   const isAdmin =
     loggedIn &&
     user?.email?.toLowerCase() ===
-      ADMIN_EMAIL.toLowerCase()
+    ADMIN_EMAIL.toLowerCase()
 
   const isVIP = isAdmin
 
@@ -619,7 +619,7 @@ function App() {
   const [telegramVideoStories, setTelegramVideoStories] = useState([])
 
   const stories = [
-    ...seedStories,
+    
     ...adminStories,
     ...telegramStories,
   ]
@@ -631,7 +631,7 @@ function App() {
   ]
 
   const videoStories = [
-    ...seedVideoStories,
+    
     ...adminVideos,
     ...telegramVideoStories,
   ]
@@ -678,9 +678,9 @@ function App() {
       adminStories.map((story) =>
         story.id === storyId
           ? {
-              ...story,
-              ...updates,
-            }
+            ...story,
+            ...updates,
+          }
           : story
       )
     )
@@ -693,12 +693,12 @@ function App() {
       adminStories.map((story) =>
         story.id === storyId
           ? {
-              ...story,
-              episodes: [
-                ...(story.episodes || []),
-                episode,
-              ],
-            }
+            ...story,
+            episodes: [
+              ...(story.episodes || []),
+              episode,
+            ],
+          }
           : story
       )
     )
@@ -712,20 +712,20 @@ function App() {
       adminStories.map((story) =>
         story.id === storyId
           ? {
-              ...story,
-              episodes: (
-                story.episodes || []
-              ).map(
-                (episode) =>
-                  episode.number ===
+            ...story,
+            episodes: (
+              story.episodes || []
+            ).map(
+              (episode) =>
+                episode.number ===
                   episodeNumber
-                    ? {
-                        ...episode,
-                        ...updates,
-                      }
-                    : episode
-              ),
-            }
+                  ? {
+                    ...episode,
+                    ...updates,
+                  }
+                  : episode
+            ),
+          }
           : story
       )
     )
@@ -738,15 +738,15 @@ function App() {
       adminStories.map((story) =>
         story.id === storyId
           ? {
-              ...story,
-              episodes: (
-                story.episodes || []
-              ).filter(
-                (episode) =>
-                  episode.number !==
-                  episodeNumber
-              ),
-            }
+            ...story,
+            episodes: (
+              story.episodes || []
+            ).filter(
+              (episode) =>
+                episode.number !==
+                episodeNumber
+            ),
+          }
           : story
       )
     )
@@ -783,9 +783,9 @@ function App() {
       adminBooks.map((book) =>
         book.id === bookId
           ? {
-              ...book,
-              ...updates,
-            }
+            ...book,
+            ...updates,
+          }
           : book
       )
     )
@@ -824,9 +824,9 @@ function App() {
       adminVideos.map((video) =>
         video.id === videoId
           ? {
-              ...video,
-              ...updates,
-            }
+            ...video,
+            ...updates,
+          }
           : video
       )
     )
@@ -840,21 +840,21 @@ function App() {
       adminVideos.map((video) =>
         video.id === videoId
           ? {
-              ...video,
-              episodes: (
-                video.episodes ||
-                []
-              ).map(
-                (episode) =>
-                  episode.number ===
+            ...video,
+            episodes: (
+              video.episodes ||
+              []
+            ).map(
+              (episode) =>
+                episode.number ===
                   episodeNumber
-                    ? {
-                        ...episode,
-                        ...updates,
-                      }
-                    : episode
-              ),
-            }
+                  ? {
+                    ...episode,
+                    ...updates,
+                  }
+                  : episode
+            ),
+          }
           : video
       )
     )
@@ -867,13 +867,13 @@ function App() {
       adminVideos.map((video) =>
         video.id === videoId
           ? {
-              ...video,
-              episodes: [
-                ...(video.episodes ||
-                  []),
-                episode,
-              ],
-            }
+            ...video,
+            episodes: [
+              ...(video.episodes ||
+                []),
+              episode,
+            ],
+          }
           : video
       )
     )
@@ -886,16 +886,16 @@ function App() {
       adminVideos.map((video) =>
         video.id === videoId
           ? {
-              ...video,
-              episodes: (
-                video.episodes ||
-                []
-              ).filter(
-                (episode) =>
-                  episode.number !==
-                  episodeNumber
-              ),
-            }
+            ...video,
+            episodes: (
+              video.episodes ||
+              []
+            ).filter(
+              (episode) =>
+                episode.number !==
+                episodeNumber
+            ),
+          }
           : video
       )
     )
@@ -923,6 +923,43 @@ function App() {
   ======================================================= */
 
   useEffect(() => {
+    if(currentEpisode) {
+      console.log("SELECTED EPISODE", currentEpisode);
+      console.log("FINAL AUDIO SRC", currentEpisode?.src);
+      console.log('AUDIO SRC', currentEpisode?.src);
+      setTimeout(() => {
+        console.log('AUDIO ELEMENT SRC', audioRef.current?.src);
+        
+        if (audioRef.current) {
+          const el = audioRef.current;
+          console.log('[AUDIO INIT STATUS]', {
+            ref: !!el,
+            src: el.src,
+            currentSrc: el.currentSrc,
+            readyState: el.readyState,
+            networkState: el.networkState,
+            error: el.error,
+            currentEpisodeSrc: currentEpisode?.src
+          });
+
+          const events = ['loadstart','loadedmetadata','loadeddata','canplay','canplaythrough','waiting','stalled','suspend','error','abort','ended', 'play', 'pause'];
+          events.forEach(e => {
+            el.addEventListener(e, (ev) => {
+              console.log(`[AUDIO EVENT] ${e}`, {
+                src: el.src,
+                currentSrc: el.currentSrc,
+                readyState: el.readyState,
+                networkState: el.networkState,
+                error: el.error
+              });
+            });
+          });
+        }
+      }, 100);
+    }
+  }, [currentEpisode]);
+
+  useEffect(() => {
     let mounted = true
 
     supabase.auth
@@ -931,7 +968,7 @@ function App() {
         if (mounted) {
           setUser(
             data.session?.user ??
-              null
+            null
           )
         }
       })
@@ -947,7 +984,8 @@ function App() {
         }
       )
 
-    return () => {
+    console.log("FINAL STORIES STATE", stories);
+  return () => {
       mounted = false
       listener.subscription.unsubscribe()
     }
@@ -1001,8 +1039,9 @@ function App() {
     const load = () => {
       fetchTelegramContent()
         .then((data) => {
+            console.log("APP RECEIVED STORIES:", data.stories.length);
           if (!mounted) return
-          setTelegramStories(data.stories)
+          console.log('FETCHED STORIES IN APP:', data.stories); setTelegramStories(data.stories)
           setTelegramBooks(data.books)
           setTelegramVideoStories(data.videoStories)
         })
@@ -1074,7 +1113,7 @@ function App() {
 
       const dpr = Math.min(
         window.devicePixelRatio ||
-          1,
+        1,
         2
       )
 
@@ -1215,7 +1254,7 @@ function App() {
               vy: 0,
               size:
                 Math.random() *
-                  0.8 +
+                0.8 +
                 0.6,
               r: data[idx],
               g: data[idx + 1],
@@ -1252,9 +1291,9 @@ function App() {
           const movement =
             Math.sqrt(
               dxMove *
-                dxMove +
-                dyMove *
-                  dyMove
+              dxMove +
+              dyMove *
+              dyMove
             )
 
           mouse.moving =
@@ -1279,7 +1318,7 @@ function App() {
               const distance =
                 Math.sqrt(
                   dx * dx +
-                    dy * dy
+                  dy * dy
                 )
 
               const radius =
@@ -1292,34 +1331,34 @@ function App() {
                 const strength =
                   (1 -
                     distance /
-                      radius) *
+                    radius) *
                   1.6
 
                 targetX =
                   particle.homeX +
                   dx *
-                    strength *
-                    Math.min(
-                      movement /
-                        12,
-                      4
-                    )
+                  strength *
+                  Math.min(
+                    movement /
+                    12,
+                    4
+                  )
 
                 targetY =
                   particle.homeY +
                   dy *
-                    strength *
-                    Math.min(
-                      movement /
-                        12,
-                      4
-                    )
+                  strength *
+                  Math.min(
+                    movement /
+                    12,
+                    4
+                  )
 
                 targetX +=
                   dxMove *
                   Math.min(
                     movement /
-                      5,
+                    5,
                     6
                   )
 
@@ -1327,7 +1366,7 @@ function App() {
                   dyMove *
                   Math.min(
                     movement /
-                      5,
+                    5,
                     6
                   )
               }
@@ -1360,7 +1399,7 @@ function App() {
               particle.size,
               0,
               Math.PI *
-                2
+              2
             )
 
             ctx.fillStyle =
@@ -1532,7 +1571,7 @@ function App() {
   const getMediaElement =
     () =>
       currentEpisode?.type ===
-      'video'
+        'video'
         ? videoRef.current
         : audioRef.current
 
@@ -1545,15 +1584,15 @@ function App() {
 
       const adsKey =
         currentEpisode &&
-        currentStory
+          currentStory
           ? adsKeyFor(
-              currentEpisode.type ===
-                'video'
-                ? 'video-episode'
-                : 'episode',
-              currentStory.id,
-              currentEpisode.number
-            )
+            currentEpisode.type ===
+              'video'
+              ? 'video-episode'
+              : 'episode',
+            currentStory.id,
+            currentEpisode.number
+          )
           : undefined
 
       if (
@@ -1608,7 +1647,7 @@ function App() {
       setTimeout(() => {
         const media =
           episode.type ===
-          'video'
+            'video'
             ? videoRef.current
             : audioRef.current
 
@@ -1620,13 +1659,13 @@ function App() {
         const adsKey =
           currentStory
             ? adsKeyFor(
-                episode.type ===
-                  'video'
-                  ? 'video-episode'
-                  : 'episode',
-                currentStory.id,
-                episode.number
-              )
+              episode.type ===
+                'video'
+                ? 'video-episode'
+                : 'episode',
+              currentStory.id,
+              episode.number
+            )
             : undefined
 
         if (
@@ -1648,18 +1687,16 @@ function App() {
           media.playbackRate =
             speed
 
-          media
-            .play()
-            .then(() =>
-              setIsPlaying(
-                true
-              )
-            )
-            .catch(() =>
-              setIsPlaying(
-                false
-              )
-            )
+          const playPromise = media.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              console.log("LOADANDPLAY: PROMISE RESOLVED");
+              setIsPlaying(true);
+            }).catch(error => {
+              console.error("PLAY FAILED in loadAndPlay", error);
+              setIsPlaying(false);
+            });
+          }
         } catch {
           setIsPlaying(false)
         }
@@ -1774,9 +1811,9 @@ function App() {
       const next =
         currentIndex >= 0
           ? episodes[
-              currentIndex +
-                1
-            ]
+          currentIndex +
+          1
+          ]
           : null
 
       if (next) {
@@ -1809,9 +1846,9 @@ function App() {
       const previous =
         currentIndex > 0
           ? episodes[
-              currentIndex -
-                1
-            ]
+          currentIndex -
+          1
+          ]
           : null
 
       if (previous) {
@@ -1839,7 +1876,7 @@ function App() {
     media.currentTime =
       clamp(
         media.currentTime +
-          seconds,
+        seconds,
         0,
         max
       )
@@ -1858,7 +1895,7 @@ function App() {
 
       setCurrentTime(
         media.currentTime ||
-          0
+        0
       )
     }
 
@@ -2009,7 +2046,7 @@ function App() {
       setActivePlayerKind(
         (kind) =>
           kind ===
-          'episode'
+            'episode'
             ? null
             : kind
       )
@@ -2127,14 +2164,14 @@ function App() {
           const next =
             exists
               ? previous.filter(
-                  (item) =>
-                    item.id !==
-                    book.id
-                )
+                (item) =>
+                  item.id !==
+                  book.id
+              )
               : [
-                  ...previous,
-                  book,
-                ]
+                ...previous,
+                book,
+              ]
 
           saveList(
             'hj_user_book_library',
@@ -2195,7 +2232,7 @@ function App() {
           URL.revokeObjectURL(
             readerObjectUrlRef.current
           )
-        } catch {}
+        } catch { }
 
         readerObjectUrlRef.current =
           null
@@ -2298,9 +2335,9 @@ function App() {
 
         return cleanSpeechText(
           doc.body?.innerText ||
-            doc.documentElement
-              ?.innerText ||
-            ''
+          doc.documentElement
+            ?.innerText ||
+          ''
         )
       } catch (error) {
         console.warn(
@@ -2396,7 +2433,7 @@ function App() {
               if (
                 pdfPages > 0 &&
                 pdfPage <
-                  pdfPages
+                pdfPages
               ) {
                 pendingAutoReadRef.current =
                   true
@@ -2407,7 +2444,7 @@ function App() {
                   ) =>
                     Math.min(
                       current +
-                        1,
+                      1,
                       pdfPages
                     )
                 )
@@ -2422,7 +2459,7 @@ function App() {
             */
             if (
               readerType ===
-                'epub' &&
+              'epub' &&
               epubReady
             ) {
               pendingAutoReadRef.current =
@@ -2448,8 +2485,7 @@ function App() {
         chunks.length
 
       setReadAloudLabel(
-        `Reading ${
-          index + 1
+        `Reading ${index + 1
         } / ${total}`
       )
 
@@ -2482,7 +2518,7 @@ function App() {
             Math.round(
               (index /
                 total) *
-                100
+              100
             )
           )
         }
@@ -2503,7 +2539,7 @@ function App() {
             const withinChunk =
               chunk.length
                 ? event.charIndex /
-                  chunk.length
+                chunk.length
                 : 0
 
             const overall =
@@ -2588,7 +2624,7 @@ function App() {
       */
       try {
         window.speechSynthesis.resume()
-      } catch {}
+      } catch { }
 
       window.speechSynthesis.speak(
         utterance
@@ -2626,7 +2662,7 @@ function App() {
           window.speechSynthesis.speak(
             utterance
           )
-        } catch {}
+        } catch { }
       }, 900)
     }
 
@@ -2758,11 +2794,11 @@ function App() {
 
       try {
         epubRenditionRef.current?.destroy()
-      } catch {}
+      } catch { }
 
       try {
         epubBookRef.current?.destroy()
-      } catch {}
+      } catch { }
 
       epubRenditionRef.current =
         null
@@ -2813,7 +2849,7 @@ function App() {
       setActivePlayerKind(
         (kind) =>
           kind ===
-          'readaloud'
+            'readaloud'
             ? null
             : kind
       )
@@ -2859,7 +2895,7 @@ function App() {
       if (
         readerBook &&
         readerBook.id !==
-          book.id
+        book.id
       ) {
         teardownReader()
       }
@@ -2882,7 +2918,7 @@ function App() {
 
       setReaderFilePath(
         book.filePath ||
-          ''
+        ''
       )
 
       setReaderResolvedFile(
@@ -3115,7 +3151,7 @@ function App() {
 
           setReaderError(
             error?.message ||
-              'Failed to load this book file.'
+            'Failed to load this book file.'
           )
         }
       }
@@ -3191,7 +3227,7 @@ function App() {
                   pageNumber =
                     index + 1
                 }
-              } catch {}
+              } catch { }
 
               output.push({
                 id:
@@ -3205,9 +3241,9 @@ function App() {
                 items:
                   item.items
                     ? await resolveItems(
-                        item.items,
-                        level + 1
-                      )
+                      item.items,
+                      level + 1
+                    )
                     : [],
               })
             }
@@ -3286,7 +3322,7 @@ function App() {
 
       for (
         const item of items ||
-          []
+        []
       ) {
         if (!item)
           continue
@@ -3357,7 +3393,7 @@ function App() {
           if (
             !arrayBuffer ||
             arrayBuffer.byteLength ===
-              0
+            0
           ) {
             throw new Error(
               'EPUB file is empty.'
@@ -3421,14 +3457,14 @@ function App() {
           const width =
             Math.max(
               container.clientWidth ||
-                1,
+              1,
               1
             )
 
           const height =
             Math.max(
               container.clientHeight ||
-                1,
+              1,
               1
             )
 
@@ -3545,7 +3581,7 @@ function App() {
                 rendition.themes.fontSize(
                   `${epubFontScale}%`
                 )
-              } catch {}
+              } catch { }
 
               if (
                 pendingAutoReadRef.current
@@ -3571,7 +3607,7 @@ function App() {
             rendition.themes.fontSize(
               `${epubFontScale}%`
             )
-          } catch {}
+          } catch { }
 
           setEpubReady(
             true
@@ -3640,7 +3676,7 @@ function App() {
                     )
                   }
                 }
-              } catch {}
+              } catch { }
             })
             .catch((error) => {
               console.warn(
@@ -3665,7 +3701,7 @@ function App() {
 
           setReaderError(
             error?.message ||
-              'Could not load this EPUB file.'
+            'Could not load this EPUB file.'
           )
         }
       }
@@ -3677,11 +3713,11 @@ function App() {
 
       try {
         rendition?.destroy()
-      } catch {}
+      } catch { }
 
       try {
         book?.destroy()
-      } catch {}
+      } catch { }
 
       if (
         epubRenditionRef.current ===
@@ -3700,7 +3736,7 @@ function App() {
       }
     }
 
-// eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     readerType,
     readerResolvedFile,
@@ -3709,14 +3745,14 @@ function App() {
   useEffect(() => {
     if (
       readerType ===
-        'epub' &&
+      'epub' &&
       epubRenditionRef.current
     ) {
       try {
         epubRenditionRef.current.themes.fontSize(
           `${epubFontScale}%`
         )
-      } catch {}
+      } catch { }
     }
   }, [
     epubFontScale,
@@ -3816,7 +3852,7 @@ function App() {
           (current) =>
             Math.min(
               pdfPages ||
-                current + 1,
+              current + 1,
               current + 1
             )
         )
@@ -3893,67 +3929,67 @@ function App() {
   ======================================================= */
 
   const jumpEpubByPage = async (
-  pageNumber
-) => {
-  if (
-    !epubBookRef.current ||
-    !epubRenditionRef.current ||
-    !epubReady
-  ) {
-    return
-  }
-
-  const book =
-    epubBookRef.current
-
-  const total =
-    book.locations?.length || 0
-
-  if (!total) {
-    alert(
-      'EPUB page locations are still being prepared. Please try again in a moment.'
-    )
-    return
-  }
-
-  const target = Math.max(
-    1,
-    Math.min(
-      Number(pageNumber) || 1,
-      total
-    )
-  )
-
-  const locationIndex =
-    target - 1
-
-  try {
-    const cfi =
-      book.locations.cfiFromLocation(
-        locationIndex
-      )
-
-    if (!cfi) return
-
-    if (isReading) {
-      stopReadAloud()
+    pageNumber
+  ) => {
+    if (
+      !epubBookRef.current ||
+      !epubRenditionRef.current ||
+      !epubReady
+    ) {
+      return
     }
 
-    pendingAutoReadRef.current =
-      false
+    const book =
+      epubBookRef.current
 
-    await epubRenditionRef.current.display(
-      cfi
+    const total =
+      book.locations?.length || 0
+
+    if (!total) {
+      alert(
+        'EPUB page locations are still being prepared. Please try again in a moment.'
+      )
+      return
+    }
+
+    const target = Math.max(
+      1,
+      Math.min(
+        Number(pageNumber) || 1,
+        total
+      )
     )
 
-    setEpubPage(target)
-  } catch (error) {
-    console.warn(
-      'EPUB page jump failed:',
-      error
-    )
+    const locationIndex =
+      target - 1
+
+    try {
+      const cfi =
+        book.locations.cfiFromLocation(
+          locationIndex
+        )
+
+      if (!cfi) return
+
+      if (isReading) {
+        stopReadAloud()
+      }
+
+      pendingAutoReadRef.current =
+        false
+
+      await epubRenditionRef.current.display(
+        cfi
+      )
+
+      setEpubPage(target)
+    } catch (error) {
+      console.warn(
+        'EPUB page jump failed:',
+        error
+      )
+    }
   }
-}
 
   /* =======================================================
      ZOOM
@@ -4066,7 +4102,7 @@ function App() {
         setTimeout(() => {
           try {
             epubRenditionRef.current?.resize()
-          } catch {}
+          } catch { }
         }, 100)
       }
 
@@ -4091,7 +4127,7 @@ function App() {
       () => {
         try {
           epubRenditionRef.current?.resize()
-        } catch {}
+        } catch { }
       }
 
     window.addEventListener(
@@ -4178,7 +4214,7 @@ function App() {
         handleKeyDown
       )
 
-// eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     readerOpen,
     readerType,
@@ -4206,7 +4242,7 @@ function App() {
       cleanupReaderObjectUrl()
     }
 
-// eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /* =======================================================
@@ -4215,40 +4251,38 @@ function App() {
 
   const nowPlaying =
     activePlayerKind ===
-        'episode' &&
+      'episode' &&
       currentStory &&
       currentEpisode
       ? {
-          kind: 'episode',
-          title:
-            currentStory.title,
-          subtitle:
-            `Episode ${currentEpisode.number}`,
-          cover:
-            currentStory.cover,
-        }
+        kind: 'episode',
+        title:
+          currentStory.title,
+        subtitle:
+          `Episode ${currentEpisode.number}`,
+        cover:
+          currentStory.cover,
+      }
       : activePlayerKind ===
-          'readaloud' &&
+        'readaloud' &&
         readerBook
-      ? {
+        ? {
           kind: 'readaloud',
           title:
             readerBook.title,
           subtitle:
             readerType ===
-            'pdf'
-              ? `Page ${pdfPage} / ${
-                  pdfPages ||
-                  '—'
-                }`
-              : `Page ${epubPage} / ${
-                  epubPages ||
-                  '—'
-                }`,
+              'pdf'
+              ? `Page ${pdfPage} / ${pdfPages ||
+              '—'
+              }`
+              : `Page ${epubPage} / ${epubPages ||
+              '—'
+              }`,
           cover:
             readerBook.cover,
         }
-      : null
+        : null
 
   const togglePlayback =
     () => {
@@ -4304,40 +4338,40 @@ function App() {
     activeCategory === 'All'
       ? stories
       : stories.filter(
-          (story) =>
-            story.genre ===
-            activeCategory
-        )
+        (story) =>
+          story.genre ===
+          activeCategory
+      )
 
   const searchedStories =
     searchText.trim()
       ? stories.filter(
-          (story) =>
-            story.title
-              .toLowerCase()
-              .includes(
-                searchText
-                  .toLowerCase()
-              )
-        )
+        (story) =>
+          story.title
+            .toLowerCase()
+            .includes(
+              searchText
+                .toLowerCase()
+            )
+      )
       : filteredStories
 
   const filteredBooks =
     books.filter(
       (book) =>
         bookCategory ===
-          'All' ||
+        'All' ||
         book.category ===
-          bookCategory
+        bookCategory
     )
 
   const filteredVideos =
     videoStories.filter(
       (video) =>
         videoCategory ===
-          'All' ||
+        'All' ||
         video.category ===
-          videoCategory
+        videoCategory
     )
 
   /* =======================================================
@@ -4355,12 +4389,10 @@ function App() {
 
       {currentEpisode?.available &&
         currentEpisode.type ===
-          'audio' && (
+        'audio' && (
           <audio
             ref={audioRef}
-            src={
-              currentEpisode.src
-            }
+            src={currentEpisode.telegram_message_id ? `http://localhost:3000/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
             preload="metadata"
             onLoadedMetadata={
               handleLoadedMetadata
@@ -4376,13 +4408,11 @@ function App() {
 
       {currentEpisode?.available &&
         currentEpisode.type ===
-          'video' &&
+        'video' &&
         !fullPlayer && (
           <video
             ref={videoRef}
-            src={
-              currentEpisode.src
-            }
+            src={currentEpisode.telegram_message_id ? `http://localhost:3000/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
             preload="metadata"
             onLoadedMetadata={
               handleLoadedMetadata
@@ -4439,7 +4469,7 @@ function App() {
               )
             }
           >
-            ðŸ“š Books
+            📚Books
           </button>
 
           <button
@@ -4449,7 +4479,7 @@ function App() {
               )
             }
           >
-            ðŸŽ¬ Video Stories
+            🎬Video Stories
           </button>
 
           <button
@@ -4460,7 +4490,7 @@ function App() {
               )
             }
           >
-            ðŸ” Search
+            🔍Search
           </button>
         </nav>
 
@@ -4478,7 +4508,7 @@ function App() {
         >
           {loggedIn
             ? isAdmin
-              ? 'ðŸ‘‘ Admin'
+              ? '👑Admin'
               : 'Account'
             : 'Login / Signup'}
         </button>
@@ -4586,7 +4616,7 @@ function App() {
                     }
                     className={
                       activeCategory ===
-                      category
+                        category
                         ? 'active'
                         : ''
                     }
@@ -4669,7 +4699,7 @@ function App() {
                                 episode
                               ) =>
                                 episode.available !==
-                                  false &&
+                                false &&
                                 canAccessContent(
                                   episode,
                                   adsKeyFor(
@@ -4796,7 +4826,7 @@ function App() {
                         item
                       ) =>
                         item.available !==
-                          false &&
+                        false &&
                         canAccessContent(
                           item,
                           adsKeyFor(
@@ -4930,7 +4960,7 @@ function App() {
                           episode
                         ) =>
                           episode.available !==
-                            false &&
+                          false &&
                           canAccessContent(
                             episode,
                             adsKeyFor(
@@ -5052,7 +5082,7 @@ function App() {
                           <b>
                             {accessible
                               ? '▶'
-                              : 'ðŸ”’'}
+                              : '🔒'}
                           </b>
                         </button>
                       )
@@ -5152,7 +5182,7 @@ function App() {
                     )
                   }
                 >
-                  ðŸ“– Read
+                  📖Read
                 </button>
 
                 <button
@@ -5163,7 +5193,7 @@ function App() {
                     )
                   }
                 >
-                  ðŸ”Š Read Aloud
+                  🔊Read Aloud
                 </button>
 
                 <button
@@ -5266,7 +5296,7 @@ function App() {
                           episode
                         ) =>
                           episode.available !==
-                            false &&
+                          false &&
                           canAccessContent(
                             episode,
                             adsKeyFor(
@@ -5352,7 +5382,7 @@ function App() {
                           <b>
                             {accessible
                               ? '▶'
-                              : 'ðŸ”’'}
+                              : '🔒'}
                           </b>
                         </button>
                       )
@@ -5380,10 +5410,10 @@ function App() {
             </h1>
 
             {library.length ===
-            0 ? (
+              0 ? (
               <div className="empty-state">
                 <span>
-                  ðŸ“š
+                  📚
                 </span>
 
                 <h2>
@@ -5479,7 +5509,7 @@ function App() {
 
           <h1>
             {isAdmin
-              ? 'ðŸ‘‘ Admin VIP'
+              ? '👑Admin VIP'
               : 'Purchased Stories'}
           </h1>
 
@@ -5564,8 +5594,8 @@ function App() {
             <div className="account-card">
               <div className="account-avatar">
                 {isAdmin
-                  ? 'ðŸ‘‘'
-                  : 'ðŸ‘¤'}
+                  ? '👑'
+                  : '👤'}
               </div>
 
               <div>
@@ -5634,7 +5664,7 @@ function App() {
       {nowPlaying &&
         !(
           nowPlaying.kind ===
-          'episode'
+            'episode'
             ? fullPlayer
             : readerOpen
         ) && (
@@ -5658,7 +5688,7 @@ function App() {
             >
               <small>
                 {nowPlaying.kind ===
-                'readaloud'
+                  'readaloud'
                   ? 'READ ALOUD'
                   : 'NOW PLAYING'}
               </small>
@@ -5680,7 +5710,7 @@ function App() {
               className="mini-control"
               onClick={
                 nowPlaying.kind ===
-                'episode'
+                  'episode'
                   ? previousEpisode
                   : readerPrevious
               }
@@ -5696,7 +5726,7 @@ function App() {
             >
               {(
                 nowPlaying.kind ===
-                'episode'
+                  'episode'
                   ? isPlaying
                   : isReading
               )
@@ -5708,7 +5738,7 @@ function App() {
               className="mini-control"
               onClick={
                 nowPlaying.kind ===
-                'episode'
+                  'episode'
                   ? nextEpisode
                   : readerNext
               }
@@ -5718,7 +5748,7 @@ function App() {
 
             <div className="mini-progress">
               {nowPlaying.kind ===
-              'episode' ? (
+                'episode' ? (
                 <>
                   <input
                     type="range"
@@ -5828,15 +5858,13 @@ function App() {
               <div className="player-layout">
                 <div className="player-main">
                   {currentEpisode.type ===
-                  'video' ? (
+                    'video' ? (
                     <video
                       ref={
                         videoRef
                       }
                       className="main-video"
-                      src={
-                        currentEpisode.src
-                      }
+                      src={currentEpisode.telegram_message_id ? `http://localhost:3000/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
                       controls
                       autoPlay
                       onLoadedMetadata={
@@ -5877,189 +5905,189 @@ function App() {
 
                   {currentEpisode.type ===
                     'audio' && (
-                    <>
-                      <div className="progress">
-                        <span>
-                          {
-                            formatTime(
+                      <>
+                        <div className="progress">
+                          <span>
+                            {
+                              formatTime(
+                                currentTime
+                              )
+                            }
+                          </span>
+
+                          <input
+                            type="range"
+                            min="0"
+                            max={
+                              duration ||
+                              0
+                            }
+                            value={
                               currentTime
-                            )
-                          }
-                        </span>
+                            }
+                            step="0.1"
+                            onChange={
+                              changeProgress
+                            }
+                          />
 
-                        <input
-                          type="range"
-                          min="0"
-                          max={
-                            duration ||
-                            0
-                          }
-                          value={
-                            currentTime
-                          }
-                          step="0.1"
-                          onChange={
-                            changeProgress
-                          }
-                        />
-
-                        <span>
-                          {
-                            formatTime(
-                              duration
-                            )
-                          }
-                        </span>
-                      </div>
-
-                      <div className="main-controls">
-                        <button
-                          onClick={() =>
-                            seek(-15)
-                          }
-                        >
-                          ↶
-                          <small>
-                            15
-                          </small>
-                        </button>
-
-                        <button
-                          onClick={
-                            previousEpisode
-                          }
-                        >
-                          ⏮
-                        </button>
-
-                        <button
-                          className="big-play"
-                          onClick={
-                            togglePlay
-                          }
-                        >
-                          {isPlaying
-                            ? '❚❚'
-                            : '▶'}
-                        </button>
-
-                        <button
-                          onClick={
-                            nextEpisode
-                          }
-                        >
-                          ⏭
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            seek(30)
-                          }
-                        >
-                          <small>
-                            30
-                          </small>
-                          ↷
-                        </button>
-                      </div>
-
-                      <div className="player-options">
-                        <select
-                          value={
-                            speed
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            changeSpeed(
-                              Number(
-                                event
-                                  .target
-                                  .value
+                          <span>
+                            {
+                              formatTime(
+                                duration
                               )
-                            )
-                          }
-                        >
-                          <option value="0.5">
-                            0.5x
-                          </option>
-                          <option value="0.75">
-                            0.75x
-                          </option>
-                          <option value="1">
-                            1x
-                          </option>
-                          <option value="1.25">
-                            1.25x
-                          </option>
-                          <option value="1.5">
-                            1.5x
-                          </option>
-                          <option value="2">
-                            2x
-                          </option>
-                        </select>
+                            }
+                          </span>
+                        </div>
 
-                        <select
-                          value={
-                            sleepMinutes
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            startSleepTimer(
-                              Number(
-                                event
-                                  .target
-                                  .value
+                        <div className="main-controls">
+                          <button
+                            onClick={() =>
+                              seek(-15)
+                            }
+                          >
+                            ↶
+                            <small>
+                              15
+                            </small>
+                          </button>
+
+                          <button
+                            onClick={
+                              previousEpisode
+                            }
+                          >
+                            ⏮
+                          </button>
+
+                          <button
+                            className="big-play"
+                            onClick={
+                              togglePlay
+                            }
+                          >
+                            {isPlaying
+                              ? '❚❚'
+                              : '▶'}
+                          </button>
+
+                          <button
+                            onClick={
+                              nextEpisode
+                            }
+                          >
+                            ⏭
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              seek(30)
+                            }
+                          >
+                            <small>
+                              30
+                            </small>
+                            ↷
+                          </button>
+                        </div>
+
+                        <div className="player-options">
+                          <select
+                            value={
+                              speed
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              changeSpeed(
+                                Number(
+                                  event
+                                    .target
+                                    .value
+                                )
                               )
-                            )
-                          }
-                        >
-                          <option value="0">
-                            ðŸ˜´ Sleep Off
-                          </option>
-                          <option value="5">
-                            5 min
-                          </option>
-                          <option value="10">
-                            10 min
-                          </option>
-                          <option value="15">
-                            15 min
-                          </option>
-                          <option value="30">
-                            30 min
-                          </option>
-                          <option value="45">
-                            45 min
-                          </option>
-                          <option value="60">
-                            60 min
-                          </option>
-                        </select>
-                      </div>
+                            }
+                          >
+                            <option value="0.5">
+                              0.5x
+                            </option>
+                            <option value="0.75">
+                              0.75x
+                            </option>
+                            <option value="1">
+                              1x
+                            </option>
+                            <option value="1.25">
+                              1.25x
+                            </option>
+                            <option value="1.5">
+                              1.5x
+                            </option>
+                            <option value="2">
+                              2x
+                            </option>
+                          </select>
 
-                      <div className="volume">
-                        <span>
-                          ðŸ”Š
-                        </span>
+                          <select
+                            value={
+                              sleepMinutes
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              startSleepTimer(
+                                Number(
+                                  event
+                                    .target
+                                    .value
+                                )
+                              )
+                            }
+                          >
+                            <option value="0">
+                              😴Sleep Off
+                            </option>
+                            <option value="5">
+                              5 min
+                            </option>
+                            <option value="10">
+                              10 min
+                            </option>
+                            <option value="15">
+                              15 min
+                            </option>
+                            <option value="30">
+                              30 min
+                            </option>
+                            <option value="45">
+                              45 min
+                            </option>
+                            <option value="60">
+                              60 min
+                            </option>
+                          </select>
+                        </div>
 
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={
-                            volume
-                          }
-                          onChange={
-                            changeVolume
-                          }
-                        />
-                      </div>
-                    </>
-                  )}
+                        <div className="volume">
+                          <span>
+                            🔊
+                          </span>
+
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={
+                              volume
+                            }
+                            onChange={
+                              changeVolume
+                            }
+                          />
+                        </div>
+                      </>
+                    )}
                 </div>
 
                 <aside className="episode-sidebar">
@@ -6114,7 +6142,7 @@ function App() {
                               }
                               className={
                                 currentEpisode.number ===
-                                episode.number
+                                  episode.number
                                   ? 'selected'
                                   : ''
                               }
@@ -6152,7 +6180,7 @@ function App() {
                               <b>
                                 {accessible
                                   ? '▶'
-                                  : 'ðŸ”’'}
+                                  : '🔒'}
                               </b>
                             </button>
                           )
@@ -6174,7 +6202,7 @@ function App() {
           <div className="library-window">
             <div className="library-header">
               <strong>
-                ðŸ“š Books
+                📚Books
               </strong>
 
               <button
@@ -6195,7 +6223,7 @@ function App() {
                     key={cat}
                     className={
                       bookCategory ===
-                      cat
+                        cat
                         ? 'active'
                         : ''
                     }
@@ -6279,7 +6307,7 @@ function App() {
           <div className="library-window">
             <div className="library-header">
               <strong>
-                ðŸŽ¬ Video Stories
+                🎬Video Stories
               </strong>
 
               <button
@@ -6300,7 +6328,7 @@ function App() {
                     key={cat}
                     className={
                       videoCategory ===
-                      cat
+                        cat
                         ? 'active'
                         : ''
                     }
@@ -6511,11 +6539,10 @@ function App() {
           ref={
             readerContainerRef
           }
-          className={`reader-overlay ${
-            readerOpen
-              ? ''
-              : 'reader-minimized'
-          }`}
+          className={`reader-overlay ${readerOpen
+            ? ''
+            : 'reader-minimized'
+            }`}
         >
           <div className="reader-window">
             {/* HEADER */}
@@ -6567,7 +6594,7 @@ function App() {
                 >
                   {isReading
                     ? '⏹ Stop'
-                    : 'ðŸ”Š Read Aloud'}
+                    : '🔊Read Aloud'}
                 </button>
               </div>
             </div>
@@ -6582,61 +6609,100 @@ function App() {
 
             <div className="reader-middle">
 
-            {/* CHAPTER PANEL */}
+              {/* CHAPTER PANEL */}
 
-            {chapterPanelOpen && (
-              <div className="reader-chapter-panel">
-                <div className="reader-chapter-header">
-                  <strong>
+              {chapterPanelOpen && (
+                <div className="reader-chapter-panel">
+                  <div className="reader-chapter-header">
+                    <strong>
+                      {readerType ===
+                        'pdf'
+                        ? 'PDF Bookmarks / Outline'
+                        : 'EPUB Chapters / TOC'}
+                    </strong>
+
+                    <button
+                      onClick={() =>
+                        setChapterPanelOpen(
+                          false
+                        )
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="reader-chapter-list">
                     {readerType ===
-                    'pdf'
-                      ? 'PDF Bookmarks / Outline'
-                      : 'EPUB Chapters / TOC'}
-                  </strong>
+                      'pdf' ? (
+                      pdfOutline.length ? (
+                        pdfOutline.map(
+                          (
+                            item
+                          ) => (
+                            <button
+                              key={
+                                item.id
+                              }
+                              className="reader-chapter-item"
+                              style={{
+                                paddingLeft:
+                                  `${12 + item.level * 18}px`,
+                              }}
+                              onClick={() =>
+                                jumpToPdfChapter(
+                                  item
+                                )
+                              }
+                            >
+                              <span>
+                                {item.page
+                                  ? `Page ${item.page}`
+                                  : '↳'}
+                              </span>
 
-                  <button
-                    onClick={() =>
-                      setChapterPanelOpen(
-                        false
+                              <strong>
+                                {
+                                  item.title
+                                }
+                              </strong>
+                            </button>
+                          )
+                        )
+                      ) : (
+                        <div className="reader-chapter-empty">
+                          This PDF does not contain a bookmark/outline.
+                        </div>
                       )
-                    }
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="reader-chapter-list">
-                  {readerType ===
-                  'pdf' ? (
-                    pdfOutline.length ? (
-                      pdfOutline.map(
+                    ) : epubToc.length ? (
+                      epubToc.map(
                         (
-                          item
+                          item,
+                          index
                         ) => (
                           <button
-                            key={
-                              item.id
-                            }
-                            className="reader-chapter-item"
+                            key={`${item.href}-${index}`}
+                            className={`reader-chapter-item ${item.href &&
+                              epubCurrentHref &&
+                              epubCurrentHref.includes(
+                                item.href.split('#')[0]
+                              )
+                              ? 'active'
+                              : ''
+                              }`}
                             style={{
                               paddingLeft:
                                 `${12 + item.level * 18}px`,
                             }}
                             onClick={() =>
-                              jumpToPdfChapter(
+                              jumpToEpubChapter(
                                 item
                               )
                             }
                           >
-                            <span>
-                              {item.page
-                                ? `Page ${item.page}`
-                                : '↳'}
-                            </span>
-
                             <strong>
                               {
-                                item.title
+                                item.label
                               }
                             </strong>
                           </button>
@@ -6644,177 +6710,137 @@ function App() {
                       )
                     ) : (
                       <div className="reader-chapter-empty">
-                        This PDF does not contain a bookmark/outline.
+                        This EPUB does not contain a navigation table of contents.
                       </div>
-                    )
-                  ) : epubToc.length ? (
-                    epubToc.map(
-                      (
-                        item,
-                        index
-                      ) => (
-                        <button
-                          key={`${item.href}-${index}`}
-                          className={`reader-chapter-item ${
-                            item.href &&
-                            epubCurrentHref &&
-                            epubCurrentHref.includes(
-                              item.href.split('#')[0]
-                            )
-                              ? 'active'
-                              : ''
-                          }`}
-                          style={{
-                            paddingLeft:
-                              `${12 + item.level * 18}px`,
-                          }}
-                          onClick={() =>
-                            jumpToEpubChapter(
-                              item
-                            )
-                          }
-                        >
-                          <strong>
-                            {
-                              item.label
-                            }
-                          </strong>
-                        </button>
-                      )
-                    )
-                  ) : (
-                    <div className="reader-chapter-empty">
-                      This EPUB does not contain a navigation table of contents.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* READER BODY */}
-
-            <div
-              className="reader-body reader-body-full"
-              ref={
-                readerBodyRef
-              }
-            >
-              {readerError && (
-                <div className="reader-error">
-                  <strong>
-                    Reader Error
-                  </strong>
-
-                  <p>
-                    {
-                      readerError
-                    }
-                  </p>
-
-                  <button
-                    className="secondary-btn"
-                    onClick={() =>
-                      openReaderForBook(
-                        readerBook
-                      )
-                    }
-                  >
-                    Try Again
-                  </button>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {!readerError &&
-                readerLoading && (
-                  <div className="reader-loading">
-                    <div className="reader-loading-spinner" />
+              {/* READER BODY */}
 
-                    <span>
-                      Loading{' '}
-                      {readerType ===
-                      'pdf'
-                        ? 'PDF'
-                        : 'EPUB'}
-                      …
-                    </span>
+              <div
+                className="reader-body reader-body-full"
+                ref={
+                  readerBodyRef
+                }
+              >
+                {readerError && (
+                  <div className="reader-error">
+                    <strong>
+                      Reader Error
+                    </strong>
+
+                    <p>
+                      {
+                        readerError
+                      }
+                    </p>
+
+                    <button
+                      className="secondary-btn"
+                      onClick={() =>
+                        openReaderForBook(
+                          readerBook
+                        )
+                      }
+                    >
+                      Try Again
+                    </button>
                   </div>
                 )}
 
-              {!readerError &&
-                !readerLoading &&
-                readerType ===
+                {!readerError &&
+                  readerLoading && (
+                    <div className="reader-loading">
+                      <div className="reader-loading-spinner" />
+
+                      <span>
+                        Loading{' '}
+                        {readerType ===
+                          'pdf'
+                          ? 'PDF'
+                          : 'EPUB'}
+                        …
+                      </span>
+                    </div>
+                  )}
+
+                {!readerError &&
+                  !readerLoading &&
+                  readerType ===
                   'pdf' &&
-                readerResolvedFile && (
-                  <Document
-                    file={
-                      readerResolvedFile
-                    }
-                    options={{
-                      cMapUrl: `https://unpkg.com/pdfjs-dist@5.4.296/cmaps/`,
-                      cMapPacked: true,
-                      standardFontDataUrl: `https://unpkg.com/pdfjs-dist@5.4.296/standard_fonts/`,
-                    }}
-                    loading={
-                      <div className="reader-loading">
-                        Loading PDF…
-                      </div>
-                    }
-                    error={
-                      <div className="reader-error">
-                        {readerError || "Couldn't render this PDF."}
-                      </div>
-                    }
-                    onLoadSuccess={
-                      handlePdfLoadSuccess
-                    }
-                    onLoadError={(
-                      error
-                    ) => {
-                      console.error(
-                        'PDF render error:',
-                        error
-                      )
-
-                      setReaderError(
-                        error?.message ||
-                          'Failed to render PDF.'
-                      )
-
-                      setReaderLoading(
-                        false
-                      )
-                    }}
-                  >
-                    <Page
-                      key={`pdf-${pdfPage}-${pdfScale}`}
-                      pageNumber={
-                        pdfPage
+                  readerResolvedFile && (
+                    <Document
+                      file={
+                        readerResolvedFile
                       }
-                      scale={
-                        pdfScale
-                      }
-                      renderTextLayer
-                      renderAnnotationLayer
-                      onRenderSuccess={
-                        handlePageRendered
-                      }
+                      options={{
+                        cMapUrl: `https://unpkg.com/pdfjs-dist@5.4.296/cmaps/`,
+                        cMapPacked: true,
+                        standardFontDataUrl: `https://unpkg.com/pdfjs-dist@5.4.296/standard_fonts/`,
+                      }}
                       loading={
                         <div className="reader-loading">
-                          Loading page…
+                          Loading PDF…
                         </div>
                       }
-                    />
-                  </Document>
-                )}
+                      error={
+                        <div className="reader-error">
+                          {readerError || "Couldn't render this PDF."}
+                        </div>
+                      }
+                      onLoadSuccess={
+                        handlePdfLoadSuccess
+                      }
+                      onLoadError={(
+                        error
+                      ) => {
+                        console.error(
+                          'PDF render error:',
+                          error
+                        )
 
-              {!readerError &&
-  readerType === 'epub' && (
-    <div
-      ref={epubContainerRef}
-      className="epub-reader epub-reader-full"
-    />
-)}
-            </div>
+                        setReaderError(
+                          error?.message ||
+                          'Failed to render PDF.'
+                        )
+
+                        setReaderLoading(
+                          false
+                        )
+                      }}
+                    >
+                      <Page
+                        key={`pdf-${pdfPage}-${pdfScale}`}
+                        pageNumber={
+                          pdfPage
+                        }
+                        scale={
+                          pdfScale
+                        }
+                        renderTextLayer
+                        renderAnnotationLayer
+                        onRenderSuccess={
+                          handlePageRendered
+                        }
+                        loading={
+                          <div className="reader-loading">
+                            Loading page…
+                          </div>
+                        }
+                      />
+                    </Document>
+                  )}
+
+                {!readerError &&
+                  readerType === 'epub' && (
+                    <div
+                      ref={epubContainerRef}
+                      className="epub-reader epub-reader-full"
+                    />
+                  )}
+              </div>
 
             </div>
             {/* end .reader-middle */}
@@ -6826,9 +6852,9 @@ function App() {
                 <button
                   disabled={
                     readerType ===
-                    'pdf'
+                      'pdf'
                       ? pdfPage <=
-                        1
+                      1
                       : !epubReady
                   }
                   onClick={
@@ -6839,7 +6865,7 @@ function App() {
                 </button>
 
                 {readerType ===
-                'pdf' ? (
+                  'pdf' ? (
                   <div className="reader-page-jump">
                     <label>
                       Page
@@ -6979,10 +7005,10 @@ function App() {
                 <button
                   disabled={
                     readerType ===
-                    'pdf'
+                      'pdf'
                       ? !pdfPages ||
-                        pdfPage >=
-                          pdfPages
+                      pdfPage >=
+                      pdfPages
                       : !epubReady
                   }
                   onClick={
@@ -7004,11 +7030,11 @@ function App() {
 
                 <span>
                   {readerType ===
-                  'pdf'
+                    'pdf'
                     ? `${Math.round(
-                        pdfScale *
-                          100
-                      )}%`
+                      pdfScale *
+                      100
+                    )}%`
                     : `${epubFontScale}%`}
                 </span>
 
@@ -7074,7 +7100,7 @@ function App() {
                 </span>
 
                 <span>
-                  ðŸ”Š
+                  🔊
                 </span>
 
                 <input
@@ -7148,7 +7174,7 @@ function App() {
                   }
                 >
                   <option value="0">
-                    ðŸ˜´ Sleep Off
+                    😴Sleep Off
                   </option>
 
                   <option value="5">
@@ -7188,16 +7214,15 @@ function App() {
       ===================================================== */}
 
       <nav
-        className={`bottom-nav ${
-          isAdmin
-            ? 'admin-bottom-nav'
-            : ''
-        }`}
+        className={`bottom-nav ${isAdmin
+          ? 'admin-bottom-nav'
+          : ''
+          }`}
       >
         <button
           className={
             page ===
-            'home'
+              'home'
               ? 'active'
               : ''
           }
@@ -7225,7 +7250,7 @@ function App() {
         <button
           className={
             page ===
-            'library'
+              'library'
               ? 'active'
               : ''
           }
@@ -7264,7 +7289,7 @@ function App() {
         <button
           className={
             page ===
-            'account'
+              'account'
               ? 'active'
               : ''
           }
@@ -7281,7 +7306,7 @@ function App() {
           }}
         >
           <span>
-            ðŸ‘¤
+            👤
           </span>
           <small>
             {loggedIn

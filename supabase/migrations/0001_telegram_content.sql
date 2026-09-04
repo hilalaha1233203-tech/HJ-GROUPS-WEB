@@ -18,7 +18,7 @@ create table if not exists stories (
   id bigint generated always as identity primary key,
   title text not null,
   genre text default 'Fantasy',
-  cover_file_id text,
+  cover_file_id text,\n  telegram_message_id bigint,
   description text default '',
   created_at timestamptz not null default now()
 );

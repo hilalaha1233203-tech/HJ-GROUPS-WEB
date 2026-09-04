@@ -19,8 +19,8 @@ export function fileUrlFromId(fileId) {
   if (!fileId) return ''
   // Backwards compatibility for testing: if it looks like a Telegram file_id (no dot), use proxy
   if (!fileId.includes('.')) {
-    const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/telegram-file`
-    return `${FUNCTIONS_URL}?file_id=${encodeURIComponent(fileId)}`
+    const FUNCTIONS_URL = 'http://localhost:3000/audio';
+    return `${FUNCTIONS_URL}/${encodeURIComponent(fileId)}`;
   }
   
   // Otherwise, it's a Supabase storage path from our new architecture
@@ -33,14 +33,22 @@ function normalizeStories(storyRows, episodeRows) {
 
   for (const ep of episodeRows) {
     const list = episodesByStory.get(ep.story_id) || []
-    list.push({
-      number: ep.number,
+    
+    let messageId = ep.telegram_message_id;
+
+    const normalizedEpisode = {
+      number: ep.number || ep.episode_number,
       title: ep.title,
-      type: ep.type,
-      src: fileUrlFromId(ep.file_id),
-      available: ep.available,
+      type: ep.type || "audio",
+      src: messageId 
+        ? `http://localhost:3000/audio/message/${messageId}` 
+        : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id) || null)),
+      available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,
-    })
+    };
+    console.log("RAW EPISODE", ep);
+    console.log("NORMALIZED EPISODE", normalizedEpisode);
+    list.push(normalizedEpisode);
     episodesByStory.set(ep.story_id, list)
   }
 
@@ -103,28 +111,25 @@ export async function fetchTelegramContent() {
     supabase.from('video_episodes').select('*'),
   ])
 
-  const firstError =
-    stories.error || episodes.error || books.error || videoStories.error || videoEpisodes.error
+  console.log("STORIES QUERY RESULT", stories);
+  console.log("EPISODES QUERY RESULT", episodes);
+
+  const firstError = stories.error || episodes.error;
 
   if (firstError) {
-    throw firstError
+    throw firstError;
   }
 
+  const normalizedStories = normalizeStories(stories.data || [], episodes.data || []);
+  console.log("NORMALIZED STORIES", normalizedStories);
+
   return {
-    stories: normalizeStories(stories.data || [], episodes.data || []),
+    stories: normalizedStories,
     books: normalizeBooks(books.data || []),
     videoStories: normalizeVideoStories(videoStories.data || [], videoEpisodes.data || []),
   }
 }
 
-/*
-  Subscribes to Postgres changes on all five content tables and
-  calls `onChange` (no payload — caller just refetches) whenever
-  anything changes, so new Telegram uploads appear on the website
-  automatically without a manual refresh.
-
-  Returns an unsubscribe function.
-*/
 export function subscribeToTelegramContent(onChange) {
   const channel = supabase
     .channel('hj-groups-content')
