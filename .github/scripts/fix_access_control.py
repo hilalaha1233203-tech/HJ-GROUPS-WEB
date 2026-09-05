@@ -21,16 +21,13 @@ s = s.replace(
     1,
 )
 
-# Once the conditional above is switched to the explicit story argument,
-# the ID used to build the ad key must come from that same story.
 s = s.replace(
     "          story\n            ? adsKeyFor(\n              episode.type ===\n                'video'\n                ? 'video-episode'\n                : 'episode',\n              currentStory.id,\n              episode.number",
     "          story\n            ? adsKeyFor(\n              episode.type ===\n                'video'\n                ? 'video-episode'\n                : 'episode',\n              story.id,\n              episode.number",
     1,
 )
 
-# Parent story is required for purchased-story access because normalized
-# episode objects intentionally don't carry their parent story id.
+# Pass the parent story ID into every episode access check.
 for item_name, story_expr in [
     ('currentEpisode', 'currentStory?.id'),
     ('episode', 'story?.id'),
@@ -39,9 +36,29 @@ for item_name, story_expr in [
     replacement = rf"canAccessContent(\n\1{item_name},\n\1adsKey,\n\1{story_expr}\n\1)"
     s = re.sub(pattern, replacement, s, count=1)
 
+# requestAccess also needs the parent story ID for already-purchased stories.
 s = s.replace(
-    "        loadAndPlay(\n          episode\n        )",
-    "        loadAndPlay(\n          episode,\n          story\n        )",
+    "  const requestAccess = (\n    item,\n    adsKey,\n    onGranted\n  ) => {\n    if (canAccessContent(item, adsKey)) {",
+    "  const requestAccess = (\n    item,\n    adsKey,\n    onGranted,\n    storyId\n  ) => {\n    if (canAccessContent(item, adsKey, storyId)) {",
+    1,
+)
+
+s = s.replace(
+    "      () => {\n        if (isReading) {",
+    "      () => {\n        if (isReading) {",
+    1,
+)
+
+# Add story IDs to the two requestAccess call sites.
+s = s.replace(
+    "        loadAndPlay(\n          episode,\n          story\n        )\n      }\n    )\n  }",
+    "        loadAndPlay(\n          episode,\n          story\n        )\n      },\n      story.id\n    )\n  }",
+    1,
+)
+
+s = s.replace(
+    "          loadAndPlay(\n            episode\n          )\n        }\n      )\n    }",
+    "          loadAndPlay(\n            episode,\n            currentStory\n          )\n        },\n        currentStory.id\n      )\n    }",
     1,
 )
 
