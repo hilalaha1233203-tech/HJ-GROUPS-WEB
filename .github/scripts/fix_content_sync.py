@@ -151,6 +151,15 @@ old_end = s.find('  const addBook = (', old_start)
 if old_start != -1 and old_end != -1:
     s = s[:old_start] + s[old_end:]
 
+# Remove the two unwanted local demo stories from this browser's localStorage.
+# These were created locally and must not appear in the public Popular Stories list.
+marker = "  const [adminStories, setAdminStories] =\n    useState(() =>\n      loadList('hj_admin_stories')\n    )"
+replacement_marker = """  const [adminStories, setAdminStories] =\n    useState(() => {\n      const list = loadList('hj_admin_stories')\n      const blockedTitles = new Set(['கி.பி2500', 'Cult'])\n      const filtered = list.filter((story) => !blockedTitles.has(String(story?.title || '').trim()))\n      if (filtered.length !== list.length) {\n        saveList('hj_admin_stories', filtered)\n      }\n      return filtered\n    })"""
+if marker in s:
+    s = s.replace(marker, replacement_marker, 1)
+else:
+    raise SystemExit('Could not locate adminStories state initializer')
+
 # Keep the particle watermark centered and visible on narrow mobile viewports.
 s = s.replace(
     """      const targetWidth =\n        Math.min(\n          320,\n          width * 0.4\n        )""",
