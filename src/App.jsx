@@ -4428,8 +4428,11 @@ function App() {
         'audio' && (
           <audio
             ref={audioRef}
-            src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
+            src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}
             preload="metadata"
+            controlsList="nodownload noplaybackrate"
+            disablePictureInPicture
+            onContextMenu={(event) => event.preventDefault()}
             onLoadedMetadata={
               handleLoadedMetadata
             }
@@ -4439,6 +4442,10 @@ function App() {
             onEnded={
               handleEnded
             }
+            onError={() => {
+              console.error('Media playback failed:', currentEpisode?.src)
+              setIsPlaying(false)
+            }}
           />
         )}
 
@@ -5900,8 +5907,11 @@ function App() {
                         videoRef
                       }
                       className="main-video"
-                      src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
+                      src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}
                       controls
+                      controlsList="nodownload noplaybackrate"
+                      disablePictureInPicture
+                      onContextMenu={(event) => event.preventDefault()}
                       autoPlay
                       onLoadedMetadata={
                         handleLoadedMetadata
