@@ -1,52 +1,37 @@
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / 'src' / 'App.jsx'
-
 app = APP.read_text(encoding='utf-8')
 
-# -----------------------------------------------------------------------------
-# Read Aloud: never mutate the live PDF text layer or the EPUB iframe DOM while
-# speech boundaries arrive. DOM surgery there can force epub.js/react-pdf to
-# rebuild/repaint and is a common cause of a black reader during narration.
-# Keep the visible word indicator in the reader controls, but leave document
-# content untouched.
-# -----------------------------------------------------------------------------
-pattern = re.compile(
-    r"  const highlightReadAloudWord = \(chunk, charIndex\) => \{.*?\n  \}\n\n  const animateReaderTurn",
-    re.S,
-)
-replacement = """  const highlightReadAloudWord = (chunk, charIndex) => {
+# Never mutate the live PDF text layer or EPUB iframe while speech boundaries
+# arrive. Keep the word indicator in the reader controls only.
+start = app.find('  const highlightReadAloudWord = (chunk, charIndex) => {')
+end = app.find('  const animateReaderTurn', start)
+if start >= 0 and end > start:
+    replacement = '''  const highlightReadAloudWord = (chunk, charIndex) => {
     const text = String(chunk || '')
     const index = Math.max(0, Number(charIndex) || 0)
     const tail = text.slice(index)
-    const match = tail.match(/[^\\s.,!?;:()[\\]{}\\\"'“”‘’]+/u)
+    const match = tail.match(/[^\\s.,!?;:()[\\]{}\"'“”‘’]+/u)
     setReadAloudWord(match?.[0] || '')
   }
 
-  const animateReaderTurn"""
-app, count = pattern.subn(replacement, app, count=1)
+'''
+    app = app[:start] + replacement + app[end:]
 
-# The old cleanup routine can also mutate a live EPUB iframe. With the safe
-# indicator above there are no speech marks to clean, so make cleanup inert.
-pattern_clear = re.compile(
-    r"  const clearReadAloudHighlight = \(\) => \{.*?\n  \}\n\n  const highlightReadAloudWord",
-    re.S,
-)
-replacement_clear = """  const clearReadAloudHighlight = () => {
+# Disable the old DOM-cleanup routine too; no speech marks are created anymore.
+start = app.find('  const clearReadAloudHighlight = () => {')
+end = app.find('  const highlightReadAloudWord', start)
+if start >= 0 and end > start:
+    app = app[:start] + '''  const clearReadAloudHighlight = () => {
     // Read Aloud intentionally does not modify reader document DOM.
   }
 
-  const highlightReadAloudWord"""
-app, clear_count = pattern_clear.subn(replacement_clear, app, count=1)
+''' + app[end:]
 
-# -----------------------------------------------------------------------------
-# Page number inputs: make them genuinely editable. The previous fallback
-# `input || currentPage` made React immediately put the old page number back
-# whenever the user deleted the value. A controlled empty string is the correct
-# representation while editing.
-# -----------------------------------------------------------------------------
+# Make both page-number inputs truly editable. Empty string is a valid editing
+# state; falling back to the current page prevents full deletion in React.
 app = app.replace(
     "value={\n                        pdfInputPage !== '' ? pdfInputPage : pdfPage\n                      }",
     "value={pdfInputPage}",
@@ -58,20 +43,10 @@ app = app.replace(
     1,
 )
 
-# Select the complete existing number on focus, making Backspace/Delete behave
-# naturally on mobile and desktop.
-app = app.replace(
-    "className=\"reader-page-input\"\n                      onChange={(",
-    "className=\"reader-page-input\"\n                      onFocus={(event) => event.currentTarget.select()}\n                      onChange={(",
-    1,
-)
-app = app.replace(
-    "className=\"reader-page-input\"\n                      onChange={(",
-    "className=\"reader-page-input\"\n                      onFocus={(event) => event.currentTarget.select()}\n                      onChange={(",
-    1,
-)
+# Select the complete current value whenever the user focuses the page field.
+needle = 'className="reader-page-input"\n                      onChange={('
+focus = 'className="reader-page-input"\n                      onFocus={(event) => event.currentTarget.select()}\n                      onChange={('
+app = app.replace(needle, focus, 2)
 
-# Keep page state stable when a user is typing: never force the current page
-# back into an empty input from the runtime enhancement layer.
 APP.write_text(app, encoding='utf-8')
-print(f'reader final2 applied: highlight={count}, clear={clear_count}')
+print('reader final2 applied')
