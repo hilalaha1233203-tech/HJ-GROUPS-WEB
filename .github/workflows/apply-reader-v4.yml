@@ -1,0 +1,43 @@
+name: Apply Reader V4
+
+on:
+  push:
+    paths:
+      - '.github/scripts/readerEnhancements.v4.js'
+      - '.github/workflows/apply-reader-v4.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Replace reader runtime
+        run: |
+          cp .github/scripts/readerEnhancements.v4.js src/readerEnhancements.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/readerEnhancements.js')
+          s=p.read_text(encoding='utf-8')
+          assert "PAPER_FORMATS" in s
+          assert "hj-tts-launcher" in s
+          assert "waitForEpubPaint" in s
+          assert "PAGE_ZOOM_KEY" not in s
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit reader fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/readerEnhancements.js
+          if git diff --cached --quiet; then
+            echo 'No reader changes needed.'
+            exit 0
+          fi
+          git commit -m 'fix reader controls, paper formats and EPUB transitions'
+          git push
