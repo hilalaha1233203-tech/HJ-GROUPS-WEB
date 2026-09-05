@@ -1,0 +1,202 @@
+name: Fix content sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !startsWith(github.event.head_commit.message, '[content-sync]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch content sync
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          app = Path('src/App.jsx')
+          s = app.read_text(encoding='utf-8')
+          s = s.replace("const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;", "const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';")
+
+          start = s.find('  const persistStories = (list) =>')
+          end = s.find('  const persistBooks = (list) =>', start)
+          if start == -1 or end == -1:
+              raise SystemExit('Could not locate story persistence block')
+
+          replacement = r'''  const persistStories = (list) => {
+    setAdminStories(list)
+    saveList('hj_admin_stories', list)
+  }
+
+  const getSupabaseStoryId = (storyId) => {
+    if (typeof storyId === 'number' && Number.isFinite(storyId)) return storyId
+    const text = String(storyId || '')
+    if (text.startsWith('tg-story-')) {
+      const id = Number(text.slice('tg-story-'.length))
+      return Number.isFinite(id) ? id : null
+    }
+    return null
+  }
+
+  const addStory = async (story) => {
+    const { data, error } = await supabase
+      .from('stories')
+      .insert({
+        title: story.title,
+        genre: story.genre || 'Fantasy',
+        cover_file_id: story.cover || null,
+        description: story.description || '',
+      })
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('Supabase story insert error:', error)
+      throw error
+    }
+
+    return data
+  }
+
+  const updateStory = async (storyId, updates) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const { error } = await supabase
+        .from('stories')
+        .update({
+          title: updates.title,
+          genre: updates.genre,
+          cover_file_id: updates.cover,
+          description: updates.description || '',
+        })
+        .eq('id', supabaseId)
+      if (error) {
+        console.error('Supabase story update error:', error)
+        throw error
+      }
+      return
+    }
+
+    persistStories(adminStories.map((story) =>
+      story.id === storyId ? { ...story, ...updates } : story
+    ))
+  }
+
+  const addEpisodeToStory = async (storyId, episode) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('episodes').insert({
+        story_id: supabaseId,
+        number: Number(episode.number),
+        title: episode.title,
+        type: episode.type || 'audio',
+        file_id: episode.file_id || null,
+        access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
+        available: episode.available !== false,
+        telegram_message_id: episode.telegram_message_id || null,
+      })
+      if (error) {
+        console.error('Supabase episode insert error:', error)
+        throw error
+      }
+      return
+    }
+
+    persistStories(adminStories.map((story) =>
+      story.id === storyId ? { ...story, episodes: [ ...(story.episodes || []), episode ] } : story
+    ))
+  }
+
+  const updateEpisode = async (storyId, episodeNumber, updates) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('episodes').update({
+        number: Number(updates.number),
+        title: updates.title,
+        type: updates.type || 'audio',
+        file_id: updates.file_id || null,
+        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+        available: updates.available !== false,
+        telegram_message_id: updates.telegram_message_id || null,
+      }).eq('story_id', supabaseId).eq('number', Number(episodeNumber))
+      if (error) {
+        console.error('Supabase episode update error:', error)
+        throw error
+      }
+      return
+    }
+
+    persistStories(adminStories.map((story) =>
+      story.id === storyId
+        ? { ...story, episodes: (story.episodes || []).map((ep) => ep.number === episodeNumber ? { ...ep, ...updates } : ep) }
+        : story
+    ))
+  }
+
+  const deleteEpisode = async (storyId, episodeNumber) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('episodes').delete().eq('story_id', supabaseId).eq('number', Number(episodeNumber))
+      if (error) {
+        console.error('Supabase episode delete error:', error)
+        throw error
+      }
+      return
+    }
+
+    persistStories(adminStories.map((story) =>
+      story.id === storyId ? { ...story, episodes: (story.episodes || []).filter((ep) => ep.number !== episodeNumber) } : story
+    ))
+  }
+
+  const deleteAdminStory = async (storyId) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('stories').delete().eq('id', supabaseId)
+      if (error) {
+        console.error('Supabase story delete error:', error)
+        throw error
+      }
+      return
+    }
+    persistStories(adminStories.filter((story) => story.id !== storyId))
+  }
+
+'''
+          s = s[:start] + replacement + s[end:]
+          app.write_text(s, encoding='utf-8')
+
+          ap = Path('src/AdminPanel.jsx')
+          a = ap.read_text(encoding='utf-8')
+          a = a.replace("const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;", "const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';")
+
+          # Bulk import: use the actual episodes schema and preserve Telegram message id.
+          a = a.replace("episode_number: Number(finalNumber),", "number: Number(finalNumber),")
+          a = a.replace("        audio_url: null,\n", "        file_id: null,\n        access_type: 'free',\n        available: true,\n")
+
+          # Keep the parent callback only for legacy local stories. Supabase stories are synced by Realtime.
+          old = """        // Update local React state once to avoid closure bugs\n        onUpdateStory(Number(bulkStoryId), {\n          episodes: [...(story.episodes || []), ...newLocalEpisodes]\n        })"""
+          new = """        // Supabase is the source of truth for Telegram stories. Realtime refreshes the UI.\n        if (!String(bulkStoryId).startsWith('tg-story-')) {\n          onUpdateStory(Number(bulkStoryId), {\n            episodes: [...(story.episodes || []), ...newLocalEpisodes]\n          })\n        }"""
+          a = a.replace(old, new)
+
+          # Story create/update goes through App callbacks, which now persist to Supabase.
+          # Do not generate a fake Date.now() ID for a production story.
+          a = a.replace("          id: Date.now(),\n", "")
+
+          ap.write_text(a, encoding='utf-8')
+          PY
+
+      - name: Commit patched files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/App.jsx src/AdminPanel.jsx
+          git diff --cached --quiet && exit 0
+          git commit -m '[content-sync] persist admin stories and episodes in Supabase'
+          git push
