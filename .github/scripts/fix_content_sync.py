@@ -145,60 +145,64 @@ replacement = '''  const persistStories = (list) => {
 '''
 s = s[:start] + replacement + s[end:]
 
+# Remove legacy local-only story handlers if an old copy still exists.
 old_start = s.find('  const addStory = (story) =>')
 old_end = s.find('  const addBook = (', old_start)
 if old_start != -1 and old_end != -1:
     s = s[:old_start] + s[old_end:]
 
-marker = "  const [adminStories, setAdminStories] =\n    useState(() =>\n      loadList('hj_admin_stories')\n    )"
-replacement_marker = """  const [adminStories, setAdminStories] =\n    useState(() => {\n      const list = loadList('hj_admin_stories')\n      const blockedTitles = new Set(['கி.பி2500', 'Cult'])\n      const filtered = list.filter((story) => !blockedTitles.has(String(story?.title || '').trim()))\n      if (filtered.length !== list.length) {\n        saveList('hj_admin_stories', filtered)\n      }\n      return filtered\n    })"""
-if marker in s:
-    s = s.replace(marker, replacement_marker, 1)
-else:
-    raise SystemExit('Could not locate adminStories state initializer')
+# Remove the unwanted local demo stories, idempotently.
+old_state = """  const [adminStories, setAdminStories] =\n    useState(() =>\n      loadList('hj_admin_stories')\n    )"""
+new_state = """  const [adminStories, setAdminStories] =\n    useState(() => {\n      const list = loadList('hj_admin_stories')\n      const blockedTitles = new Set(['கி.பி2500', 'Cult'])\n      const filtered = list.filter((story) => !blockedTitles.has(String(story?.title || '').trim()))\n      if (filtered.length !== list.length) {\n        saveList('hj_admin_stories', filtered)\n      }\n      return filtered\n    })"""
+if old_state in s:
+    s = s.replace(old_state, new_state, 1)
 
-s = s.replace(
-    """      const targetWidth =\n        Math.min(\n          320,\n          width * 0.4\n        )""",
-    """      const isMobile = width <= 700\n      const targetWidth = isMobile\n        ? Math.min(240, width * 0.78)\n        : Math.min(320, width * 0.4)""",
-    1,
-)
-s = s.replace(
-    """      const originY =\n        height * 0.14""",
-    """      const originY = isMobile\n        ? Math.max(88, height * 0.12)\n        : height * 0.14""",
-    1,
-)
+# Responsive watermark sizing/positioning, idempotently.
+old_width = """      const targetWidth =\n        Math.min(\n          320,\n          width * 0.4\n        )"""
+new_width = """      const isMobile = width <= 700\n      const targetWidth = isMobile\n        ? Math.min(240, width * 0.78)\n        : Math.min(320, width * 0.4)"""
+if old_width in s:
+    s = s.replace(old_width, new_width, 1)
 
-# Make the particle watermark follow page scrolling with a smooth parallax motion.
-# The logo stays centered/visible on mobile while moving vertically as the page scrolls.
-scroll_marker = "    let particles = []\n    let ready = false\n"
-scroll_replacement = """    let particles = []\n    let ready = false\n    let scrollOffset = 0\n"""
-if scroll_marker not in s:
-    raise SystemExit('Could not locate watermark state')
-s = s.replace(scroll_marker, scroll_replacement, 1)
+old_origin = """      const originY =\n        height * 0.14"""
+new_origin = """      const originY = isMobile\n        ? Math.max(88, height * 0.12)\n        : height * 0.14"""
+if old_origin in s:
+    s = s.replace(old_origin, new_origin, 1)
 
-animate_marker = """          for (const particle of particles) {\n            let targetX =\n              particle.homeX\n\n            let targetY =\n              particle.homeY\n"""
-animate_replacement = """          for (const particle of particles) {\n            let targetX =\n              particle.homeX\n\n            // Move the background logo with page scrolling (parallax),\n            // while keeping the existing mouse-particle interaction.\n            let targetY =\n              particle.homeY -\n              scrollOffset\n"""
-if animate_marker not in s:
-    raise SystemExit('Could not locate watermark animation target')
-s = s.replace(animate_marker, animate_replacement, 1)
+# Add scroll-driven parallax to the existing particle watermark.
+if 'let scrollOffset = 0' not in s:
+    s = s.replace(
+        "    let particles = []\n    let ready = false\n",
+        "    let particles = []\n    let ready = false\n    let scrollOffset = 0\n",
+        1,
+    )
 
-scroll_listener_marker = """    const handleMouseMove = (\n      event\n    ) => {\n"""
-scroll_listener_replacement = """    const handleScroll = () => {\n      // A restrained parallax factor keeps the logo visible and avoids\n      // letting it race away from the content on long mobile pages.\n      scrollOffset = window.scrollY * 0.22\n    }\n\n    const handleMouseMove = (\n      event\n    ) => {\n"""
-if scroll_listener_marker not in s:
-    raise SystemExit('Could not locate watermark event handlers')
-s = s.replace(scroll_listener_marker, scroll_listener_replacement, 1)
+if 'particle.homeY -\n              scrollOffset' not in s:
+    s = s.replace(
+        """          for (const particle of particles) {\n            let targetX =\n              particle.homeX\n\n            let targetY =\n              particle.homeY\n""",
+        """          for (const particle of particles) {\n            let targetX =\n              particle.homeX\n\n            // Page-scroll parallax keeps the background logo moving with the page.\n            let targetY =\n              particle.homeY -\n              scrollOffset\n""",
+        1,
+    )
 
-add_listener_marker = """    window.addEventListener(\n      'mousemove',\n      handleMouseMove\n    )\n\n    animate()\n"""
-add_listener_replacement = """    window.addEventListener(\n      'mousemove',\n      handleMouseMove\n    )\n\n    window.addEventListener(\n      'scroll',\n      handleScroll,\n      { passive: true }\n    )\n\n    handleScroll()\n    animate()\n"""
-if add_listener_marker not in s:
-    raise SystemExit('Could not locate watermark listener registration')
-s = s.replace(add_listener_marker, add_listener_replacement, 1)
+if 'const handleScroll = () =>' not in s:
+    s = s.replace(
+        """    const handleMouseMove = (\n      event\n    ) => {\n""",
+        """    const handleScroll = () => {\n      scrollOffset = window.scrollY * 0.22\n    }\n\n    const handleMouseMove = (\n      event\n    ) => {\n""",
+        1,
+    )
 
-cleanup_marker = """      window.removeEventListener(\n        'mousemove',\n        handleMouseMove\n      )\n    }\n"""
-cleanup_replacement = """      window.removeEventListener(\n        'mousemove',\n        handleMouseMove\n      )\n\n      window.removeEventListener(\n        'scroll',\n        handleScroll\n      )\n    }\n"""
-if cleanup_marker not in s:
-    raise SystemExit('Could not locate watermark cleanup')
-s = s.replace(cleanup_marker, cleanup_replacement, 1)
+if "'scroll',\n      handleScroll" not in s:
+    s = s.replace(
+        """    window.addEventListener(\n      'mousemove',\n      handleMouseMove\n    )\n\n    animate()\n""",
+        """    window.addEventListener(\n      'mousemove',\n      handleMouseMove\n    )\n\n    window.addEventListener(\n      'scroll',\n      handleScroll,\n      { passive: true }\n    )\n\n    handleScroll()\n    animate()\n""",
+        1,
+    )
+
+if "'scroll',\n        handleScroll" not in s:
+    s = s.replace(
+        """      window.removeEventListener(\n        'mousemove',\n        handleMouseMove\n      )\n    }\n""",
+        """      window.removeEventListener(\n        'mousemove',\n        handleMouseMove\n      )\n\n      window.removeEventListener(\n        'scroll',\n        handleScroll\n      )\n    }\n""",
+        1,
+    )
 
 app.write_text(s, encoding='utf-8')
 
