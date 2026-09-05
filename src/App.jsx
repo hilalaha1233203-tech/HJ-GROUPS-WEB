@@ -5385,8 +5385,9 @@ function App() {
                       const accessible =
                         canAccessContent(
                           episode,
-                          adsKey
-                        )
+                          adsKey,
+                          story?.id
+                          )
 
                       return (
                         <button
