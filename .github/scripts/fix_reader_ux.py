@@ -35,8 +35,8 @@ if voice_effect not in app and anchor in app:
     app = app.replace(anchor, anchor + voice_effect, 1)
 
 # Sarvam Bulbul v3 is used for Tamil narration when the secure Vercel proxy is
-# configured. The Web Speech API remains the fallback for devices without the
-# server-side TTS key. This keeps the API key out of the browser bundle.
+# configured. The Web Speech API remains the fallback when the proxy/key is not
+# available, so Read Aloud never becomes completely silent.
 sarvam_bridge = r'''const installSarvamTamilSpeechBridge = () => {
   if (typeof window === 'undefined' || !window.speechSynthesis || window.__hjSarvamSpeechBridge) return () => {}
 
@@ -51,7 +51,7 @@ sarvam_bridge = r'''const installSarvamTamilSpeechBridge = () => {
 
   const isTamil = (text) => /[\u0B80-\u0BFF]/u.test(String(text || ''))
 
-  const getAudio = async (text, token) => {
+  const getAudio = async (text) => {
     const key = text.trim()
     if (cache.has(key)) return cache.get(key)
     const promise = fetch('/api/sarvam-tts', {
@@ -72,6 +72,10 @@ sarvam_bridge = r'''const installSarvamTamilSpeechBridge = () => {
     try { return await promise } catch (error) { cache.delete(key); throw error }
   }
 
+  const fallbackToBrowser = (utterance) => {
+    try { originalSpeak(utterance) } catch { try { utterance.onerror?.(new Event('error')) } catch {} }
+  }
+
   const stopAudio = () => {
     run += 1
     if (activeAudio) {
@@ -89,15 +93,14 @@ sarvam_bridge = r'''const installSarvamTamilSpeechBridge = () => {
     }
 
     const token = ++run
-    try { utterance.onstart?.(new Event('start')) } catch {}
-
-    getAudio(text, token).then((blob) => {
+    getAudio(text).then((blob) => {
       if (token !== run) return
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)
       activeAudio = audio
       audio.volume = Number.isFinite(utterance.volume) ? utterance.volume : 1
       audio.playbackRate = Math.max(0.75, Math.min(1.15, Number(utterance.rate) || 1))
+      try { utterance.onstart?.(new Event('start')) } catch {}
       audio.onended = () => {
         if (token !== run) return
         activeAudio = null
@@ -108,12 +111,12 @@ sarvam_bridge = r'''const installSarvamTamilSpeechBridge = () => {
         if (token !== run) return
         activeAudio = null
         URL.revokeObjectURL(url)
-        try { utterance.onerror?.(new Event('error')) } catch {}
+        fallbackToBrowser(utterance)
       }
       return audio.play()
     }).catch(() => {
       if (token !== run) return
-      try { utterance.onerror?.(new Event('error')) } catch {}
+      fallbackToBrowser(utterance)
     })
   }
 
@@ -137,7 +140,6 @@ sarvam_bridge = r'''const installSarvamTamilSpeechBridge = () => {
     synthesis.cancel = originalCancel
     if (originalPause) synthesis.pause = originalPause
     if (originalResume) synthesis.resume = originalResume
-    for (const promise of cache.values()) promise.then(() => {}).catch(() => {})
     cache.clear()
     delete window.__hjSarvamSpeechBridge
   }
@@ -170,8 +172,6 @@ if old in app:
 
 APP.write_text(app, encoding='utf-8')
 
-# Keep reader controls and book-turn styling stable; the runtime enhancement
-# supplies the actual physical page curl.
 if 'REAL BOOK PAGE TURN + SWIPE' not in css:
     css += r'''
 
