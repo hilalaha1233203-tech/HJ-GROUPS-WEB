@@ -3,7 +3,7 @@ import { resolveAccessType } from './lib/accessControl'
 import { supabase } from './supabase'
 import React, { useState } from 'react'
 
-const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';
 
 
 function AccessTypeField({ groupName, value, onChange }) {
@@ -291,10 +291,12 @@ const [bookAccessType, setBookAccessType] = useState('free')
       // Independent object for Supabase insertion
       const supabaseEpisodeObj = {
         story_id: Number(bulkStoryId),
-        episode_number: Number(finalNumber),
+        number: Number(finalNumber),
         title: finalTitle.trim(),
         telegram_message_id: msg.messageId,
-        audio_url: null,
+        file_id: null,
+        access_type: 'free',
+        available: true,
         type: 'audio'
       }
       newSupabaseEpisodes.push(supabaseEpisodeObj)
@@ -310,10 +312,12 @@ const [bookAccessType, setBookAccessType] = useState('free')
           showToast('Failed to insert some episodes to database', 'error')
         }
         
-        // Update local React state once to avoid closure bugs
-        onUpdateStory(Number(bulkStoryId), {
-          episodes: [...(story.episodes || []), ...newLocalEpisodes]
-        })
+        // Supabase is the source of truth for Telegram stories. Realtime refreshes the UI.
+        if (!String(bulkStoryId).startsWith('tg-story-')) {
+          onUpdateStory(Number(bulkStoryId), {
+            episodes: [...(story.episodes || []), ...newLocalEpisodes]
+          })
+        }
       } catch (e) {
         console.error('Error during bulk import', e)
         showToast('Exception occurred during bulk import', 'error')
@@ -366,7 +370,6 @@ const [bookAccessType, setBookAccessType] = useState('free')
         showToast('Story updated successfully')
       } else {
         onAddStory({
-          id: Date.now(),
           title: storyTitle.trim(),
           genre: storyGenre,
           cover: storyCover.trim(),

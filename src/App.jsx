@@ -31,7 +31,7 @@ import 'react-pdf/dist/Page/TextLayer.css'
 
 import './App.css'
 
-const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -644,10 +644,124 @@ function App() {
 
   const persistStories = (list) => {
     setAdminStories(list)
-    saveList(
-      'hj_admin_stories',
-      list
-    )
+    saveList('hj_admin_stories', list)
+  }
+
+  const getSupabaseStoryId = (storyId) => {
+    if (typeof storyId === 'number' && Number.isFinite(storyId)) return storyId
+    const text = String(storyId || '')
+    if (text.startsWith('tg-story-')) {
+      const id = Number(text.slice('tg-story-'.length))
+      return Number.isFinite(id) ? id : null
+    }
+    return null
+  }
+
+  const addStory = async (story) => {
+    const { data, error } = await supabase
+      .from('stories')
+      .insert({
+        title: story.title,
+        genre: story.genre || 'Fantasy',
+        cover_file_id: story.cover || null,
+        description: story.description || '',
+      })
+      .select('*')
+      .single()
+    if (error) {
+      console.error('Supabase story insert error:', error)
+      throw error
+    }
+    return data
+  }
+
+  const updateStory = async (storyId, updates) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('stories').update({
+        title: updates.title,
+        genre: updates.genre,
+        cover_file_id: updates.cover,
+        description: updates.description || '',
+      }).eq('id', supabaseId)
+      if (error) throw error
+      return
+    }
+    persistStories(adminStories.map((story) =>
+      story.id === storyId ? { ...story, ...updates } : story
+    ))
+  }
+
+  const addEpisodeToStory = async (storyId, episode) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const row = {
+        story_id: supabaseId,
+        number: Number(episode.number),
+        title: episode.title,
+        type: episode.type || 'audio',
+        file_id: episode.file_id || null,
+        access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
+        available: episode.available !== false,
+      }
+      if (episode.telegram_message_id) row.telegram_message_id = episode.telegram_message_id
+      const { error } = await supabase.from('episodes').insert(row)
+      if (error) {
+        console.error('Supabase episode insert error:', error)
+        throw error
+      }
+      return
+    }
+    persistStories(adminStories.map((story) =>
+      story.id === storyId ? { ...story, episodes: [...(story.episodes || []), episode] } : story
+    ))
+  }
+
+  const updateEpisode = async (storyId, episodeNumber, updates) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const row = {
+        number: Number(updates.number),
+        title: updates.title,
+        type: updates.type || 'audio',
+        file_id: updates.file_id || null,
+        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+        available: updates.available !== false,
+      }
+      if (updates.telegram_message_id) row.telegram_message_id = updates.telegram_message_id
+      const { error } = await supabase.from('episodes').update(row)
+        .eq('story_id', supabaseId).eq('number', Number(episodeNumber))
+      if (error) throw error
+      return
+    }
+    persistStories(adminStories.map((story) =>
+      story.id === storyId
+        ? { ...story, episodes: (story.episodes || []).map((ep) => ep.number === episodeNumber ? { ...ep, ...updates } : ep) }
+        : story
+    ))
+  }
+
+  const deleteEpisode = async (storyId, episodeNumber) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('episodes').delete()
+        .eq('story_id', supabaseId).eq('number', Number(episodeNumber))
+      if (error) throw error
+      return
+    }
+    persistStories(adminStories.map((story) =>
+      story.id === storyId ? { ...story, episodes: (story.episodes || []).filter((ep) => ep.number !== episodeNumber) } : story
+    ))
+  }
+
+  const deleteAdminStory = async (storyId) => {
+    const supabaseId = getSupabaseStoryId(storyId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('stories').delete().eq('id', supabaseId)
+      if (error) throw error
+      return
+    }
+    persistStories(adminStories.filter((story) => story.id !== storyId))
   }
 
   const persistBooks = (list) => {
