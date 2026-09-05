@@ -25,13 +25,15 @@ function normalizeStories(storyRows, episodeRows) {
   for (const ep of episodeRows) {
     const list = episodesByStory.get(ep.story_id) || []
     const messageId = ep.telegram_message_id
+    const mediaType = ep.type || 'audio'
 
     list.push({
       number: ep.number || ep.episode_number,
       title: ep.title,
-      type: ep.type || 'audio',
+      type: mediaType,
+      telegram_message_id: messageId || null,
       src: messageId
-        ? `${STREAMING_SERVER_URL}/audio/message/${messageId}`
+        ? `${STREAMING_SERVER_URL}/${mediaType === 'video' ? 'video' : 'audio'}/message/${messageId}`
         : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id) || null)),
       available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,
@@ -68,11 +70,16 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
 
   for (const ep of videoEpisodeRows) {
     const list = episodesByVideo.get(ep.video_story_id) || []
+    const messageId = ep.telegram_message_id
+
     list.push({
       number: ep.number,
       title: ep.title,
       type: 'video',
-      src: fileUrlFromId(ep.file_id),
+      telegram_message_id: messageId || null,
+      src: messageId
+        ? `${STREAMING_SERVER_URL}/video/message/${messageId}`
+        : fileUrlFromId(ep.file_id),
       available: ep.available,
       accessType: ep.access_type,
     })
