@@ -1522,9 +1522,10 @@ function App() {
   const requestAccess = (
     item,
     adsKey,
-    onGranted
+    onGranted,
+    storyId
   ) => {
-    if (canAccessContent(item, adsKey)) {
+    if (canAccessContent(item, adsKey, storyId)) {
       onGranted()
       return
     }
@@ -1793,7 +1794,8 @@ function App() {
           episode,
           story
         )
-      }
+      },
+      story.id
     )
   }
 
@@ -1823,9 +1825,11 @@ function App() {
           setDuration(0)
 
           loadAndPlay(
-            episode
+            episode,
+            currentStory
           )
-        }
+        },
+        currentStory.id
       )
     }
 
