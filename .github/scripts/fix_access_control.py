@@ -21,6 +21,14 @@ s = s.replace(
     1,
 )
 
+# Once the conditional above is switched to the explicit story argument,
+# the ID used to build the ad key must come from that same story.
+s = s.replace(
+    "          story\n            ? adsKeyFor(\n              episode.type ===\n                'video'\n                ? 'video-episode'\n                : 'episode',\n              currentStory.id,\n              episode.number",
+    "          story\n            ? adsKeyFor(\n              episode.type ===\n                'video'\n                ? 'video-episode'\n                : 'episode',\n              story.id,\n              episode.number",
+    1,
+)
+
 # Parent story is required for purchased-story access because normalized
 # episode objects intentionally don't carry their parent story id.
 for item_name, story_expr in [
