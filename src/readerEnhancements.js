@@ -1,28 +1,163 @@
 const STYLE_ID='hj-reader-runtime-enhancements'
-const TURN_MS=1050
-function injectReaderStyles(){if(document.getElementById(STYLE_ID))return;const s=document.createElement('style');s.id=STYLE_ID;s.textContent=`
-.reader-body-full{perspective:2200px!important;perspective-origin:50% 50%!important;touch-action:pan-y!important;overscroll-behavior:contain!important;isolation:isolate!important}
-.reader-body-full .epub-reader,.reader-body-full .react-pdf__Page{transform-style:preserve-3d!important;backface-visibility:hidden!important;transform-origin:center center!important;will-change:transform,filter,box-shadow!important}
+const TURN_MS=720
+
+function injectReaderStyles(){
+  if(document.getElementById(STYLE_ID))return
+  const s=document.createElement('style')
+  s.id=STYLE_ID
+  s.textContent=`
+.reader-body-full{perspective:1800px!important;perspective-origin:50% 50%!important;touch-action:pan-y!important;overscroll-behavior:contain!important;isolation:isolate!important}
+.reader-body-full .epub-reader,.reader-body-full .react-pdf__Page{transform-style:preserve-3d!important;backface-visibility:hidden!important;will-change:transform!important}
 .reader-body-full .react-pdf__Page{background:#fff!important}
-.hj-turn-overlay{position:absolute!important;z-index:99999!important;pointer-events:none!important;transform-style:preserve-3d!important;overflow:visible!important}
-.hj-turn-shadow{position:absolute!important;top:-1%!important;bottom:-1%!important;width:34%!important;pointer-events:none!important;opacity:0!important;filter:blur(10px)!important;background:linear-gradient(90deg,transparent,rgba(0,0,0,.46),rgba(0,0,0,.08))!important}
-.hj-turn-overlay.next .hj-turn-shadow{right:0!important}.hj-turn-overlay.prev .hj-turn-shadow{left:0!important;transform:scaleX(-1)!important}
-.hj-turn-edge{position:absolute!important;top:-1%!important;bottom:-1%!important;width:5px!important;pointer-events:none!important;opacity:0!important;background:rgba(255,255,255,.72)!important;filter:blur(1px)!important}
-.hj-turn-overlay.next .hj-turn-edge{left:0!important}.hj-turn-overlay.prev .hj-turn-edge{right:0!important}
-.reader-page-input::placeholder{color:#777c96!important;opacity:1!important}.epub-reader,.epub-reader iframe{background:#fff!important}
+.hj-book-turn{position:absolute!important;z-index:100000!important;pointer-events:none!important;overflow:visible!important;transform-style:preserve-3d!important;background:#fff!important;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 18px 45px rgba(0,0,0,.28)!important;backface-visibility:hidden!important}
+.hj-book-turn.next{transform-origin:left center!important}.hj-book-turn.prev{transform-origin:right center!important}
+.hj-book-turn:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.02),rgba(0,0,0,.20),rgba(0,0,0,.02));opacity:.72}
+.hj-book-turn.next:after{background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(0,0,0,.20),rgba(0,0,0,.04))}
+.hj-book-turn.prev:after{background:linear-gradient(270deg,rgba(255,255,255,.16),rgba(0,0,0,.20),rgba(0,0,0,.04))}
+.hj-book-turn-shadow{position:absolute!important;top:-2%!important;bottom:-2%!important;width:38%!important;z-index:100001!important;pointer-events:none!important;opacity:0!important;filter:blur(10px)!important}
+.hj-book-turn.next .hj-book-turn-shadow{right:0!important;background:linear-gradient(90deg,transparent,rgba(0,0,0,.34))!important}
+.hj-book-turn.prev .hj-book-turn-shadow{left:0!important;background:linear-gradient(270deg,transparent,rgba(0,0,0,.34))!important}
+.reader-page-input::placeholder{color:#777c96!important;opacity:1!important}
+.epub-reader,.epub-reader iframe{background:#fff!important}
 .reader-body-full .react-pdf__Page canvas{background:#fff!important}
-`;document.head.appendChild(s)}
-function forceEpubDocument(d){if(!d)return;try{d.documentElement?.style.setProperty('background-color','#fff','important');d.documentElement?.style.setProperty('color','#111','important');d.body?.style.setProperty('background-color','#fff','important');d.body?.style.setProperty('color','#111','important');d.body?.style.setProperty('margin','0','important');d.body?.style.setProperty('min-height','100%','important');d.body?.style.setProperty('overflow-x','hidden','important');if(!d.getElementById('hj-epub-force-light-runtime')){const s=d.createElement('style');s.id='hj-epub-force-light-runtime';s.textContent='html,html body{background:#fff!important;color:#111!important}body{margin:0!important;min-height:100%!important;overflow-x:hidden!important}body,body *{color:#111!important}body *{background-color:transparent!important}img,svg,video{max-width:100%!important;background-color:transparent!important}';(d.head||d.documentElement).appendChild(s)}}catch{}}
+`
+  document.head.appendChild(s)
+}
+
+function forceEpubDocument(d){
+  if(!d)return
+  try{
+    const root=d.documentElement
+    const body=d.body
+    root?.style.setProperty('background','#fff','important')
+    root?.style.setProperty('color','#111','important')
+    body?.style.setProperty('background','#fff','important')
+    body?.style.setProperty('color','#111','important')
+    body?.style.setProperty('margin','0','important')
+    body?.style.setProperty('min-height','100%','important')
+    body?.style.setProperty('overflow-x','hidden','important')
+    if(!d.getElementById('hj-epub-force-light-runtime')){
+      const s=d.createElement('style')
+      s.id='hj-epub-force-light-runtime'
+      s.textContent='html,body{background:#fff!important;color:#111!important}body{margin:0!important;min-height:100%!important;overflow-x:hidden!important}body::selection{background:rgba(124,131,255,.25)!important;color:#111!important}img,svg,video{max-width:100%!important;height:auto!important}'
+      ;(d.head||root).appendChild(s)
+    }
+  }catch{}
+}
+
 function host(){return document.querySelector('.reader-body-full')||document.querySelector('.reader-modal')||document.body}
 function surface(){return document.querySelector('.epub-reader')||document.querySelector('.react-pdf__Page')}
-function overlay(dir,s){const h=host(),r=s.getBoundingClientRect(),hr=h.getBoundingClientRect();if(getComputedStyle(h).position==='static')h.style.position='relative';const o=document.createElement('div');o.className=`hj-turn-overlay ${dir}`;o.style.cssText=`left:${r.left-hr.left}px;top:${r.top-hr.top}px;width:${r.width}px;height:${r.height}px`;const sh=document.createElement('div'),ed=document.createElement('div');sh.className='hj-turn-shadow';ed.className='hj-turn-edge';o.append(sh,ed);h.appendChild(o);return{o,sh,ed}}
-function prep(s,dir){if(!s)return;s.style.setProperty('transform-origin',dir==='next'?'left center':'right center','important');s.style.setProperty('transform-style','preserve-3d','important');s.style.setProperty('backface-visibility','hidden','important');s.style.setProperty('transition','none','important');s.style.setProperty('will-change','transform,filter,box-shadow','important')}
-function clean(s){try{['transform','transition','transform-origin','transform-style','backface-visibility','will-change','filter','box-shadow'].forEach(x=>s?.style.removeProperty(x))}catch{}}
-function turn(dir,navigate){if(document.__hjTurnBusy)return;const old=surface();if(!old){navigate();return}document.__hjTurnBusy=true;const f=dir==='next',ov=overlay(dir,old),start=performance.now(),mid=TURN_MS*.54;let done=false,next=old;prep(old,dir);const e=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;const frame=now=>{const elapsed=now-start,p=Math.max(0,Math.min(1,elapsed/TURN_MS)),depth=Math.sin(Math.PI*p);if(!done&&elapsed>=mid){done=true;try{navigate()}catch{};requestAnimationFrame(()=>{next=surface()||old;prep(next,dir);try{next.style.setProperty('transform',f?'rotateY(-180deg)':'rotateY(180deg)','important');next.style.setProperty('filter','brightness(.82)','important')}catch{}})}if(elapsed<=mid){const t=e(Math.max(0,Math.min(1,elapsed/mid))),a=f?-180*t:180*t,lift=8*Math.sin(Math.PI*t);try{old.style.setProperty('transform',`translateZ(${lift}px) rotateY(${a}deg) scale(${1-.01*Math.sin(Math.PI*t)})`,'important');old.style.setProperty('filter',`brightness(${1-.16*Math.sin(Math.PI*t)}) drop-shadow(${f?-1:1}${2+7*Math.sin(Math.PI*t)}px ${1+3*depth}px ${5+9*depth}px rgba(0,0,0,.28))`,'important')}catch{}}else{const t=e(Math.max(0,Math.min(1,(elapsed-mid)/(TURN_MS-mid)))),a=f?-180+180*t:180-180*t,lift=8*Math.sin(Math.PI*(1-t));try{next.style.setProperty('transform',`translateZ(${lift}px) rotateY(${a}deg) scale(${1-.008*Math.sin(Math.PI*t)})`,'important');next.style.setProperty('filter',`brightness(${.82+.18*t}) drop-shadow(${f?'':'-'}${3+6*(1-t)}px ${1+3*(1-t)}px ${5+8*(1-t)}px rgba(0,0,0,.22))`,'important')}catch{}}ov.sh.style.opacity=String(.08+.56*depth);ov.sh.style.width=`${28+24*depth}%`;ov.ed.style.opacity=String(.18+.58*depth);if(elapsed<TURN_MS)requestAnimationFrame(frame);else{clean(old);clean(next);ov.o.remove();document.__hjTurnBusy=false}};requestAnimationFrame(frame)}
-function clickNav(dir){const n=document.querySelector('.reader-navigation');if(!n)return;const b=n.querySelectorAll(':scope > button'),x=dir==='next'?b[b.length-1]:b[0];if(!x||document.__hjTurnBusy)return;turn(dir,()=>{document.__hjTurnProgrammatic=true;try{x.click()}finally{setTimeout(()=>document.__hjTurnProgrammatic=false,0)}})}
-function attachNav(){document.querySelectorAll('.reader-navigation > button').forEach((b,i,bs)=>{if(b.__hjTurnInterceptor)return;b.__hjTurnInterceptor=true;b.addEventListener('click',ev=>{if(document.__hjTurnProgrammatic||document.__hjTurnBusy)return;ev.preventDefault();ev.stopImmediatePropagation();turn(i===bs.length-1?'next':'prev',()=>{document.__hjTurnProgrammatic=true;try{b.click()}finally{setTimeout(()=>document.__hjTurnProgrammatic=false,0)}})},true)})}
-function attachSwipe(d){if(!d||d.__hjRuntimeSwipeAttached)return;d.__hjRuntimeSwipeAttached=true;let sx=0,sy=0;d.addEventListener('touchstart',e=>{const t=e.changedTouches?.[0];if(t){sx=t.clientX;sy=t.clientY}},{passive:true});d.addEventListener('touchend',e=>{const t=e.changedTouches?.[0];if(!t)return;const dx=t.clientX-sx,dy=t.clientY-sy;if(Math.abs(dx)>=45&&Math.abs(dx)>Math.abs(dy)*1.2)clickNav(dx<0?'next':'prev')},{passive:true})}
-function fixFrames(){document.querySelectorAll('.epub-reader iframe').forEach(f=>{if(f.__hjRuntimeFixAttached)return;f.__hjRuntimeFixAttached=true;const a=()=>{try{forceEpubDocument(f.contentDocument);attachSwipe(f.contentDocument)}catch{}};a();f.addEventListener('load',a)})}
-function fixInputs(){document.querySelectorAll('.reader-page-input').forEach(i=>{if(i.__hjInputFix)return;i.__hjInputFix=true;i.addEventListener('focus',()=>{try{i.select()}catch{}})})}
-function init(){injectReaderStyles();fixFrames();fixInputs();attachNav();new MutationObserver(()=>{fixFrames();fixInputs();attachNav()}).observe(document.body,{childList:true,subtree:true})}
-if(typeof window!=='undefined'&&typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init()}
+
+function makeTurnPage(source,dir){
+  const h=host(),r=source.getBoundingClientRect(),hr=h.getBoundingClientRect()
+  const page=document.createElement('div')
+  page.className=`hj-book-turn ${dir}`
+  page.style.cssText=`left:${r.left-hr.left}px;top:${r.top-hr.top}px;width:${r.width}px;height:${r.height}px`
+  const clone=source.cloneNode(true)
+  clone.style.cssText='position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;transform:none!important;overflow:hidden!important;backface-visibility:hidden!important;pointer-events:none!important'
+  clone.querySelectorAll?.('canvas').forEach(c=>{c.style.maxWidth='100%';c.style.height='auto'})
+  page.appendChild(clone)
+  const shadow=document.createElement('div')
+  shadow.className='hj-book-turn-shadow'
+  page.appendChild(shadow)
+  h.appendChild(page)
+  return {page,shadow}
+}
+
+function turn(dir,navigate){
+  if(document.__hjTurnBusy)return
+  const old=surface()
+  if(!old){navigate();return}
+  document.__hjTurnBusy=true
+  const f=dir==='next'
+  const made=makeTurnPage(old,dir)
+  const page=made.page
+  const shadow=made.shadow
+  const start=performance.now()
+  const mid=TURN_MS*.46
+  let navigated=false
+  const ease=t=>1-Math.pow(1-t,3)
+  const frame=now=>{
+    const elapsed=now-start
+    const p=Math.max(0,Math.min(1,elapsed/TURN_MS))
+    if(!navigated&&elapsed>=mid){
+      navigated=true
+      try{navigate()}catch{}
+    }
+    if(elapsed<mid){
+      const t=ease(Math.max(0,Math.min(1,elapsed/mid)))
+      const angle=(f?-180:180)*t
+      const lift=18*Math.sin(Math.PI*t)
+      page.style.transform=`translateZ(${lift}px) rotateY(${angle}deg)`
+      page.style.filter=`brightness(${1-.18*Math.sin(Math.PI*t)})`
+      shadow.style.opacity=String(.08+.78*Math.sin(Math.PI*t))
+      shadow.style.width=`${26+34*Math.sin(Math.PI*t)}%`
+    }else{
+      const t=ease(Math.max(0,Math.min(1,(elapsed-mid)/(TURN_MS-mid))))
+      page.style.transform=`translateZ(${18*(1-t)}px) rotateY(${f?-180:180}deg)`
+      page.style.filter=`brightness(${.82+.18*t})`
+      shadow.style.opacity=String(.82*(1-t))
+      shadow.style.width=`${60-38*t}%`
+    }
+    if(elapsed<TURN_MS){requestAnimationFrame(frame)}else{
+      page.remove()
+      document.__hjTurnBusy=false
+    }
+  }
+  requestAnimationFrame(frame)
+}
+
+function clickNav(dir){
+  const n=document.querySelector('.reader-navigation')
+  if(!n)return
+  const b=n.querySelectorAll(':scope > button')
+  const x=dir==='next'?b[b.length-1]:b[0]
+  if(!x||document.__hjTurnBusy)return
+  turn(dir,()=>{document.__hjTurnProgrammatic=true;try{x.click()}finally{setTimeout(()=>document.__hjTurnProgrammatic=false,0)}})
+}
+
+function attachNav(){
+  document.querySelectorAll('.reader-navigation > button').forEach((b,i,bs)=>{
+    if(b.__hjTurnInterceptor)return
+    b.__hjTurnInterceptor=true
+    b.addEventListener('click',ev=>{
+      if(document.__hjTurnProgrammatic||document.__hjTurnBusy)return
+      ev.preventDefault();ev.stopImmediatePropagation()
+      turn(i===bs.length-1?'next':'prev',()=>{document.__hjTurnProgrammatic=true;try{b.click()}finally{setTimeout(()=>document.__hjTurnProgrammatic=false,0)}})
+    },true)
+  })
+}
+
+function attachSwipe(d){
+  if(!d||d.__hjRuntimeSwipeAttached)return
+  d.__hjRuntimeSwipeAttached=true
+  let sx=0,sy=0
+  d.addEventListener('touchstart',e=>{const t=e.changedTouches?.[0];if(t){sx=t.clientX;sy=t.clientY}},{passive:true})
+  d.addEventListener('touchend',e=>{const t=e.changedTouches?.[0];if(!t)return;const dx=t.clientX-sx,dy=t.clientY-sy;if(Math.abs(dx)>=55&&Math.abs(dx)>Math.abs(dy)*1.25)clickNav(dx<0?'next':'prev')},{passive:true})
+}
+
+function fixFrames(){
+  document.querySelectorAll('.epub-reader iframe').forEach(f=>{
+    const apply=()=>{try{forceEpubDocument(f.contentDocument);attachSwipe(f.contentDocument)}catch{}}
+    apply()
+    if(!f.__hjRuntimeFrameAttached){f.__hjRuntimeFrameAttached=true;f.addEventListener('load',apply)}
+  })
+}
+
+function fixInputs(){
+  document.querySelectorAll('.reader-page-input').forEach(i=>{
+    if(i.__hjInputFix)return
+    i.__hjInputFix=true
+    i.addEventListener('focus',()=>{try{i.select()}catch{}})
+  })
+}
+
+function init(){
+  injectReaderStyles();fixFrames();fixInputs();attachNav()
+  new MutationObserver(()=>{fixFrames();fixInputs();attachNav()}).observe(document.body,{childList:true,subtree:true})
+}
+
+if(typeof window!=='undefined'&&typeof document!=='undefined'){
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true})
+  else init()
+}
