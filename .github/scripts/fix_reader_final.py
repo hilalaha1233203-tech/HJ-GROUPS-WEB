@@ -35,6 +35,24 @@ new = """        await epubRenditionRef.current.display(item.href)\n        cons
 if old in s:
     s = s.replace(old, new, 1)
 
-# Avoid the final patch reintroducing duplicate work if the earlier patch already ran.
+# React-PDF must receive a stable options object. An inline object is recreated on
+# every App render, which can make react-pdf restart PDF.js loading whenever page
+# state changes. Keep the PDF.js version in sync with the installed package.
+worker_marker = """pdfjs.GlobalWorkerOptions.workerSrc = new URL(\n  'pdfjs-dist/build/pdf.worker.min.mjs',\n  import.meta.url\n).toString()\n"""
+options_block = worker_marker + """\nconst PDF_OPTIONS = Object.freeze({\n  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,\n  cMapPacked: true,\n  standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,\n})\n"""
+if "const PDF_OPTIONS = Object.freeze" not in s and worker_marker in s:
+    s = s.replace(worker_marker, options_block, 1)
+
+old_options = """                      options={{\n                        cMapUrl: `https://unpkg.com/pdfjs-dist@5.4.296/cmaps/`,\n                        cMapPacked: true,\n                        standardFontDataUrl: `https://unpkg.com/pdfjs-dist@5.4.296/standard_fonts/`,\n                      }}\n"""
+if old_options in s:
+    s = s.replace(old_options, "                      options={PDF_OPTIONS}\n", 1)
+
+# Add source-level diagnostics so a bad/HTML response is reported as a file error
+# instead of leaving the reader in an ambiguous loading state.
+needle = """          if (\n            !blob ||\n            blob.size === 0\n          ) {\n            throw new Error(\n              'The book file is empty.'\n            )\n          }\n"""
+replacement = """          if (\n            !blob ||\n            blob.size === 0\n          ) {\n            throw new Error(\n              'The book file is empty.'\n            )\n          }\n\n          if (readerType === 'pdf') {\n            const header = new TextDecoder().decode(await blob.slice(0, 5).arrayBuffer())\n            if (header !== '%PDF-') {\n              throw new Error('The selected file is not a valid PDF.')\n            }\n          }\n\n          if (readerType === 'epub') {\n            const headerBytes = new Uint8Array(await blob.slice(0, 2).arrayBuffer())\n            if (headerBytes[0] !== 0x50 || headerBytes[1] !== 0x4b) {\n              throw new Error('The selected file is not a valid EPUB archive.')\n            }\n          }\n"""
+if needle in s and "The selected file is not a valid PDF." not in s:
+    s = s.replace(needle, replacement, 1)
+
 app.write_text(s, encoding='utf-8')
 print('Final reader hardening patch completed.')
