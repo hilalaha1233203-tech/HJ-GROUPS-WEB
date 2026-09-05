@@ -1,18 +1,12 @@
 import { supabase } from '../supabase'
 
-const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000'
 
-/*
-  Bridges the Telegram-ingested Supabase tables (stories, episodes,
-  books, video_stories, video_episodes) into the exact same shape
-  App.jsx already uses for its seed/localStorage content.
-*/
-
-export function fileUrlFromId(fileId) {
+export function fileUrlFromId(fileId, mediaType = 'audio') {
   if (!fileId) return ''
   if (!fileId.includes('.')) {
-    const FUNCTIONS_URL = `${STREAMING_SERVER_URL}/audio`;
-    return `${FUNCTIONS_URL}/${encodeURIComponent(fileId)}`;
+    const route = mediaType === 'video' ? 'video' : 'audio'
+    return `${STREAMING_SERVER_URL}/${route}/${encodeURIComponent(fileId)}`
   }
 
   const { data } = supabase.storage.from('telegram_files').getPublicUrl(fileId)
@@ -25,7 +19,7 @@ function normalizeStories(storyRows, episodeRows) {
   for (const ep of episodeRows) {
     const list = episodesByStory.get(ep.story_id) || []
     const messageId = ep.telegram_message_id
-    const mediaType = ep.type || 'audio'
+    const mediaType = ep.type === 'video' ? 'video' : 'audio'
 
     list.push({
       number: ep.number || ep.episode_number,
@@ -33,8 +27,8 @@ function normalizeStories(storyRows, episodeRows) {
       type: mediaType,
       telegram_message_id: messageId || null,
       src: messageId
-        ? `${STREAMING_SERVER_URL}/${mediaType === 'video' ? 'video' : 'audio'}/message/${messageId}`
-        : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id) || null)),
+        ? `${STREAMING_SERVER_URL}/${mediaType}/message/${encodeURIComponent(messageId)}`
+        : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id, mediaType) || null)),
       available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,
     })
@@ -45,7 +39,7 @@ function normalizeStories(storyRows, episodeRows) {
     id: `tg-story-${story.id}`,
     title: story.title,
     genre: story.genre,
-    cover: fileUrlFromId(story.cover_file_id),
+    cover: fileUrlFromId(story.cover_file_id, 'image'),
     description: story.description || '',
     episodes: (episodesByStory.get(story.id) || []).sort((a, b) => a.number - b.number),
   }))
@@ -59,8 +53,8 @@ function normalizeBooks(bookRows) {
     description: book.description || '',
     type: book.type,
     category: book.category,
-    cover: fileUrlFromId(book.cover_file_id),
-    file: fileUrlFromId(book.file_id),
+    cover: fileUrlFromId(book.cover_file_id, 'image'),
+    file: fileUrlFromId(book.file_id, 'document'),
     accessType: book.access_type,
   }))
 }
@@ -76,10 +70,11 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
       number: ep.number,
       title: ep.title,
       type: 'video',
+      telegram_message_id: messageId || null,
       src: messageId
-        ? `${STREAMING_SERVER_URL}/video/message/${messageId}`
-        : fileUrlFromId(ep.file_id),
-      available: ep.available,
+        ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(messageId)}`
+        : fileUrlFromId(ep.file_id, 'video'),
+      available: ep.available !== false,
       accessType: ep.access_type,
     })
     episodesByVideo.set(ep.video_story_id, list)
@@ -89,7 +84,7 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
     id: `tg-video-${video.id}`,
     title: video.title,
     category: video.category,
-    cover: fileUrlFromId(video.cover_file_id),
+    cover: fileUrlFromId(video.cover_file_id, 'image'),
     accessType: video.access_type,
     episodes: (episodesByVideo.get(video.id) || []).sort((a, b) => a.number - b.number),
   }))
