@@ -7,7 +7,7 @@ function injectReaderStyles() {
   style.id = STYLE_ID
   style.textContent = `
     .reader-body-full {
-      perspective: 1800px !important;
+      perspective: 2200px !important;
       perspective-origin: center center !important;
       touch-action: pan-y !important;
       overscroll-behavior: contain !important;
@@ -21,45 +21,95 @@ function injectReaderStyles() {
       will-change: transform, box-shadow, filter !important;
     }
 
+    /* Slow, pronounced 3D turn. The runtime class is independent of the app's short animation class. */
+    .reader-body-full.hj-runtime-page-flip-next .epub-reader,
+    .reader-body-full.hj-runtime-page-flip-next .react-pdf__Page {
+      animation: hjRealBookNext 900ms cubic-bezier(.22,.61,.36,1) both !important;
+    }
+
+    .reader-body-full.hj-runtime-page-flip-prev .epub-reader,
+    .reader-body-full.hj-runtime-page-flip-prev .react-pdf__Page {
+      animation: hjRealBookPrev 900ms cubic-bezier(.22,.61,.36,1) both !important;
+    }
+
+    .reader-body-full.hj-runtime-page-flip-next::after,
+    .reader-body-full.hj-runtime-page-flip-prev::after {
+      content: '' !important;
+      position: absolute !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      width: 50% !important;
+      z-index: 30 !important;
+      pointer-events: none !important;
+      opacity: 0 !important;
+      background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.68) 48%, rgba(0,0,0,.28) 52%, rgba(255,255,255,0) 100%) !important;
+      filter: blur(.2px) !important;
+    }
+
+    .reader-body-full.hj-runtime-page-flip-next::after {
+      right: 0 !important;
+      transform-origin: right center !important;
+      animation: hjRealCurlNext 900ms cubic-bezier(.22,.61,.36,1) both !important;
+    }
+
+    .reader-body-full.hj-runtime-page-flip-prev::after {
+      left: 0 !important;
+      transform-origin: left center !important;
+      animation: hjRealCurlPrev 900ms cubic-bezier(.22,.61,.36,1) both !important;
+    }
+
+    /* Keep the existing app animation from making the turn feel like a quick card flip. */
     .reader-page-turn-next .epub-reader,
     .reader-page-turn-next .react-pdf__Page {
-      animation: hjRuntimePageNext 360ms cubic-bezier(.18,.72,.16,1) both !important;
+      animation: hjRuntimePageNext 900ms cubic-bezier(.22,.61,.36,1) both !important;
     }
 
     .reader-page-turn-prev .epub-reader,
     .reader-page-turn-prev .react-pdf__Page {
-      animation: hjRuntimePagePrev 360ms cubic-bezier(.18,.72,.16,1) both !important;
-    }
-
-    .reader-page-turn-next::before,
-    .reader-page-turn-prev::before {
-      content: '' !important;
-      position: absolute !important;
-      top: 1% !important;
-      bottom: 1% !important;
-      width: 58% !important;
-      z-index: 15 !important;
-      pointer-events: none !important;
-      opacity: 0 !important;
-      border-radius: 2px !important;
-      background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.78) 45%, rgba(0,0,0,.22) 50%, rgba(255,255,255,0) 72%) !important;
-    }
-
-    .reader-page-turn-next::before {
-      right: -5% !important;
-      transform-origin: right center !important;
-      animation: hjRuntimeCurlNext 360ms ease both !important;
-    }
-
-    .reader-page-turn-prev::before {
-      left: -5% !important;
-      transform-origin: left center !important;
-      animation: hjRuntimeCurlPrev 360ms ease both !important;
+      animation: hjRuntimePagePrev 900ms cubic-bezier(.22,.61,.36,1) both !important;
     }
 
     .reader-page-input::placeholder {
       color: #777c96 !important;
       opacity: 1 !important;
+    }
+
+    @keyframes hjRealBookNext {
+      0% { transform: rotateY(0deg) translate3d(0,0,0) scale(1); box-shadow: 0 18px 50px rgba(0,0,0,.28); filter: brightness(1); }
+      16% { transform: rotateY(-8deg) translate3d(-3px,0,0) scale(.999); box-shadow: 12px 20px 48px rgba(0,0,0,.36); }
+      42% { transform: rotateY(-42deg) translate3d(-18px,0,0) scale(.992); box-shadow: 42px 24px 65px rgba(0,0,0,.52); filter: brightness(.93); }
+      62% { transform: rotateY(-72deg) translate3d(-31px,0,0) scale(.982); box-shadow: 62px 26px 75px rgba(0,0,0,.58); filter: brightness(.84); }
+      78% { transform: rotateY(-24deg) translate3d(-10px,0,0) scale(.996); box-shadow: 26px 21px 55px rgba(0,0,0,.42); filter: brightness(.98); }
+      92% { transform: rotateY(3deg) translate3d(2px,0,0) scale(1.001); box-shadow: -5px 18px 48px rgba(0,0,0,.30); filter: brightness(1.01); }
+      100% { transform: rotateY(0deg) translate3d(0,0,0) scale(1); box-shadow: 0 18px 50px rgba(0,0,0,.28); filter: brightness(1); }
+    }
+
+    @keyframes hjRealBookPrev {
+      0% { transform: rotateY(0deg) translate3d(0,0,0) scale(1); box-shadow: 0 18px 50px rgba(0,0,0,.28); filter: brightness(1); }
+      16% { transform: rotateY(8deg) translate3d(3px,0,0) scale(.999); box-shadow: -12px 20px 48px rgba(0,0,0,.36); }
+      42% { transform: rotateY(42deg) translate3d(18px,0,0) scale(.992); box-shadow: -42px 24px 65px rgba(0,0,0,.52); filter: brightness(.93); }
+      62% { transform: rotateY(72deg) translate3d(31px,0,0) scale(.982); box-shadow: -62px 26px 75px rgba(0,0,0,.58); filter: brightness(.84); }
+      78% { transform: rotateY(24deg) translate3d(10px,0,0) scale(.996); box-shadow: -26px 21px 55px rgba(0,0,0,.42); filter: brightness(.98); }
+      92% { transform: rotateY(-3deg) translate3d(-2px,0,0) scale(1.001); box-shadow: 5px 18px 48px rgba(0,0,0,.30); filter: brightness(1.01); }
+      100% { transform: rotateY(0deg) translate3d(0,0,0) scale(1); box-shadow: 0 18px 50px rgba(0,0,0,.28); filter: brightness(1); }
+    }
+
+    @keyframes hjRealCurlNext {
+      0% { opacity:0; transform: rotateY(0deg) translateX(0); }
+      15% { opacity:.15; transform: rotateY(-12deg) translateX(0); }
+      40% { opacity:.72; transform: rotateY(-48deg) translateX(-12%); }
+      62% { opacity:.48; transform: rotateY(-78deg) translateX(-28%); }
+      82% { opacity:.12; transform: rotateY(-105deg) translateX(-46%); }
+      100% { opacity:0; transform: rotateY(-118deg) translateX(-58%); }
+    }
+
+    @keyframes hjRealCurlPrev {
+      0% { opacity:0; transform: rotateY(0deg) translateX(0); }
+      15% { opacity:.15; transform: rotateY(12deg) translateX(0); }
+      40% { opacity:.72; transform: rotateY(48deg) translateX(12%); }
+      62% { opacity:.48; transform: rotateY(78deg) translateX(28%); }
+      82% { opacity:.12; transform: rotateY(105deg) translateX(46%); }
+      100% { opacity:0; transform: rotateY(118deg) translateX(58%); }
     }
 
     @keyframes hjRuntimePageNext {
@@ -76,20 +126,6 @@ function injectReaderStyles() {
       55% { transform: rotateY(17deg) translateX(20px) scale(.982); box-shadow: -38px 22px 58px rgba(0,0,0,.56); }
       80% { transform: rotateY(5deg) translateX(7px) scale(.997); box-shadow: -15px 20px 43px rgba(0,0,0,.43); }
       100% { transform: rotateY(0) translateX(0) scale(1); box-shadow: 0 18px 50px rgba(0,0,0,.38); }
-    }
-
-    @keyframes hjRuntimeCurlNext {
-      0% { opacity:0; transform: translateX(24%) rotateY(0); }
-      22% { opacity:.8; transform: translateX(0) rotateY(-18deg); }
-      55% { opacity:.38; transform: translateX(-22%) rotateY(-46deg); }
-      100% { opacity:0; transform: translateX(-48%) rotateY(-68deg); }
-    }
-
-    @keyframes hjRuntimeCurlPrev {
-      0% { opacity:0; transform: translateX(-24%) rotateY(0); }
-      22% { opacity:.8; transform: translateX(0) rotateY(18deg); }
-      55% { opacity:.38; transform: translateX(22%) rotateY(46deg); }
-      100% { opacity:0; transform: translateX(48%) rotateY(68deg); }
     }
 
     .epub-reader,
@@ -128,12 +164,41 @@ function forceEpubDocument(doc) {
   } catch { }
 }
 
+function animateReaderTurn(direction) {
+  const reader = document.querySelector('.reader-body-full')
+  if (!reader) return
+
+  reader.classList.remove('hj-runtime-page-flip-next', 'hj-runtime-page-flip-prev')
+  void reader.offsetWidth
+  reader.classList.add(direction === 'next' ? 'hj-runtime-page-flip-next' : 'hj-runtime-page-flip-prev')
+
+  window.clearTimeout(reader.__hjTurnTimer)
+  reader.__hjTurnTimer = window.setTimeout(() => {
+    reader.classList.remove('hj-runtime-page-flip-next', 'hj-runtime-page-flip-prev')
+  }, 940)
+}
+
 function clickReaderNavigation(direction) {
+  animateReaderTurn(direction)
   const navigation = document.querySelector('.reader-navigation')
   if (!navigation) return
   const buttons = navigation.querySelectorAll(':scope > button')
   if (direction === 'next') buttons[buttons.length - 1]?.click()
   else buttons[0]?.click()
+}
+
+function attachNavigationAnimation() {
+  const reader = document.querySelector('.reader-body-full')
+  if (!reader || reader.__hjNavigationAnimationAttached) return
+  reader.__hjNavigationAnimationAttached = true
+
+  reader.addEventListener('click', (event) => {
+    const button = event.target.closest('.reader-navigation > button')
+    if (!button) return
+    const buttons = reader.querySelectorAll('.reader-navigation > button')
+    const direction = button === buttons[buttons.length - 1] ? 'next' : 'prev'
+    animateReaderTurn(direction)
+  }, true)
 }
 
 function attachSwipe(doc) {
@@ -203,10 +268,12 @@ function initReaderEnhancements() {
   injectReaderStyles()
   fixEpubIframes()
   fixPageInputs()
+  attachNavigationAnimation()
 
   const observer = new MutationObserver(() => {
     fixEpubIframes()
     fixPageInputs()
+    attachNavigationAnimation()
   })
   observer.observe(document.body, { childList: true, subtree: true })
 }
