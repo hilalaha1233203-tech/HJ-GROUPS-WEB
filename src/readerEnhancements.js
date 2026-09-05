@@ -33,10 +33,20 @@ function surface(){return document.querySelector('.epub-reader')||document.query
 
 function makeTurnPage(source,dir){
   const h=host(),r=source.getBoundingClientRect(),hr=h.getBoundingClientRect();if(getComputedStyle(h).position==='static')h.style.position='relative'
+  const live=source.classList.contains('epub-reader')
+  if(live){
+    source.style.setProperty('transform-origin',dir==='next'?'left center':'right center','important')
+    source.style.setProperty('transform-style','preserve-3d','important')
+    source.style.setProperty('backface-visibility','hidden','important')
+    source.style.setProperty('will-change','transform,filter','important')
+    return{page:source,fold:null,shadow:null,edge:null,live:true}
+  }
   const page=document.createElement('div');page.className=`hj-book-turn ${dir}`;page.style.cssText=`left:${r.left-hr.left}px;top:${r.top-hr.top}px;width:${r.width}px;height:${r.height}px`
   const clone=source.cloneNode(true);clone.style.cssText='position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;transform:none!important;overflow:hidden!important;backface-visibility:hidden!important;pointer-events:none!important';clone.querySelectorAll?.('canvas').forEach(c=>{c.style.maxWidth='100%';c.style.height='auto'})
-  const fold=document.createElement('div'),shadow=document.createElement('div'),edge=document.createElement('div');fold.className='hj-book-fold';shadow.className='hj-book-turn-shadow';edge.className='hj-book-edge';page.append(clone,fold,shadow,edge);h.appendChild(page);return{page,fold,shadow,edge}
+  const fold=document.createElement('div'),shadow=document.createElement('div'),edge=document.createElement('div');fold.className='hj-book-fold';shadow.className='hj-book-turn-shadow';edge.className='hj-book-edge';page.append(clone,fold,shadow,edge);h.appendChild(page);return{page,fold,shadow,edge,live:false}
 }
+
+function clearLivePage(page){try{['transform','filter','transform-origin','transform-style','backface-visibility','will-change'].forEach(x=>page?.style.removeProperty(x))}catch{}}
 
 function turn(dir,navigate){
   if(document.__hjTurnBusy)return
@@ -52,11 +62,18 @@ function turn(dir,navigate){
       page.style.filter=`brightness(${1-.22*curve}) contrast(${1+.04*curve}) drop-shadow(${f?-2:2}${5+14*curve}px ${2+5*curve}px ${8+18*curve}px rgba(0,0,0,.34))`
     }else{
       const t=ease(Math.max(0,Math.min(1,(elapsed-mid)/(TURN_MS-mid)))),angle=f?-178+178*t:178-178*t,curve=Math.sin(Math.PI*(1-t)),lift=16*curve,bend=(f?3.8:-3.8)*curve
-      page.style.transform=`translateZ(${lift}px) rotateY(${angle}deg) rotateZ(${bend}deg) scale(${1-.008*curve})`
+      page.style.transform=`translateZ(${lift}px rotateY(${angle}deg) rotateZ(${bend}deg) scale(${1-.008*curve})`
       page.style.filter=`brightness(${.76+.24*t}) contrast(${1+.025*curve}) drop-shadow(${f?'':'-'}${3+12*(1-t)}px ${2+5*(1-t)}px ${8+16*(1-t)}px rgba(0,0,0,.28))`
     }
-    made.shadow.style.opacity=String(.06+.78*depth);made.shadow.style.width=`${30+38*depth}%`;made.fold.style.opacity=String(.10+.78*depth);made.fold.style.transform=`scaleX(${1+.8*depth})`;made.edge.style.opacity=String(.10+.78*depth)
-    if(elapsed<TURN_MS)requestAnimationFrame(frame);else{page.remove();document.__hjTurnBusy=false}
+    if(made.live){
+      const fold=Math.sin(Math.PI*p)
+      page.style.setProperty('border-radius',`${f?0:3}% ${f?3:0}% ${f?3:0}% ${f?0:3}%`,'important')
+      page.style.setProperty('clip-path',`inset(0 ${f?0:Math.min(7,fold*7)}% 0 ${f?Math.min(7,fold*7):0}% round ${2+fold*10}px)`,'important')
+    }else{
+      made.shadow.style.opacity=String(.06+.78*depth);made.shadow.style.width=`${30+38*depth}%`;made.fold.style.opacity=String(.10+.78*depth);made.fold.style.transform=`scaleX(${1+.8*depth})`;made.edge.style.opacity=String(.10+.78*depth)
+    }
+    if(elapsed<TURN_MS)requestAnimationFrame(frame)
+    else{if(made.live){clearLivePage(page);page.style.removeProperty('border-radius');page.style.removeProperty('clip-path')}else page.remove();document.__hjTurnBusy=false}
   }
   requestAnimationFrame(frame)
 }
