@@ -1,0 +1,1 @@
+Reader UX hardening is applied by the fix_reader_ux workflow patcher.
