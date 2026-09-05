@@ -145,8 +145,8 @@ replacement = '''  const persistStories = (list) => {
 '''
 s = s[:start] + replacement + s[end:]
 
-# Remove the older local-only episode/story handlers left behind by the previous patch.
-old_start = s.find('  const addEpisodeToStory = (')
+# Remove any older local-only story/episode handlers left behind by previous patches.
+old_start = s.find('  const addStory = (story) =>')
 old_end = s.find('  const addBook = (', old_start)
 if old_start != -1 and old_end != -1:
     s = s[:old_start] + s[old_end:]
