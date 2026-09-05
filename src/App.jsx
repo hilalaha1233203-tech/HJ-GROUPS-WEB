@@ -501,9 +501,15 @@ function App() {
   ======================================================= */
 
   const [adminStories, setAdminStories] =
-    useState(() =>
-      loadList('hj_admin_stories')
-    )
+    useState(() => {
+      const list = loadList('hj_admin_stories')
+      const blockedTitles = new Set(['கி.பி2500', 'Cult'])
+      const filtered = list.filter((story) => !blockedTitles.has(String(story?.title || '').trim()))
+      if (filtered.length !== list.length) {
+        saveList('hj_admin_stories', filtered)
+      }
+      return filtered
+    })
 
   const [adminBooks, setAdminBooks] =
     useState(() =>
