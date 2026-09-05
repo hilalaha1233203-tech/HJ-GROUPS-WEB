@@ -555,6 +555,14 @@ function App() {
   const [pdfPages, setPdfPages] =
     useState(0)
 
+  const BOOK_FREE_PAGES = 50
+
+  const [readerPageTurn, setReaderPageTurn] =
+    useState('')
+
+  const [readAloudWord, setReadAloudWord] =
+    useState('')
+
   const [pdfPage, setPdfPage] =
     useState(1)
 
@@ -2285,6 +2293,128 @@ function App() {
     }
 
   /* =======================================================
+     READ ALOUD WORD HIGHLIGHT
+  ======================================================= */
+
+  const clearReadAloudHighlight = () => {
+    const clearDocument = (doc) => {
+      if (!doc?.querySelectorAll) return
+      doc.querySelectorAll('mark.reader-speech-word').forEach((mark) => {
+        const parent = mark.parentNode
+        if (!parent) return
+        parent.replaceChild(doc.createTextNode(mark.textContent || ''), mark)
+        parent.normalize()
+      })
+    }
+
+    clearDocument(document)
+
+    const iframe = epubContainerRef.current?.querySelector('iframe')
+    try {
+      clearDocument(iframe?.contentDocument)
+    } catch { }
+  }
+
+  const highlightReadAloudWord = (chunk, charIndex) => {
+    const text = String(chunk || '')
+    const index = Math.max(0, Number(charIndex) || 0)
+    const wordMatch = text.slice(index).match(/[^\s.,!?;:()[\]{}"'“”‘’]+/u)
+    const word = wordMatch?.[0] || ''
+    if (!word) return
+
+    setReadAloudWord(word)
+    clearReadAloudHighlight()
+
+    const highlightInDocument = (doc) => {
+      if (!doc?.body) return false
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+      const nodes = []
+      let node
+      let total = 0
+
+      while ((node = walker.nextNode())) {
+        const parent = node.parentElement
+        if (!parent || parent.closest('script,style,mark.reader-speech-word')) continue
+        const value = node.nodeValue || ''
+        nodes.push({ node, start: total, end: total + value.length })
+        total += value.length
+      }
+
+      let target = null
+      let bestDistance = Infinity
+      for (const item of nodes) {
+        const distance = index >= item.start && index <= item.end
+          ? 0
+          : Math.min(Math.abs(index - item.start), Math.abs(index - item.end))
+        if (distance < bestDistance) {
+          bestDistance = distance
+          target = item
+        }
+      }
+
+      if (!target) return false
+
+      const value = target.node.nodeValue || ''
+      const localStart = Math.max(0, Math.min(value.length, index - target.start))
+      const tail = value.slice(localStart)
+      const exact = tail.match(/^[^\s.,!?;:()[\]{}"'“”‘’]+/u)
+      if (!exact) return false
+
+      const range = doc.createRange()
+      range.setStart(target.node, localStart)
+      range.setEnd(target.node, localStart + exact[0].length)
+      const mark = doc.createElement('mark')
+      mark.className = 'reader-speech-word'
+      mark.textContent = exact[0]
+      range.deleteContents()
+      range.insertNode(mark)
+      return true
+    }
+
+    if (readerType === 'epub') {
+      const iframe = epubContainerRef.current?.querySelector('iframe')
+      try {
+        highlightInDocument(iframe?.contentDocument)
+      } catch { }
+    } else {
+      highlightInDocument(document)
+    }
+  }
+
+  const animateReaderTurn = (direction, callback) => {
+    setReaderPageTurn(direction)
+    window.setTimeout(() => {
+      callback?.()
+      window.setTimeout(() => setReaderPageTurn(''), 380)
+    }, 30)
+  }
+
+  const getBookAccessKey = (book) =>
+    book ? adsKeyFor('book', book.id) : undefined
+
+  const canReadBookPage = (pageNumber, book = readerBook) => {
+    if (!book) return false
+    if (Number(pageNumber) <= BOOK_FREE_PAGES) return true
+    return canAccessContent(book, getBookAccessKey(book), book.id)
+  }
+
+  const requestBookPageAccess = (pageNumber, onGranted) => {
+    if (canReadBookPage(pageNumber)) {
+      onGranted?.()
+      return true
+    }
+
+    if (!readerBook) return false
+    requestAccess(
+      readerBook,
+      getBookAccessKey(readerBook),
+      onGranted,
+      readerBook.id
+    )
+    return false
+  }
+
+  /* =======================================================
      STOP READ ALOUD
   ======================================================= */
 
@@ -2315,6 +2445,8 @@ function App() {
       setIsReading(false)
       setReadAloudProgress(0)
       setReadAloudLabel('')
+      setReadAloudWord('')
+      clearReadAloudHighlight()
     }
 
   /* =======================================================
@@ -2480,18 +2612,14 @@ function App() {
                 pdfPage <
                 pdfPages
               ) {
-                pendingAutoReadRef.current =
-                  true
-
-                setPdfPage(
-                  (
-                    current
-                  ) =>
-                    Math.min(
-                      current +
-                      1,
-                      pdfPages
-                    )
+                requestBookPageAccess(
+                  pdfPage + 1,
+                  () => {
+                    pendingAutoReadRef.current = true
+                    animateReaderTurn('next', () => {
+                      setPdfPage((current) => Math.min(current + 1, pdfPages))
+                    })
+                  }
                 )
 
                 return
@@ -2507,10 +2635,13 @@ function App() {
               'epub' &&
               epubReady
             ) {
-              pendingAutoReadRef.current =
-                true
-
-              epubNext()
+              requestBookPageAccess(
+                epubPage + 1,
+                () => {
+                  pendingAutoReadRef.current = true
+                  animateReaderTurn('next', () => epubNext())
+                }
+              )
             }
           }
 
@@ -2581,6 +2712,11 @@ function App() {
             typeof event.charIndex ===
             'number'
           ) {
+            highlightReadAloudWord(
+              chunk,
+              event.charIndex
+            )
+
             const withinChunk =
               chunk.length
                 ? event.charIndex /
@@ -3006,41 +3142,14 @@ function App() {
 
   const startReadingBook =
     (book) => {
-      const adsKey =
-        adsKeyFor(
-          'book',
-          book.id
-        )
-
-      requestAccess(
-        book,
-        adsKey,
-        () =>
-          openReaderForBook(
-            book
-          )
-      )
+      if (!book) return
+      openReaderForBook(book)
     }
 
   const startReadAloudForBook =
     (book) => {
-      const adsKey =
-        adsKeyFor(
-          'book',
-          book.id
-        )
-
-      requestAccess(
-        book,
-        adsKey,
-        () =>
-          openReaderForBook(
-            book,
-            {
-              autoRead: true,
-            }
-          )
-      )
+      if (!book) return
+      openReaderForBook(book, { autoRead: true })
     }
 
   const openBook =
@@ -3852,63 +3961,37 @@ function App() {
 
   const readerPrevious =
     () => {
-      const wasReading =
-        isReading
+      const wasReading = isReading
+      if (isReading) stopReadAloud()
 
-      if (isReading) {
-        stopReadAloud()
-      }
-
-      if (
-        readerType ===
-        'pdf'
-      ) {
-        setPdfPage(
-          (current) =>
-            Math.max(
-              1,
-              current - 1
-            )
-        )
+      if (readerType === 'pdf') {
+        if (pdfPage <= 1) return
+        animateReaderTurn('prev', () => setPdfPage((current) => Math.max(1, current - 1)))
       } else {
-        epubPrevious()
+        animateReaderTurn('prev', () => epubPrevious())
       }
 
-      if (wasReading) {
-        pendingAutoReadRef.current =
-          true
-      }
+      if (wasReading) pendingAutoReadRef.current = true
     }
 
   const readerNext =
     () => {
-      const wasReading =
-        isReading
+      const wasReading = isReading
+      if (isReading) stopReadAloud()
 
-      if (isReading) {
-        stopReadAloud()
-      }
-
-      if (
-        readerType ===
-        'pdf'
-      ) {
-        setPdfPage(
-          (current) =>
-            Math.min(
-              pdfPages ||
-              current + 1,
-              current + 1
-            )
-        )
+      if (readerType === 'pdf') {
+        const target = Math.min(pdfPages || pdfPage + 1, pdfPage + 1)
+        if (target <= pdfPage) return
+        requestBookPageAccess(target, () => {
+          animateReaderTurn('next', () => setPdfPage(target))
+        })
       } else {
-        epubNext()
+        requestBookPageAccess(epubPage + 1, () => {
+          animateReaderTurn('next', () => epubNext())
+        })
       }
 
-      if (wasReading) {
-        pendingAutoReadRef.current =
-          true
-      }
+      if (wasReading) pendingAutoReadRef.current = true
     }
 
   /* =======================================================
@@ -3929,13 +4012,12 @@ function App() {
         stopReadAloud()
       }
 
-      setPdfPage(
-        item.page
-      )
-
-      setChapterPanelOpen(
-        false
-      )
+      requestBookPageAccess(item.page, () => {
+        animateReaderTurn(item.page >= pdfPage ? 'next' : 'prev', () => {
+          setPdfPage(item.page)
+          setChapterPanelOpen(false)
+        })
+      })
     }
 
   const jumpToEpubChapter =
@@ -6779,7 +6861,7 @@ function App() {
               {/* READER BODY */}
 
               <div
-                className="reader-body reader-body-full"
+                className={`reader-body reader-body-full ${readerPageTurn ? `reader-page-turn-${readerPageTurn}` : ""}`} 
                 ref={
                   readerBodyRef
                 }
@@ -6907,6 +6989,11 @@ function App() {
             {/* BOTTOM READER CONTROLS */}
 
             <div className="reader-bottom">
+              {readAloudWord && isReading && (
+                <div className="reader-word-indicator" aria-live="polite">
+                  {readAloudWord}
+                </div>
+              )}
               <div className="reader-navigation">
                 <button
                   disabled={
@@ -7119,6 +7206,7 @@ function App() {
                   onClick={
                     readerPrevious
                   }
+                  title="Previous page / chapter"
                 >
                   ⏮
                 </button>
@@ -7138,6 +7226,7 @@ function App() {
                   onClick={
                     readerNext
                   }
+                  title="Next page / chapter"
                 >
                   ⏭
                 </button>

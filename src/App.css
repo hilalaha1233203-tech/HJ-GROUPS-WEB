@@ -3301,3 +3301,65 @@ main {
       7px 8px;
   }
 }
+
+/* =========================================================
+   BOOK READER / READ ALOUD ENHANCEMENTS
+========================================================= */
+.reader-body-full {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+.reader-page-turn-next {
+  animation: hjReaderPageNext 420ms ease both;
+}
+
+.reader-page-turn-prev {
+  animation: hjReaderPagePrev 420ms ease both;
+}
+
+@keyframes hjReaderPageNext {
+  0% { opacity: .78; transform: rotateY(-7deg) translateX(16px); }
+  45% { opacity: .92; transform: rotateY(3deg) translateX(-5px); }
+  100% { opacity: 1; transform: rotateY(0) translateX(0); }
+}
+
+@keyframes hjReaderPagePrev {
+  0% { opacity: .78; transform: rotateY(7deg) translateX(-16px); }
+  45% { opacity: .92; transform: rotateY(-3deg) translateX(5px); }
+  100% { opacity: 1; transform: rotateY(0) translateX(0); }
+}
+
+.reader-speech-word {
+  background: rgba(124, 131, 255, .38);
+  color: inherit;
+  border-radius: 4px;
+  padding: 1px 3px;
+  box-shadow: 0 0 0 1px rgba(124, 131, 255, .25), 0 2px 10px rgba(124, 131, 255, .18);
+}
+
+.reader-word-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin: 0 auto 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(124, 131, 255, .12);
+  border: 1px solid rgba(124, 131, 255, .28);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  max-width: min(80vw, 520px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-page-turn-next,
+  .reader-page-turn-prev {
+    animation: none;
+  }
+}
