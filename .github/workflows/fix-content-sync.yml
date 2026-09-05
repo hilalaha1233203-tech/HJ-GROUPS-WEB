@@ -19,6 +19,9 @@ jobs:
       - name: Run content sync patcher
         run: python3 .github/scripts/fix_content_sync.py
 
+      - name: Run player hardening patcher
+        run: python3 .github/scripts/fix_player.py
+
       - name: Commit patched files
         run: |
           git config user.name 'github-actions[bot]'
