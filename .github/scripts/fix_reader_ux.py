@@ -34,6 +34,127 @@ anchor = "  const sleepTimerRef = useRef(null)\n\n"
 if voice_effect not in app and anchor in app:
     app = app.replace(anchor, anchor + voice_effect, 1)
 
+# Sarvam Bulbul v3 is used for Tamil narration when the secure Vercel proxy is
+# configured. The Web Speech API remains the fallback for devices without the
+# server-side TTS key. This keeps the API key out of the browser bundle.
+sarvam_bridge = r'''const installSarvamTamilSpeechBridge = () => {
+  if (typeof window === 'undefined' || !window.speechSynthesis || window.__hjSarvamSpeechBridge) return () => {}
+
+  const synthesis = window.speechSynthesis
+  const originalSpeak = synthesis.speak.bind(synthesis)
+  const originalCancel = synthesis.cancel.bind(synthesis)
+  const originalPause = synthesis.pause?.bind(synthesis)
+  const originalResume = synthesis.resume?.bind(synthesis)
+  let activeAudio = null
+  let run = 0
+  const cache = new Map()
+
+  const isTamil = (text) => /[\u0B80-\u0BFF]/u.test(String(text || ''))
+
+  const getAudio = async (text, token) => {
+    const key = text.trim()
+    if (cache.has(key)) return cache.get(key)
+    const promise = fetch('/api/sarvam-tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: key,
+        language_code: 'ta-IN',
+        model: 'bulbul:v3',
+        speaker: 'ishita',
+        pace: 0.92,
+      }),
+    }).then(async (response) => {
+      if (!response.ok) throw new Error(`Sarvam TTS ${response.status}`)
+      return response.blob()
+    })
+    cache.set(key, promise)
+    try { return await promise } catch (error) { cache.delete(key); throw error }
+  }
+
+  const stopAudio = () => {
+    run += 1
+    if (activeAudio) {
+      try { activeAudio.pause() } catch {}
+      try { activeAudio.currentTime = 0 } catch {}
+      activeAudio = null
+    }
+  }
+
+  synthesis.speak = (utterance) => {
+    const text = String(utterance?.text || '').trim()
+    if (!text || !isTamil(text)) {
+      originalSpeak(utterance)
+      return
+    }
+
+    const token = ++run
+    try { utterance.onstart?.(new Event('start')) } catch {}
+
+    getAudio(text, token).then((blob) => {
+      if (token !== run) return
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      activeAudio = audio
+      audio.volume = Number.isFinite(utterance.volume) ? utterance.volume : 1
+      audio.playbackRate = Math.max(0.75, Math.min(1.15, Number(utterance.rate) || 1))
+      audio.onended = () => {
+        if (token !== run) return
+        activeAudio = null
+        URL.revokeObjectURL(url)
+        try { utterance.onend?.(new Event('end')) } catch {}
+      }
+      audio.onerror = () => {
+        if (token !== run) return
+        activeAudio = null
+        URL.revokeObjectURL(url)
+        try { utterance.onerror?.(new Event('error')) } catch {}
+      }
+      return audio.play()
+    }).catch(() => {
+      if (token !== run) return
+      try { utterance.onerror?.(new Event('error')) } catch {}
+    })
+  }
+
+  synthesis.cancel = () => {
+    stopAudio()
+    try { originalCancel() } catch {}
+  }
+  synthesis.pause = () => {
+    if (activeAudio) { try { activeAudio.pause() } catch {} }
+    try { originalPause?.() } catch {}
+  }
+  synthesis.resume = () => {
+    if (activeAudio) { try { activeAudio.play() } catch {} }
+    try { originalResume?.() } catch {}
+  }
+
+  window.__hjSarvamSpeechBridge = true
+  return () => {
+    stopAudio()
+    synthesis.speak = originalSpeak
+    synthesis.cancel = originalCancel
+    if (originalPause) synthesis.pause = originalPause
+    if (originalResume) synthesis.resume = originalResume
+    for (const promise of cache.values()) promise.then(() => {}).catch(() => {})
+    cache.clear()
+    delete window.__hjSarvamSpeechBridge
+  }
+}
+'''
+if 'installSarvamTamilSpeechBridge' not in app:
+    app = app.replace('function App() {', sarvam_bridge + '\nfunction App() {', 1)
+
+bridge_effect = """  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    return installSarvamTamilSpeechBridge()
+  }, [])
+
+"""
+if bridge_effect not in app and voice_effect and anchor in app:
+    app = app.replace(anchor + voice_effect, anchor + bridge_effect + voice_effect, 1)
+
 app = app.replace("const chunkTextForSpeech = (text, maxLength = 700) => {", "const chunkTextForSpeech = (text, maxLength = 240) => {", 1)
 app = app.replace("          700\n        )", "          240\n        )", 1)
 app = app.replace(
@@ -47,10 +168,6 @@ new = """      const utterance =\n        new SpeechSynthesisUtterance(\n       
 if old in app:
     app = app.replace(old, new, 1)
 
-# Small pause between Tamil chunks prevents words at sentence boundaries from
-# being swallowed together by some Android speech engines.
-app = app.replace("      window.speechSynthesis.speak(utterance)", "      window.speechSynthesis.speak(utterance)", 1)
-
 APP.write_text(app, encoding='utf-8')
 
 # Keep reader controls and book-turn styling stable; the runtime enhancement
@@ -60,7 +177,7 @@ if 'REAL BOOK PAGE TURN + SWIPE' not in css:
 
 /* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
 .reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: hidden; transform-style: preserve-3d; }
+.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
 '''
 CSS.write_text(css, encoding='utf-8')
 print('reader UX hardening applied')
