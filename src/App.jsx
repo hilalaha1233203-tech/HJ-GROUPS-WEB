@@ -1164,11 +1164,10 @@ function App() {
       '/hj-groups-logo.png'
 
     img.onload = () => {
-      const targetWidth =
-        Math.min(
-          320,
-          width * 0.4
-        )
+      const isMobile = width <= 700
+      const targetWidth = isMobile
+        ? Math.min(240, width * 0.78)
+        : Math.min(320, width * 0.4)
 
       const scale =
         targetWidth /
@@ -1222,8 +1221,9 @@ function App() {
         width / 2 -
         targetWidth / 2
 
-      const originY =
-        height * 0.14
+      const originY = isMobile
+        ? Math.max(88, height * 0.12)
+        : height * 0.14
 
       const step =
         targetWidth > 220
