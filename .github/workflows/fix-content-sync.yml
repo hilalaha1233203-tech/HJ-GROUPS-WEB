@@ -22,6 +22,9 @@ jobs:
       - name: Run player hardening patcher
         run: python3 .github/scripts/fix_player.py
 
+      - name: Run access-control hardening patcher
+        run: python3 .github/scripts/fix_access_control.py
+
       - name: Commit patched files
         run: |
           git config user.name 'github-actions[bot]'
