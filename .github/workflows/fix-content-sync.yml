@@ -34,6 +34,9 @@ jobs:
       - name: Run EPUB unlock flow patcher
         run: python3 .github/scripts/fix_reader_access2.py
 
+      - name: Run final reader hardening patcher
+        run: python3 .github/scripts/fix_reader_final.py
+
       - name: Commit patched files
         run: |
           git config user.name 'github-actions[bot]'
