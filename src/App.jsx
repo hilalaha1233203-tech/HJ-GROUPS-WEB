@@ -38,6 +38,12 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString()
 
+const PDF_OPTIONS = Object.freeze({
+  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+  cMapPacked: true,
+  standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+})
+
 const ADMIN_EMAIL = 'hilalaha1233203@gmail.com'
 
 /* =========================================================
@@ -2307,7 +2313,7 @@ function App() {
       })
     }
 
-    clearDocument(document)
+    clearDocument(readerBodyRef.current)
 
     const iframe = epubContainerRef.current?.querySelector('iframe')
     try {
@@ -2327,7 +2333,9 @@ function App() {
 
     const highlightInDocument = (doc) => {
       if (!doc?.body) return false
-      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+      const root = doc === document ? readerBodyRef.current : doc.body
+      if (!root) return false
+      const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT)
       const nodes = []
       let node
       let total = 0
@@ -3271,6 +3279,20 @@ function App() {
             )
           }
 
+          if (readerType === 'pdf') {
+            const header = new TextDecoder().decode(await blob.slice(0, 5).arrayBuffer())
+            if (header !== '%PDF-') {
+              throw new Error('The selected file is not a valid PDF.')
+            }
+          }
+
+          if (readerType === 'epub') {
+            const headerBytes = new Uint8Array(await blob.slice(0, 2).arrayBuffer())
+            if (headerBytes[0] !== 0x50 || headerBytes[1] !== 0x4b) {
+              throw new Error('The selected file is not a valid EPUB archive.')
+            }
+          }
+
           const objectUrl =
             URL.createObjectURL(
               blob
@@ -4036,13 +4058,31 @@ function App() {
       }
 
       try {
-        await epubRenditionRef.current.display(
-          item.href
-        )
+        await epubRenditionRef.current.display(item.href)
+        const location = epubRenditionRef.current.currentLocation()
+        const cfi = location?.start?.cfi
+        const book = epubBookRef.current
+        const target = cfi && book?.locations?.length
+          ? book.locations.locationFromCfi(cfi) + 1
+          : epubPage
 
-        setChapterPanelOpen(
-          false
-        )
+        if (!canReadBookPage(target)) {
+          await epubRenditionRef.current.display(
+            book.locations.cfiFromLocation(Math.max(0, BOOK_FREE_PAGES - 1))
+          )
+          setEpubPage(Math.min(BOOK_FREE_PAGES, book.locations.length || BOOK_FREE_PAGES))
+          requestBookPageAccess(target, () => {
+            animateReaderTurn('next', async () => {
+              await epubRenditionRef.current.display(item.href)
+              setEpubPage(target)
+              setChapterPanelOpen(false)
+            })
+          })
+          return
+        }
+
+        animateReaderTurn(target >= epubPage ? 'next' : 'prev', () => {})
+        setChapterPanelOpen(false)
       } catch (error) {
         console.warn(
           'EPUB chapter jump failed:',
@@ -4102,14 +4142,14 @@ function App() {
         stopReadAloud()
       }
 
-      pendingAutoReadRef.current =
-        false
+      pendingAutoReadRef.current = false
 
-      await epubRenditionRef.current.display(
-        cfi
-      )
-
-      setEpubPage(target)
+      requestBookPageAccess(target, async () => {
+        animateReaderTurn(target >= epubPage ? 'next' : 'prev', async () => {
+          await epubRenditionRef.current.display(cfi)
+          setEpubPage(target)
+        })
+      })
     } catch (error) {
       console.warn(
         'EPUB page jump failed:',
@@ -6916,11 +6956,7 @@ function App() {
                       file={
                         readerResolvedFile
                       }
-                      options={{
-                        cMapUrl: `https://unpkg.com/pdfjs-dist@5.4.296/cmaps/`,
-                        cMapPacked: true,
-                        standardFontDataUrl: `https://unpkg.com/pdfjs-dist@5.4.296/standard_fonts/`,
-                      }}
+                      options={PDF_OPTIONS}
                       loading={
                         <div className="reader-loading">
                           Loading PDF…
@@ -7041,13 +7077,10 @@ function App() {
                         ) {
                           const val = parseInt(pdfInputPage, 10)
                           if (Number.isFinite(val)) {
-                            setPdfPage(
-                              clamp(
-                                val,
-                                1,
-                                pdfPages || 1
-                              )
-                            )
+                            const target = clamp(val, 1, pdfPages || 1)
+                            requestBookPageAccess(target, () => {
+                              animateReaderTurn(target >= pdfPage ? 'next' : 'prev', () => setPdfPage(target))
+                            })
                           }
                           setPdfInputPage('')
                         }
@@ -7066,13 +7099,10 @@ function App() {
                       onClick={() => {
                         const val = parseInt(pdfInputPage, 10)
                         if (Number.isFinite(val)) {
-                          setPdfPage(
-                            clamp(
-                              val,
-                              1,
-                              pdfPages || 1
-                            )
-                          )
+                          const target = clamp(val, 1, pdfPages || 1)
+                          requestBookPageAccess(target, () => {
+                            animateReaderTurn(target >= pdfPage ? 'next' : 'prev', () => setPdfPage(target))
+                          })
                         }
                         setPdfInputPage('')
                       }}
