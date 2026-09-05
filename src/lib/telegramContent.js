@@ -76,7 +76,6 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
       number: ep.number,
       title: ep.title,
       type: 'video',
-      telegram_message_id: messageId || null,
       src: messageId
         ? `${STREAMING_SERVER_URL}/video/message/${messageId}`
         : fileUrlFromId(ep.file_id),
