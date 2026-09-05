@@ -18,9 +18,10 @@ module.exports = async function handler(req, res) {
     if (!text) return res.status(400).json({ error: 'text is required' })
     if (text.length > MAX_CHARS) return res.status(413).json({ error: `text exceeds ${MAX_CHARS} characters` })
 
-    const languageCode = /^ta[-_]IN$/i.test(String(body.language_code || '')) ? 'ta-IN' : 'ta-IN'
+    const languageCode = 'ta-IN'
     const speaker = String(body.speaker || 'ishita').toLowerCase()
     const pace = Math.max(0.5, Math.min(2, Number(body.pace) || 0.92))
+    const temperature = Math.max(0.01, Math.min(1, Number(body.temperature) || 0.72))
 
     const upstream = await fetch(SARVAM_URL, {
       method: 'POST',
@@ -34,6 +35,7 @@ module.exports = async function handler(req, res) {
         language_code: languageCode,
         speaker,
         pace,
+        temperature,
         speech_sample_rate: 24000,
       }),
     })
