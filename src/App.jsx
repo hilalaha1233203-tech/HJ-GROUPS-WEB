@@ -1702,7 +1702,7 @@ function App() {
                 'video'
                 ? 'video-episode'
                 : 'episode',
-              currentStory.id,
+              story.id,
               episode.number
             )
             : undefined
@@ -5084,8 +5084,9 @@ function App() {
                       const accessible =
                         canAccessContent(
                           episode,
-                          adsKey
-                        )
+                          adsKey,
+                          story?.id
+                          )
 
                       return (
                         <button
