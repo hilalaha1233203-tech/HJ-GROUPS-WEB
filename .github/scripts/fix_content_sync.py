@@ -144,6 +144,13 @@ replacement = '''  const persistStories = (list) => {
 
 '''
 s = s[:start] + replacement + s[end:]
+
+# Remove the older local-only episode/story handlers left behind by the previous patch.
+old_start = s.find('  const addEpisodeToStory = (')
+old_end = s.find('  const addBook = (', old_start)
+if old_start != -1 and old_end != -1:
+    s = s[:old_start] + s[old_end:]
+
 app.write_text(s, encoding='utf-8')
 
 ap = Path('src/AdminPanel.jsx')
