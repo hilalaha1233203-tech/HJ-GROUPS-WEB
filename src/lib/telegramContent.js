@@ -1,31 +1,20 @@
 import { supabase } from '../supabase'
 
-const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';
 
 /*
   Bridges the Telegram-ingested Supabase tables (stories, episodes,
   books, video_stories, video_episodes) into the exact same shape
-  App.jsx already uses for its seed/localStorage content:
-
-    story  = { id, title, genre, cover, description, episodes: [...] }
-    episode = { number, title, type, src, available, accessType }
-    book   = { id, title, author, description, type, category, cover, file, accessType }
-    videoStory = { id, title, category, cover, accessType, episodes: [...] }
-
-  `cover` / `src` / `file` are turned into URLs pointing at our own
-  telegram-file Edge Function (never at Telegram directly), built
-  from the stored file_id.
+  App.jsx already uses for its seed/localStorage content.
 */
 
 export function fileUrlFromId(fileId) {
   if (!fileId) return ''
-  // Backwards compatibility for testing: if it looks like a Telegram file_id (no dot), use proxy
   if (!fileId.includes('.')) {
     const FUNCTIONS_URL = `${STREAMING_SERVER_URL}/audio`;
     return `${FUNCTIONS_URL}/${encodeURIComponent(fileId)}`;
   }
-  
-  // Otherwise, it's a Supabase storage path from our new architecture
+
   const { data } = supabase.storage.from('telegram_files').getPublicUrl(fileId)
   return data.publicUrl
 }
@@ -35,22 +24,18 @@ function normalizeStories(storyRows, episodeRows) {
 
   for (const ep of episodeRows) {
     const list = episodesByStory.get(ep.story_id) || []
-    
-    let messageId = ep.telegram_message_id;
+    const messageId = ep.telegram_message_id
 
-    const normalizedEpisode = {
+    list.push({
       number: ep.number || ep.episode_number,
       title: ep.title,
-      type: ep.type || "audio",
-      src: messageId 
-        ? `${STREAMING_SERVER_URL}/audio/message/${messageId}` 
+      type: ep.type || 'audio',
+      src: messageId
+        ? `${STREAMING_SERVER_URL}/audio/message/${messageId}`
         : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id) || null)),
       available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,
-    };
-    console.log("RAW EPISODE", ep);
-    console.log("NORMALIZED EPISODE", normalizedEpisode);
-    list.push(normalizedEpisode);
+    })
     episodesByStory.set(ep.story_id, list)
   }
 
@@ -113,20 +98,11 @@ export async function fetchTelegramContent() {
     supabase.from('video_episodes').select('*'),
   ])
 
-  console.log("STORIES QUERY RESULT", stories);
-  console.log("EPISODES QUERY RESULT", episodes);
-
-  const firstError = stories.error || episodes.error;
-
-  if (firstError) {
-    throw firstError;
-  }
-
-  const normalizedStories = normalizeStories(stories.data || [], episodes.data || []);
-  console.log("NORMALIZED STORIES", normalizedStories);
+  const firstError = stories.error || episodes.error || books.error || videoStories.error || videoEpisodes.error
+  if (firstError) throw firstError
 
   return {
-    stories: normalizedStories,
+    stories: normalizeStories(stories.data || [], episodes.data || []),
     books: normalizeBooks(books.data || []),
     videoStories: normalizeVideoStories(videoStories.data || [], videoEpisodes.data || []),
   }
