@@ -1,5 +1,7 @@
 import { supabase } from '../supabase'
 
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;
+
 /*
   Bridges the Telegram-ingested Supabase tables (stories, episodes,
   books, video_stories, video_episodes) into the exact same shape
@@ -19,7 +21,7 @@ export function fileUrlFromId(fileId) {
   if (!fileId) return ''
   // Backwards compatibility for testing: if it looks like a Telegram file_id (no dot), use proxy
   if (!fileId.includes('.')) {
-    const FUNCTIONS_URL = 'http://localhost:3000/audio';
+    const FUNCTIONS_URL = `${STREAMING_SERVER_URL}/audio`;
     return `${FUNCTIONS_URL}/${encodeURIComponent(fileId)}`;
   }
   
@@ -41,7 +43,7 @@ function normalizeStories(storyRows, episodeRows) {
       title: ep.title,
       type: ep.type || "audio",
       src: messageId 
-        ? `http://localhost:3000/audio/message/${messageId}` 
+        ? `${STREAMING_SERVER_URL}/audio/message/${messageId}` 
         : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id) || null)),
       available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,

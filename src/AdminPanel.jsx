@@ -3,6 +3,8 @@ import { resolveAccessType } from './lib/accessControl'
 import { supabase } from './supabase'
 import React, { useState } from 'react'
 
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;
+
 
 function AccessTypeField({ groupName, value, onChange }) {
   const options = [
@@ -177,7 +179,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
         return
       }
 
-      const res = await fetch('http://localhost:3000/telegram/messages', {
+      const res = await fetch(`${STREAMING_SERVER_URL}/telegram/messages`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }

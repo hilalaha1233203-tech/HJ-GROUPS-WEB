@@ -31,6 +31,8 @@ import 'react-pdf/dist/Page/TextLayer.css'
 
 import './App.css'
 
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url
@@ -4392,7 +4394,7 @@ function App() {
         'audio' && (
           <audio
             ref={audioRef}
-            src={currentEpisode.telegram_message_id ? `http://localhost:3000/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
+            src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
             preload="metadata"
             onLoadedMetadata={
               handleLoadedMetadata
@@ -4412,7 +4414,7 @@ function App() {
         !fullPlayer && (
           <video
             ref={videoRef}
-            src={currentEpisode.telegram_message_id ? `http://localhost:3000/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
+            src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
             preload="metadata"
             onLoadedMetadata={
               handleLoadedMetadata
@@ -5864,7 +5866,7 @@ function App() {
                         videoRef
                       }
                       className="main-video"
-                      src={currentEpisode.telegram_message_id ? `http://localhost:3000/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
+                      src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}
                       controls
                       autoPlay
                       onLoadedMetadata={
