@@ -204,6 +204,39 @@ if "'scroll',\n        handleScroll" not in s:
         1,
     )
 
+# Fix the video Telegram route and suppress the normal browser download control.
+# Keep this idempotent because the workflow may run more than once.
+s = s.replace(
+    "src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}\n                      controls\n                      autoPlay",
+    "src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}\n                      controls\n                      controlsList=\"nodownload noplaybackrate\"\n                      disablePictureInPicture\n                      onContextMenu={(event) => event.preventDefault()}\n                      autoPlay",
+    1,
+)
+s = s.replace(
+    "src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${currentEpisode.telegram_message_id}` : (currentEpisode.src || undefined)}\n            preload=\"metadata\"\n            onLoadedMetadata={",
+    "src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}\n            preload=\"metadata\"\n            controlsList=\"nodownload noplaybackrate\"\n            disablePictureInPicture\n            onContextMenu={(event) => event.preventDefault()}\n            onLoadedMetadata={",
+    1,
+)
+
+# Add a lightweight media error guard so failed Telegram streams never leave the player in a false-playing state.
+media_guard = """\n      onError={() => {\n        console.error('Media playback failed:', currentEpisode?.src)\n        setIsPlaying(false)\n      }}"""
+if "Media playback failed:" not in s:
+    s = s.replace(
+        """            onEnded={\n              handleEnded\n            }\n          />""",
+        """            onEnded={\n              handleEnded\n            }\n            onError={() => {\n              console.error('Media playback failed:', currentEpisode?.src)\n              setIsPlaying(false)\n            }}\n          />""",
+        1,
+    )
+
+# Apply the same error guard to the non-fullscreen video element.
+video_error = """            onError={() => {\n              console.error('Media playback failed:', currentEpisode?.src)\n              setIsPlaying(false)\n            }}\n          />"""
+occurrences = s.count(video_error)
+if occurrences == 0:
+    # The first replacement above is for the audio element. Add the guard to the video element if it has not been patched yet.
+    s = s.replace(
+        """            onEnded={\n              handleEnded\n            }\n          />\n        )}""",
+        """            onEnded={\n              handleEnded\n            }\n            onError={() => {\n              console.error('Media playback failed:', currentEpisode?.src)\n              setIsPlaying(false)\n            }}\n          />\n        )}""",
+        1,
+    )
+
 app.write_text(s, encoding='utf-8')
 
 ap = Path('src/AdminPanel.jsx')
