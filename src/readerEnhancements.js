@@ -23,12 +23,12 @@ function injectReaderStyles() {
 
     .reader-page-turn-next .epub-reader,
     .reader-page-turn-next .react-pdf__Page {
-      animation: hjRuntimePageNext 720ms cubic-bezier(.18,.72,.16,1) both !important;
+      animation: hjRuntimePageNext 360ms cubic-bezier(.18,.72,.16,1) both !important;
     }
 
     .reader-page-turn-prev .epub-reader,
     .reader-page-turn-prev .react-pdf__Page {
-      animation: hjRuntimePagePrev 720ms cubic-bezier(.18,.72,.16,1) both !important;
+      animation: hjRuntimePagePrev 360ms cubic-bezier(.18,.72,.16,1) both !important;
     }
 
     .reader-page-turn-next::before,
@@ -48,13 +48,13 @@ function injectReaderStyles() {
     .reader-page-turn-next::before {
       right: -5% !important;
       transform-origin: right center !important;
-      animation: hjRuntimeCurlNext 720ms ease both !important;
+      animation: hjRuntimeCurlNext 360ms ease both !important;
     }
 
     .reader-page-turn-prev::before {
       left: -5% !important;
       transform-origin: left center !important;
-      animation: hjRuntimeCurlPrev 720ms ease both !important;
+      animation: hjRuntimeCurlPrev 360ms ease both !important;
     }
 
     .reader-page-input::placeholder {
@@ -119,7 +119,9 @@ function forceEpubDocument(doc) {
       style.textContent = `
         html, html body { background:#fff !important; color:#111 !important; }
         body { margin:0 !important; min-height:100% !important; overflow-x:hidden !important; }
-        img, svg, video { max-width:100% !important; }
+        body, body * { color:#111 !important; }
+        body * { background-color:transparent !important; }
+        img, svg, video { max-width:100% !important; background-color:transparent !important; }
       `
       ;(doc.head || doc.documentElement).appendChild(style)
     }
@@ -166,6 +168,9 @@ function attachSwipe(doc) {
 
 function fixEpubIframes() {
   document.querySelectorAll('.epub-reader iframe').forEach((iframe) => {
+    if (iframe.__hjRuntimeFixAttached) return
+    iframe.__hjRuntimeFixAttached = true
+
     const apply = () => {
       try {
         const doc = iframe.contentDocument
@@ -173,8 +178,9 @@ function fixEpubIframes() {
         attachSwipe(doc)
       } catch { }
     }
+
     apply()
-    iframe.addEventListener('load', apply, { passive: true })
+    iframe.addEventListener('load', apply)
   })
 }
 
