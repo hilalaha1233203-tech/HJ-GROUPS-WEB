@@ -4452,11 +4452,8 @@ function App() {
         !fullPlayer && (
           <video
             ref={videoRef}
-            src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}
+            src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}
             preload="metadata"
-            controlsList="nodownload noplaybackrate"
-            disablePictureInPicture
-            onContextMenu={(event) => event.preventDefault()}
             onLoadedMetadata={
               handleLoadedMetadata
             }
