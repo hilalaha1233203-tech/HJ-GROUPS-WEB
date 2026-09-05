@@ -151,6 +151,18 @@ old_end = s.find('  const addBook = (', old_start)
 if old_start != -1 and old_end != -1:
     s = s[:old_start] + s[old_end:]
 
+# Keep the particle watermark centered and visible on narrow mobile viewports.
+s = s.replace(
+    """      const targetWidth =\n        Math.min(\n          320,\n          width * 0.4\n        )""",
+    """      const isMobile = width <= 700\n      const targetWidth = isMobile\n        ? Math.min(240, width * 0.78)\n        : Math.min(320, width * 0.4)""",
+    1,
+)
+s = s.replace(
+    """      const originY =\n        height * 0.14""",
+    """      const originY = isMobile\n        ? Math.max(88, height * 0.12)\n        : height * 0.14""",
+    1,
+)
+
 app.write_text(s, encoding='utf-8')
 
 ap = Path('src/AdminPanel.jsx')
