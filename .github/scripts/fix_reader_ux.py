@@ -78,7 +78,7 @@ sarvam_bridge = r'''const installSarvamTamilSpeechBridge = () => {
 }
 '''
 # Always refresh the bridge so an older deployed bridge cannot survive future builds.
-app, replaced = re.subn(r"const installSarvamTamilSpeechBridge = \(\) => \{.*?\n\}\n(?=\nfunction App\(\) \{)", sarvam_bridge.rstrip(), app, count=1, flags=re.S)
+app, replaced = re.subn(r"const installSarvamTamilSpeechBridge = \(\) => \{.*?\n\}\n(?=\nfunction App\(\) \{)", lambda _m: sarvam_bridge.rstrip(), app, count=1, flags=re.S)
 if not replaced:
     app = app.replace('function App() {', sarvam_bridge + '\nfunction App() {', 1)
 
