@@ -1120,6 +1120,7 @@ function App() {
     let animationId
     let particles = []
     let ready = false
+    let scrollOffset = 0
 
     const resize = () => {
       width =
@@ -1320,8 +1321,10 @@ function App() {
             let targetX =
               particle.homeX
 
+            // Page-scroll parallax keeps the background logo moving with the page.
             let targetY =
-              particle.homeY
+              particle.homeY -
+              scrollOffset
 
             if (mouse.moving) {
               const dx =
@@ -1442,6 +1445,10 @@ function App() {
           )
       }
 
+    const handleScroll = () => {
+      scrollOffset = window.scrollY * 0.22
+    }
+
     const handleMouseMove = (
       event
     ) => {
@@ -1457,6 +1464,13 @@ function App() {
       handleMouseMove
     )
 
+    window.addEventListener(
+      'scroll',
+      handleScroll,
+      { passive: true }
+    )
+
+    handleScroll()
     animate()
 
     return () => {
@@ -1472,6 +1486,11 @@ function App() {
       window.removeEventListener(
         'mousemove',
         handleMouseMove
+      )
+
+      window.removeEventListener(
+        'scroll',
+        handleScroll
       )
     }
   }, [])
