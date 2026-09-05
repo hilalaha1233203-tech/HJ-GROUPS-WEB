@@ -1501,13 +1501,15 @@ function App() {
 
   const canAccessContent = (
     item,
-    adsKey
+    adsKey,
+    storyId
   ) =>
     canAccess(item, {
       isAdmin,
       unlockedAds,
       adsKey,
       purchasedStoryIds,
+      storyId,
     })
 
   const getEpisodeAccessLabel = (
@@ -1634,8 +1636,9 @@ function App() {
       if (
         !canAccessContent(
           currentEpisode,
-          adsKey
-        )
+          adsKey,
+          currentStory?.id
+          )
       ) {
         return
       }
@@ -1679,7 +1682,7 @@ function App() {
     }
 
   const loadAndPlay =
-    (episode) => {
+    (episode, story = currentStory) => {
       setTimeout(() => {
         const media =
           episode.type ===
@@ -1693,7 +1696,7 @@ function App() {
         }
 
         const adsKey =
-          currentStory
+          story
             ? adsKeyFor(
               episode.type ===
                 'video'
@@ -1707,8 +1710,9 @@ function App() {
         if (
           !canAccessContent(
             episode,
-            adsKey
-          )
+            adsKey,
+            story?.id
+            )
         ) {
           setIsPlaying(false)
           return
@@ -1786,7 +1790,8 @@ function App() {
         setDuration(0)
 
         loadAndPlay(
-          episode
+          episode,
+          story
         )
       }
     )
