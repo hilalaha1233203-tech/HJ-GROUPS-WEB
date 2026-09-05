@@ -780,27 +780,6 @@ function App() {
     )
   }
 
-  const addStory = (story) =>
-    persistStories([
-      ...adminStories,
-      story,
-    ])
-
-  const updateStory = (
-    storyId,
-    updates
-  ) =>
-    persistStories(
-      adminStories.map((story) =>
-        story.id === storyId
-          ? {
-            ...story,
-            ...updates,
-          }
-          : story
-      )
-    )
-
   const addBook = (book) =>
     persistBooks([
       ...adminBooks,
