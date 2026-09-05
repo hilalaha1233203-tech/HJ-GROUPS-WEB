@@ -50,14 +50,14 @@ function applyPageZoom(){
   const h=document.querySelector('.reader-body-full');if(!h)return
   const z=getPageZoom();h.style.setProperty('--hj-page-zoom',String(z));
   const s=surface();if(!s)return
+  if(document.__hjTurnBusy)return
   s.style.setProperty('transform-origin','center top','important')
   s.style.setProperty('scale',String(z),'important')
   s.style.setProperty('margin-bottom',`${Math.max(0,(z-1)*18)}px`,'important')
 }
 
 function mountTools(){
-  if(!document.querySelector('.reader-body-full'))return
-  if(document.querySelector('.hj-reader-tools'))return
+  if(!document.querySelector('.reader-body-full')||document.querySelector('.hj-reader-tools'))return
   const tools=document.createElement('div');tools.className='hj-reader-tools';tools.innerHTML=`<button type="button" data-hj-size="minus" aria-label="Decrease page size">−</button><span class="hj-size-label">100%</span><button type="button" data-hj-size="plus" aria-label="Increase page size">+</button><input data-hj-zoom type="range" min="70" max="130" step="5" value="100" aria-label="Page size"><span class="hj-tool-sep"></span><button type="button" data-hj-tts aria-label="TTS settings">🔊 TTS</button>`
   document.body.appendChild(tools)
   const panel=document.createElement('div');panel.className='hj-tts-panel';panel.innerHTML=`<div style="font-size:14px;font-weight:700;margin-bottom:8px">Tamil Read Aloud</div><div class="hj-tts-row"><label>Voice</label><select data-hj-voice><option value="ishita">Ishita</option><option value="priya">Priya</option><option value="ritu">Ritu</option><option value="shreya">Shreya</option><option value="roopa">Roopa</option><option value="shubh">Shubh</option><option value="aditya">Aditya</option><option value="rahul">Rahul</option><option value="vijay">Vijay</option></select></div><div class="hj-tts-row"><label>Speed</label><input data-hj-pace type="range" min="0.65" max="1.25" step="0.01"><span class="hj-tts-value" data-hj-pace-value>0.92x</span></div><div class="hj-tts-row"><label>Expression</label><input data-hj-temp type="range" min="0.35" max="1" step="0.01"><span class="hj-tts-value" data-hj-temp-value>0.72</span></div><div class="hj-tts-note">Natural narration uses Sarvam Bulbul v3 when the server key is configured.</div>`
@@ -74,13 +74,15 @@ function mountTools(){
 
 function makeTurnPage(source,dir){
   const h=host(),r=source.getBoundingClientRect(),hr=h.getBoundingClientRect();if(getComputedStyle(h).position==='static')h.style.position='relative'
-  const page=document.createElement('div');page.className=`hj-book-turn ${dir}`;page.style.cssText=`left:${r.left-hr.left}px;top:${r.top-hr.top}px;width:${r.width}px;height:${r.height}px;background:#fff`
   const live=source.classList.contains('epub-reader')
   if(live){
-    // Do not rotate the live EPUB iframe. Rotating the iframe itself is what can expose
-    // a black compositor backface on mobile/Chromium. A paper overlay masks the handoff.
-    const paper=document.createElement('div');paper.style.cssText='position:absolute;inset:0;background:#fff;overflow:hidden;transform-style:preserve-3d;backface-visibility:visible';page.appendChild(paper);h.appendChild(page);return{page,fold:null,shadow:null,edge:null,live:true}
+    source.style.setProperty('transform-origin',dir==='next'?'left center':'right center','important')
+    source.style.setProperty('transform-style','preserve-3d','important')
+    source.style.setProperty('backface-visibility','visible','important')
+    source.style.setProperty('will-change','transform,clip-path,filter','important')
+    return{page:source,fold:null,shadow:null,edge:null,live:true,originalTransform:source.style.transform,originalFilter:source.style.filter,originalClip:source.style.clipPath,originalOpacity:source.style.opacity}
   }
+  const page=document.createElement('div');page.className=`hj-book-turn ${dir}`;page.style.cssText=`left:${r.left-hr.left}px;top:${r.top-hr.top}px;width:${r.width}px;height:${r.height}px;background:#fff`
   const clone=source.cloneNode(true);clone.style.cssText='position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;transform:none!important;overflow:hidden!important;backface-visibility:visible!important;pointer-events:none!important;background:#fff!important';clone.querySelectorAll?.('canvas').forEach(c=>{c.style.maxWidth='100%';c.style.height='auto';c.style.background='#fff'})
   const fold=document.createElement('div'),shadow=document.createElement('div'),edge=document.createElement('div');fold.className='hj-book-fold';shadow.className='hj-book-turn-shadow';edge.className='hj-book-edge';page.append(clone,fold,shadow,edge);h.appendChild(page);return{page,fold,shadow,edge,live:false}
 }
@@ -93,12 +95,38 @@ function turn(dir,navigate){
   const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2
   const frame=now=>{
     const elapsed=now-start,p=Math.max(0,Math.min(1,elapsed/TURN_MS)),depth=Math.sin(Math.PI*p)
+    if(made.live){
+      const phase=p<.55?p/.55:(p-.55)/.45
+      const curve=Math.sin(Math.PI*Math.min(1,phase))
+      if(!navigated&&elapsed>=mid){
+        navigated=true
+        page.style.setProperty('opacity','0','important')
+        try{navigate()}catch{}
+        requestAnimationFrame(()=>{const current=surface();if(current&&current===page){current.style.setProperty('opacity','0','important')}})
+      }
+      if(p<.55){
+        const t=ease(Math.max(0,Math.min(1,p/.55))),x=(f?-96:96)*t,clip=Math.max(0,Math.min(88,t*92)),tilt=(f?-1:1)*(1+3*Math.sin(Math.PI*t)),lift=4+10*Math.sin(Math.PI*t)
+        page.style.setProperty('transform',`translate3d(${x}px,${-lift*.12}px,${lift}px) rotateZ(${tilt}deg) scale(${1-.01*Math.sin(Math.PI*t)})`,'important')
+        page.style.setProperty('clip-path',f?`inset(0 0 0 ${clip}% round ${8+18*curve}px)`:`inset(0 ${clip}% 0 0 round ${8+18*curve}px)`,'important')
+        page.style.setProperty('filter',`drop-shadow(${f?-2:2}px ${4+15*Math.sin(Math.PI*t)}px ${7+20*Math.sin(Math.PI*t)}px rgba(0,0,0,.26))`,'important')
+      }else{
+        const t=ease(Math.max(0,Math.min(1,(p-.55)/.45))),x=(f?96:-96)*(1-t),clip=Math.max(0,Math.min(88,(1-t)*92)),tilt=(f?1:-1)*(1+3*Math.sin(Math.PI*t)),lift=4+10*Math.sin(Math.PI*t)
+        page.style.setProperty('opacity',String(t),'important')
+        page.style.setProperty('transform',`translate3d(${x}px,${-lift*.12}px,${lift}px) rotateZ(${tilt}deg) scale(${1-.01*Math.sin(Math.PI*t)})`,'important')
+        page.style.setProperty('clip-path',f?`inset(0 0 0 ${clip}% round ${8+18*curve}px)`:`inset(0 ${clip}% 0 0 round ${8+18*curve}px)`,'important')
+        page.style.setProperty('filter',`drop-shadow(${f?-2:2}px ${4+15*Math.sin(Math.PI*t)}px ${7+20*Math.sin(Math.PI*t)}px rgba(0,0,0,.24))`,'important')
+      }
+      if(elapsed<TURN_MS)requestAnimationFrame(frame)
+      else{page.style.removeProperty('transform');page.style.removeProperty('clip-path');page.style.removeProperty('filter');page.style.removeProperty('opacity');page.style.removeProperty('will-change');document.__hjTurnBusy=false;applyPageZoom()}
+      return
+    }
     if(!navigated&&elapsed>=mid){navigated=true;try{navigate()}catch{}}
     const travel=f?-105:105,x=travel*(p/.55),curl=Math.sin(Math.PI*Math.min(1,p/.9)),tilt=(f?-1:1)*(1.4+2.6*curl),lift=6+14*depth,scale=1-.012*curl
     page.style.transform=`translate3d(${x}px,${-lift*.16}px,${lift}px) rotateZ(${tilt}deg) scale(${scale})`
     page.style.filter=`brightness(${1-.10*curl}) drop-shadow(${f?-2:2}px ${5+18*depth}px ${8+24*depth}px rgba(0,0,0,.28))`
     page.style.clipPath=f?`inset(0 0 0 ${Math.max(0,Math.min(100,100*p-8*curl))}% round ${10+18*curl}px)`: `inset(0 ${Math.max(0,Math.min(100,100*p-8*curl))}% 0 0 round ${10+18*curl}px)`
-    if(!made.live){made.shadow.style.opacity=String(.06+.72*depth);made.shadow.style.width=`${30+40*depth}%`;made.fold.style.opacity=String(.10+.78*depth);made.fold.style.transform=`scaleX(${1+.7*depth})`;made.edge.style.opacity=String(.08+.82*depth)}
+    page.style.transformOrigin=f?'left center':'right center'
+    made.shadow.style.opacity=String(.06+.72*depth);made.shadow.style.width=`${30+40*depth}%`;made.fold.style.opacity=String(.10+.78*depth);made.fold.style.transform=`scaleX(${1+.7*depth})`;made.edge.style.opacity=String(.08+.82*depth)
     if(elapsed<TURN_MS)requestAnimationFrame(frame)
     else{page.remove();document.__hjTurnBusy=false;applyPageZoom()}
   }
