@@ -261,12 +261,12 @@ const cleanSpeechText = (text) =>
     .replace(/\s+/g, ' ')
     .trim()
 
-const chunkTextForSpeech = (text, maxLength = 700) => {
+const chunkTextForSpeech = (text, maxLength = 240) => {
   const cleaned = cleanSpeechText(text)
   if (!cleaned) return []
 
   const sentences =
-    cleaned.match(/[^.!?。！？]+[.!?。！？]?/g) || [cleaned]
+    cleaned.match(/[^.!?。！？;:，,]+[.!?。！？;:，,]?/gu) || [cleaned]
 
   const chunks = []
   let current = ''
@@ -298,6 +298,112 @@ const chunkTextForSpeech = (text, maxLength = 700) => {
 /* =========================================================
    APP
 ========================================================= */
+
+const installSarvamTamilSpeechBridge = () => {
+  if (typeof window === 'undefined' || !window.speechSynthesis || window.__hjSarvamSpeechBridge) return () => {}
+
+  const synthesis = window.speechSynthesis
+  const originalSpeak = synthesis.speak.bind(synthesis)
+  const originalCancel = synthesis.cancel.bind(synthesis)
+  const originalPause = synthesis.pause?.bind(synthesis)
+  const originalResume = synthesis.resume?.bind(synthesis)
+  let activeAudio = null
+  let run = 0
+  const cache = new Map()
+
+  const isTamil = (text) => /[\u0B80-\u0BFF]/u.test(String(text || ''))
+
+  const getAudio = async (text, token) => {
+    const key = text.trim()
+    if (cache.has(key)) return cache.get(key)
+    const promise = fetch('/api/sarvam-tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: key,
+        language_code: 'ta-IN',
+        model: 'bulbul:v3',
+        speaker: 'ishita',
+        pace: 0.92,
+      }),
+    }).then(async (response) => {
+      if (!response.ok) throw new Error(`Sarvam TTS ${response.status}`)
+      return response.blob()
+    })
+    cache.set(key, promise)
+    try { return await promise } catch (error) { cache.delete(key); throw error }
+  }
+
+  const stopAudio = () => {
+    run += 1
+    if (activeAudio) {
+      try { activeAudio.pause() } catch {}
+      try { activeAudio.currentTime = 0 } catch {}
+      activeAudio = null
+    }
+  }
+
+  synthesis.speak = (utterance) => {
+    const text = String(utterance?.text || '').trim()
+    if (!text || !isTamil(text)) {
+      originalSpeak(utterance)
+      return
+    }
+
+    const token = ++run
+    try { utterance.onstart?.(new Event('start')) } catch {}
+
+    getAudio(text, token).then((blob) => {
+      if (token !== run) return
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      activeAudio = audio
+      audio.volume = Number.isFinite(utterance.volume) ? utterance.volume : 1
+      audio.playbackRate = Math.max(0.75, Math.min(1.15, Number(utterance.rate) || 1))
+      audio.onended = () => {
+        if (token !== run) return
+        activeAudio = null
+        URL.revokeObjectURL(url)
+        try { utterance.onend?.(new Event('end')) } catch {}
+      }
+      audio.onerror = () => {
+        if (token !== run) return
+        activeAudio = null
+        URL.revokeObjectURL(url)
+        try { utterance.onerror?.(new Event('error')) } catch {}
+      }
+      return audio.play()
+    }).catch(() => {
+      if (token !== run) return
+      try { utterance.onerror?.(new Event('error')) } catch {}
+    })
+  }
+
+  synthesis.cancel = () => {
+    stopAudio()
+    try { originalCancel() } catch {}
+  }
+  synthesis.pause = () => {
+    if (activeAudio) { try { activeAudio.pause() } catch {} }
+    try { originalPause?.() } catch {}
+  }
+  synthesis.resume = () => {
+    if (activeAudio) { try { activeAudio.play() } catch {} }
+    try { originalResume?.() } catch {}
+  }
+
+  window.__hjSarvamSpeechBridge = true
+  return () => {
+    stopAudio()
+    synthesis.speak = originalSpeak
+    synthesis.cancel = originalCancel
+    if (originalPause) synthesis.pause = originalPause
+    if (originalResume) synthesis.resume = originalResume
+    for (const promise of cache.values()) promise.then(() => {}).catch(() => {})
+    cache.clear()
+    delete window.__hjSarvamSpeechBridge
+  }
+}
 
 function App() {
   /* =======================================================
@@ -343,11 +449,32 @@ function App() {
   const speechChunksRef = useRef([])
   const speechChunkIndexRef = useRef(0)
   const speechRunRef = useRef(0)
+  const speechVoiceRef = useRef(null)
 
   const pendingAutoReadRef = useRef(false)
   const readAloudRef = useRef(() => { })
 
   const sleepTimerRef = useRef(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    return installSarvamTamilSpeechBridge()
+  }, [])
+
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return undefined
+
+    const chooseVoice = () => {
+      const voices = window.speechSynthesis.getVoices() || []
+      const tamilVoices = voices.filter((voice) => /^(ta)(?:[-_]|$)/i.test(String(voice.lang || '')))
+      const tamilIndia = tamilVoices.find((voice) => /^(ta)(?:[-_]IN)/i.test(String(voice.lang || '')))
+      speechVoiceRef.current = tamilIndia || tamilVoices.find((voice) => voice.localService) || tamilVoices[0] || null
+    }
+
+    chooseVoice()
+    window.speechSynthesis.addEventListener?.('voiceschanged', chooseVoice)
+    return () => window.speechSynthesis.removeEventListener?.('voiceschanged', chooseVoice)
+  }, [])
 
   /* =======================================================
      UI / WATERMARK
@@ -2678,7 +2805,14 @@ function App() {
           chunk
         )
 
-      utterance.rate = speed
+      const hasTamil = /[\u0B80-\u0BFF]/u.test(chunk)
+      const voices = window.speechSynthesis.getVoices?.() || []
+      const tamilVoice = voices.find((item) => /^(ta)(?:[-_]|$)/i.test(String(item.lang || '')))
+      const indianEnglish = voices.find((item) => /^en[-_]IN(?:[-_]|$)/i.test(String(item.lang || '')))
+      utterance.lang = hasTamil ? 'ta-IN' : 'en-IN'
+      utterance.voice = hasTamil ? (tamilVoice || speechVoiceRef.current || null) : (indianEnglish || speechVoiceRef.current || null)
+      utterance.rate = hasTamil ? Math.min(Math.max(speed, 0.75), 0.98) : Math.min(Math.max(speed, 0.8), 1.1)
+      utterance.pitch = 1
       utterance.volume =
         volume
 
@@ -2940,7 +3074,7 @@ function App() {
       const chunks =
         chunkTextForSpeech(
           text,
-          700
+          240
         )
 
       if (!chunks.length) {

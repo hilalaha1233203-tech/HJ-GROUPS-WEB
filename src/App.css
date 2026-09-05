@@ -3363,3 +3363,8 @@ main {
     animation: none;
   }
 }
+
+
+/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
+.reader-body-full .epub-reader,
+.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
