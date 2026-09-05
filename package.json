@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "python3 .github/scripts/fix_reader_ux.py && python3 .github/scripts/fix_reader_ux3.py && vite build",
+    "build": "python3 .github/scripts/fix_reader_ux.py && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -19,7 +19,7 @@
     "sharp": "^0.35.4"
   },
   "devDependencies": {
-    "@eslint/js": "^10.9.0",
+    "@eslint/js": "^10.0.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
