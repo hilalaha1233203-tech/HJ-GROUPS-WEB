@@ -24,3 +24,5 @@ If you are developing a production application, we recommend using TypeScript wi
 <!-- final startup verification -->
 
 <!-- startup root hardening -->
+
+<!-- final first-paint isolation deployment -->
