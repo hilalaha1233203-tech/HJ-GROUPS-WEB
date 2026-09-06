@@ -1,0 +1,38 @@
+name: Repair App default export
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore App default export
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -Eq '^[[:space:]]*export[[:space:]]+default[[:space:]]+App[[:space:]]*$' src/App.jsx; then
+            printf '\nexport default App\n' >> src/App.jsx
+          fi
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- src/App.jsx; then
+            echo "App default export already present."
+            exit 0
+          fi
+          git add src/App.jsx
+          git commit -m "fix: restore App default export"
+          git push
