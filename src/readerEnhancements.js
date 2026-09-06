@@ -11,20 +11,25 @@ const savePaper=v=>{try{localStorage.setItem(PAPER_KEY,v)}catch{}}
 function injectReaderStyles(){
  if(document.getElementById(STYLE_ID))return
  const s=document.createElement('style');s.id=STYLE_ID;s.textContent=`
-.reader-body-full{position:relative!important;isolation:isolate!important;background:#fff!important;overflow:hidden!important;touch-action:pan-y!important;overscroll-behavior:contain!important}
+ .reader-body-full{position:relative!important;isolation:isolate!important;background:#fff!important;overflow:hidden!important;touch-action:pan-y!important;overscroll-behavior:contain!important}
 .reader-body-full .epub-reader,.reader-body-full .react-pdf__Page{background:#fff!important;backface-visibility:visible!important;transform:none!important;filter:none!important}
 .reader-body-full .epub-reader iframe{background:#fff!important;transform:none!important;filter:none!important}
-.reader-body-full .react-pdf__Page canvas{background:#fff!important}
-.hj-page-transition{position:absolute!important;z-index:99990!important;inset:0!important;pointer-events:none!important;overflow:hidden!important;opacity:0!important;background:#fbfaf5!important;transform-origin:center center!important;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 18px 50px rgba(0,0,0,.28)!important;will-change:transform,opacity,clip-path!important;transition:opacity 180ms ease,transform 780ms cubic-bezier(.22,.72,.18,1),clip-path 780ms cubic-bezier(.22,.72,.18,1)!important}
-.hj-page-transition.show.next{opacity:1!important;transform:perspective(1400px) rotateY(-24deg) translateX(-3%)!important;clip-path:polygon(0 0,72% 0,100% 7%,100% 93%,72% 100%,0 100%)!important}
-.hj-page-transition.show.prev{opacity:1!important;transform:perspective(1400px) rotateY(24deg) translateX(3%)!important;clip-path:polygon(28% 0,100% 0,100% 100%,28% 100%,0 93%,0 7%)!important}
-.hj-page-transition::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.96) 45%,rgba(255,255,255,.42) 50%,rgba(0,0,0,.12) 51%,rgba(255,255,255,.82) 54%,rgba(250,248,240,.98) 100%);transform-origin:center;opacity:.98}
-.hj-page-transition::after{content:'';position:absolute;top:0;bottom:0;width:18%;pointer-events:none;filter:blur(9px);opacity:.72;background:linear-gradient(90deg,transparent,rgba(0,0,0,.18),transparent)}
-.hj-page-transition.next::after{right:3%}.hj-page-transition.prev::after{left:3%;transform:scaleX(-1)}
-.hj-page-transition.show.next::before{animation:hjPaperFoldNext 780ms cubic-bezier(.22,.72,.18,1) both}
-.hj-page-transition.show.prev::before{animation:hjPaperFoldPrev 780ms cubic-bezier(.22,.72,.18,1) both}
-@keyframes hjPaperFoldNext{0%{transform:rotateY(0) scaleX(1);filter:brightness(1)}45%{transform:rotateY(-72deg) scaleX(.72);filter:brightness(.92)}100%{transform:rotateY(-120deg) scaleX(.02);filter:brightness(.78)}}
-@keyframes hjPaperFoldPrev{0%{transform:rotateY(0) scaleX(1);filter:brightness(1)}45%{transform:rotateY(72deg) scaleX(.72);filter:brightness(.92)}100%{transform:rotateY(120deg) scaleX(.02);filter:brightness(.78)}}
+.reader-body-full .react-pdf__Page canvas{background:#fff!important;display:block!important;width:100%!important;height:auto!important}
+.reader-body-full[data-paper-format="a4"] .react-pdf__Page{width:min(88vw,690px)!important}
+.reader-body-full[data-paper-format="a3"] .react-pdf__Page{width:min(92vw,820px)!important}
+.reader-body-full[data-paper-format="letter"] .react-pdf__Page{width:min(88vw,670px)!important}
+.reader-body-full[data-paper-format="legal"] .react-pdf__Page{width:min(86vw,610px)!important}
+.reader-body-full[data-paper-format="b5"] .react-pdf__Page{width:min(88vw,650px)!important}
+.hj-page-transition{position:absolute!important;z-index:99990!important;inset:0!important;pointer-events:none!important;overflow:hidden!important;opacity:0!important;background:linear-gradient(90deg,#fff 0%,#fbfaf2 48%,#eee9dc 50%,#fff 52%,#fbfaf2 100%)!important;transform-origin:50% 50%!important;will-change:transform,clip-path,opacity!important;box-shadow:0 16px 55px rgba(0,0,0,.22)!important;transition:opacity 90ms linear,transform 760ms cubic-bezier(.16,.76,.18,1),clip-path 760ms cubic-bezier(.16,.76,.18,1)!important}
+.hj-page-transition.show.next{opacity:1!important;transform:perspective(1800px) rotateY(-7deg) translateX(-8%)!important;clip-path:polygon(0 0,78% 0,100% 6%,96% 50%,100% 94%,78% 100%,0 100%)!important}
+.hj-page-transition.show.prev{opacity:1!important;transform:perspective(1800px) rotateY(7deg) translateX(8%)!important;clip-path:polygon(22% 0,100% 0,100% 100%,22% 100%,0 94%,4% 50%,0 6%)!important}
+.hj-page-transition::before{content:'';position:absolute;inset:-2%;background:linear-gradient(90deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.96) 40%,rgba(245,242,232,.92) 47%,rgba(70,65,55,.28) 50%,rgba(255,255,255,.86) 53%,rgba(247,244,235,.98) 100%);box-shadow:inset 0 0 28px rgba(0,0,0,.16);transform-origin:50% 50%;animation-duration:760ms;animation-timing-function:cubic-bezier(.16,.76,.18,1);animation-fill-mode:both}
+.hj-page-transition.show.next::before{animation-name:hjBookPageNext}
+.hj-page-transition.show.prev::before{animation-name:hjBookPagePrev}
+.hj-page-transition::after{content:'';position:absolute;top:0;bottom:0;width:22%;filter:blur(14px);opacity:.6;background:linear-gradient(90deg,transparent,rgba(0,0,0,.25),transparent)}
+.hj-page-transition.next::after{right:2%}.hj-page-transition.prev::after{left:2%;transform:scaleX(-1)}
+@keyframes hjBookPageNext{0%{transform:rotateY(0) scaleX(1);border-radius:0;filter:brightness(1)}35%{transform:rotateY(-48deg) scaleX(.84);border-radius:0 18% 18% 0;filter:brightness(.96)}68%{transform:rotateY(-82deg) scaleX(.42);border-radius:0 32% 32% 0;filter:brightness(.9)}100%{transform:rotateY(-110deg) scaleX(.02);border-radius:0 50% 50% 0;filter:brightness(.82)}}
+@keyframes hjBookPagePrev{0%{transform:rotateY(0) scaleX(1);border-radius:0}35%{transform:rotateY(48deg) scaleX(.84);border-radius:18% 0 0 18%}68%{transform:rotateY(82deg) scaleX(.42);border-radius:32% 0 0 32%}100%{transform:rotateY(110deg) scaleX(.02);border-radius:50% 0 0 50%}}
 .hj-reader-tools{position:fixed;right:14px;bottom:14px;z-index:100050;display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid rgba(124,131,255,.28);border-radius:14px;background:rgba(14,16,28,.96);backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(0,0,0,.28);font:500 12px/1.2 system-ui,sans-serif;color:#e9ebff}
 .hj-reader-tools select{height:32px;border:1px solid rgba(255,255,255,.13);border-radius:9px;background:#1b1e31;color:#eef0ff;padding:0 10px;cursor:pointer;min-width:105px}
 .hj-paper-label{color:#9ea5c7;font-size:11px}
