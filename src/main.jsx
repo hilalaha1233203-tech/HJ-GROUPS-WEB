@@ -1,8 +1,10 @@
 import { Component, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import './readerEnhancements.js'
 import App from './App.jsx'
+
+// Reader enhancements are optional: never let an enhancement failure blank the whole app.
+try { await import('./readerEnhancements.js') } catch (error) { console.error('Reader enhancements disabled:', error) }
 
 class AppErrorBoundary extends Component {
   constructor(props) {
