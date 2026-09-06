@@ -354,7 +354,7 @@ const installSarvamTamilSpeechBridge = () => {
   window.__hjSarvamSpeechBridge=true
   return ()=>{stopAudio();synthesis.speak=originalSpeak;synthesis.cancel=originalCancel;if(originalPause)synthesis.pause=originalPause;if(originalResume)synthesis.resume=originalResume;cache.clear();delete window.__hjSarvamSpeechBridge}
 }
-function App() {
+export function App() {
   /* =======================================================
      MEDIA
   ======================================================= */
