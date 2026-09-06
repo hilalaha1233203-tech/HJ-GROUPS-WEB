@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.jsx'
 
 // Reader enhancements are optional: never let an enhancement failure blank the whole app.
-try { await import('./readerEnhancements.js') } catch (error) { console.error('Reader enhancements disabled:', error) }
+import('./readerEnhancements.js').catch((error) => console.error('Reader enhancements disabled:', error))
 
 class AppErrorBoundary extends Component {
   constructor(props) {
