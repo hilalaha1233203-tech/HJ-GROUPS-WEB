@@ -73,7 +73,17 @@ function waitForEpubPaint(done){const start=performance.now();const check=()=>{c
 function transitionNavigation(dir,action){if(document.__hjTurnBusy)return;document.__hjTurnBusy=true;const s=surface();if(!s){document.__hjTurnBusy=false;action();return}transitionOverlay(dir);try{action()}catch{}const finish=()=>{applyPaperFormat();document.__hjTurnBusy=false};if(s.classList.contains('epub-reader'))waitForEpubPaint(finish);else setTimeout(finish,120)}
 function attachNav(){document.querySelectorAll('.reader-navigation > button').forEach((b,i,bs)=>{if(b.__hjStableTurn)return;b.__hjStableTurn=true;b.addEventListener('click',ev=>{if(document.__hjTurnProgrammatic||document.__hjTurnBusy)return;ev.preventDefault();ev.stopImmediatePropagation();const dir=i===bs.length-1?'next':'prev';transitionNavigation(dir,()=>{document.__hjTurnProgrammatic=true;try{b.click()}finally{setTimeout(()=>document.__hjTurnProgrammatic=false,0)}})},true)})}
 function clickNav(dir){const n=document.querySelector('.reader-navigation');if(!n)return;const b=n.querySelectorAll(':scope > button'),x=dir==='next'?b[b.length-1]:b[0];if(x&&!document.__hjTurnBusy)transitionNavigation(dir,()=>{document.__hjTurnProgrammatic=true;try{x.click()}finally{setTimeout(()=>document.__hjTurnProgrammatic=false,0)}})}
-function attachSwipe(d){if(!d||d.__hjRuntimeSwipeAttached)return;d.__hjRuntimeSwipeAttached=true;let sx=0,sy=0;d.addEventListener('touchstart',e=>{const t=e.changedTouches?.[0];if(t){sx=t.clientX;sy=t.clientY}},{passive:true});d.addEventListener('touchend',e=>{const t=e.changedTouches?.[0];if(!t)return;const dx=t.clientX-sx,dy=t.clientY-sy;if(Math.abs(dx)>=55&&Math.abs(dx)>Math.abs(dy)*1.18)clickNav(dx<0?'next':'prev')},{passive:true})}
+function attachSwipe(d){
+ if(!d||d.__hjRuntimeSwipeAttached)return
+ d.__hjRuntimeSwipeAttached=true
+ let sx=0,sy=0,active=false
+ const start=e=>{const p=e.touches?.[0]||e.changedTouches?.[0]||e;if(!p)return;sx=p.clientX;sy=p.clientY;active=true}
+ const end=e=>{if(!active)return;active=false;const p=e.changedTouches?.[0]||e;if(!p)return;const dx=p.clientX-sx,dy=p.clientY-sy;if(Math.abs(dx)>=45&&Math.abs(dx)>Math.abs(dy)*1.12){e.preventDefault?.();e.stopPropagation?.();clickNav(dx<0?'next':'prev')}}
+ d.addEventListener('touchstart',start,{passive:true})
+ d.addEventListener('touchend',end,{passive:false})
+ d.addEventListener('pointerdown',start,{passive:true})
+ d.addEventListener('pointerup',end,{passive:false})
+}
 function fixFrames(){document.querySelectorAll('.epub-reader iframe').forEach(f=>{const apply=()=>{try{forceEpubDocument(f.contentDocument);attachSwipe(f.contentDocument)}catch{}};apply();if(!f.__hjRuntimeFrameAttached){f.__hjRuntimeFrameAttached=true;f.addEventListener('load',apply)}})}
 function fixInputs(){document.querySelectorAll('.reader-page-input').forEach(i=>{if(i.__hjInputFix)return;i.__hjInputFix=true;i.addEventListener('focus',()=>{try{i.select()}catch{}})})}
 function fixSpeechState(){const s=window.speechSynthesis;if(!s||s.__hjStateFixed)return;s.__hjStateFixed=true;try{Object.defineProperties(s,{speaking:{configurable:true,get(){return Boolean(window.__hjSarvamActiveAudio)||Boolean(this.__hjNativeSpeaking)}},pending:{configurable:true,get(){return Boolean(window.__hjSarvamPending)}},paused:{configurable:true,get(){return Boolean(window.__hjSarvamPaused)}}})}catch{}}
