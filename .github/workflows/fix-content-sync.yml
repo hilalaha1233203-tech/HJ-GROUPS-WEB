@@ -34,6 +34,16 @@ jobs:
       - name: Run final reader hardening patcher
         run: python3 .github/scripts/fix_reader_final.py
 
+      - name: Guarantee App default export
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/App.jsx')
+          s = p.read_text(encoding='utf-8')
+          if 'export default App' not in s:
+              p.write_text(s.rstrip() + '\n\nexport default App\n', encoding='utf-8')
+          PY
+
       - name: Commit patched files
         run: |
           git config user.name 'github-actions[bot]'
