@@ -6,9 +6,9 @@ const ensureAppDefaultExport = () => ({
   enforce: 'pre',
   transform(code, id) {
     if (!id.replaceAll('\\', '/').endsWith('/src/App.jsx')) return null
-    if (/\\bexport\\s+default\\s+App\\b/.test(code)) return null
+    if (/\bexport\s+default\s+App\b/.test(code)) return null
     return {
-      code: `${code}\\n\\nexport default App\\n`,
+      code: `${code}\n\nexport default App\n`,
       map: null,
     }
   },
