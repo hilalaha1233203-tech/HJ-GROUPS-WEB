@@ -17,61 +17,60 @@ html,body,#root{margin:0;width:100%;min-height:100%;background:#080910;color:#ff
   -moz-osx-font-smoothing: grayscale;
 }
 
-html {
-  margin: 0;
-  padding: 0;
-  background: #050509;
-}
+html { margin: 0; padding: 0; background: #050509; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #050509; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+#root { width: 100%; min-height: 100vh; margin: 0; padding: 0; text-align: left; }
 
-body {
-  margin: 0;
-  min-width: 320px;
+.hj-boot-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 24px;
+  background: #080910;
+  color: #fff;
+}
+.hj-boot-card {
+  width: min(420px, 100%);
+  padding: 32px 28px;
+  text-align: center;
+  border: 1px solid rgba(124,131,255,.28);
+  border-radius: 20px;
+  background: #141620;
+  box-shadow: 0 20px 70px rgba(0,0,0,.5);
+}
+.hj-boot-logo { font-size: 30px; font-weight: 900; letter-spacing: .08em; color: #7c83ff; }
+.hj-boot-logo span { color: #fff; font-size: .72em; }
+.hj-boot-title { margin-top: 10px; font-size: 18px; font-weight: 700; }
+.hj-boot-loading { margin-top: 10px; color: #aeb3c9; font-size: 14px; }
+
+.hj-runtime-error {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
   min-height: 100vh;
-
-  background: #050509;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-button:disabled {
-  cursor: not-allowed;
-}
-
-#root {
   width: 100%;
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  text-align: left;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 24px;
+  background: #080910;
+  color: #fff;
 }
-.hj-runtime-error{
-  min-height:100vh;
-  width:100%;
-  display:grid;
-  place-items:center;
-  box-sizing:border-box;
-  padding:24px;
-  background:#080910;
-  color:#fff;
+.hj-runtime-error-card {
+  width: min(560px,100%);
+  box-sizing: border-box;
+  padding: 28px;
+  border: 1px solid rgba(124,131,255,.3);
+  border-radius: 18px;
+  background: #141620;
+  box-shadow: 0 20px 70px rgba(0,0,0,.45);
 }
-.hj-runtime-error-card{
-  width:min(560px,100%);
-  box-sizing:border-box;
-  padding:28px;
-  border:1px solid rgba(124,131,255,.3);
-  border-radius:18px;
-  background:#141620;
-  box-shadow:0 20px 70px rgba(0,0,0,.45);
-}
-.hj-runtime-error-card h1{margin:10px 0 8px;font-size:22px}
-.hj-runtime-error-card p{margin:0 0 18px;color:#aeb3c9;word-break:break-word}
-.hj-runtime-error-card button{border:0;border-radius:10px;padding:11px 16px;background:#7c83ff;color:#fff;font-weight:700}
+.hj-runtime-error-card h1 { margin: 10px 0 8px; font-size: 22px; }
+.hj-runtime-error-card p { margin: 0 0 18px; color: #aeb3c9; word-break: break-word; }
+.hj-runtime-error-card button { border: 0; border-radius: 10px; padding: 11px 16px; background: #7c83ff; color: #fff; font-weight: 700; }
