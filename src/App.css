@@ -1547,6 +1547,70 @@ main {
    READER
 ========================================================= */
 
+/* =========================================================
+   READER BLACK-SCREEN HARDENING
+========================================================= */
+html:has(.reader-overlay:not(.reader-minimized)),
+body:has(.reader-overlay:not(.reader-minimized)),
+#root:has(.reader-overlay:not(.reader-minimized)),
+.app:has(.reader-overlay:not(.reader-minimized)) {
+  background: #050509;
+}
+.reader-overlay:not(.reader-minimized) {
+  background: #050509 !important;
+  isolation: isolate;
+  contain: layout paint;
+}
+.reader-overlay:not(.reader-minimized) .reader-window {
+  background: #17181e !important;
+  color: #fff;
+  min-width: 0;
+  min-height: 0;
+}
+.reader-overlay:not(.reader-minimized) .reader-middle {
+  background: #24252b !important;
+  min-width: 0;
+  min-height: 0;
+}
+.reader-overlay:not(.reader-minimized) .reader-body-full {
+  background: #24252b !important;
+  min-width: 0;
+  min-height: 0;
+}
+.reader-overlay:not(.reader-minimized) .reader-body-full > .reader-loading,
+.reader-overlay:not(.reader-minimized) .reader-body-full > .reader-error {
+  position: relative;
+  z-index: 5;
+}
+.reader-overlay:not(.reader-minimized) .reader-body-full .react-pdf__Document {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.reader-overlay:not(.reader-minimized) .reader-body-full .react-pdf__Page {
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #fff !important;
+}
+.reader-overlay:not(.reader-minimized) .reader-body-full .react-pdf__Page canvas {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.reader-overlay:not(.reader-minimized) .epub-reader {
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #fff !important;
+}
+.reader-overlay:not(.reader-minimized) .epub-reader iframe {
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #fff !important;
+  color-scheme: light !important;
+}
+.reader-overlay:not(.reader-minimized) .hj-page-transition {
+  background: #fff !important;
+}
+
+
 .reader-overlay {
   position: fixed;
 
