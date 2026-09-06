@@ -15,6 +15,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore App safely if a truncated recovery patch replaced it
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          p = Path('src/App.jsx')
+          if p.exists() and p.stat().st_size < 20000:
+              restored = subprocess.check_output(
+                  ['git', 'show', '6c264916192c2ce1526f8b9e5fa5a63c4e4f4a13:src/App.jsx'],
+                  text=True,
+              )
+              p.write_text(restored, encoding='utf-8')
+              print(f'Restored complete App.jsx from known-good commit: {len(restored)} bytes')
+          else:
+              print('App.jsx size is healthy; no restore needed.')
+          PY
 
       - name: Run content sync patcher
         run: python3 .github/scripts/fix_content_sync.py
