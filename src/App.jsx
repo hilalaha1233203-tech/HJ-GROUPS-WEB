@@ -703,6 +703,8 @@ function App() {
 
   const [pdfInputPage, setPdfInputPage] =
     useState('')
+  const [pdfPageInputFocused, setPdfPageInputFocused] =
+    useState(false)
 
   const [pdfScale, setPdfScale] =
     useState(1)
@@ -712,6 +714,8 @@ function App() {
 
   const [epubInputPage, setEpubInputPage] =
     useState('')
+  const [epubPageInputFocused, setEpubPageInputFocused] =
+    useState(false)
 
   const [epubPages, setEpubPages] =
     useState(0)
@@ -2451,71 +2455,12 @@ function App() {
   }
 
   const highlightReadAloudWord = (chunk, charIndex) => {
+    // Never mutate the live PDF canvas/text layer or the EPUB iframe DOM.
+    // Doing so can trigger a compositor repaint/black flash on mobile.
     const text = String(chunk || '')
     const index = Math.max(0, Number(charIndex) || 0)
-    const wordMatch = text.slice(index).match(/[^\s.,!?;:()[\]{}"'“”‘’]+/u)
-    const word = wordMatch?.[0] || ''
-    if (!word) return
-
-    setReadAloudWord(word)
-    clearReadAloudHighlight()
-
-    const highlightInDocument = (doc) => {
-      if (!doc?.body) return false
-      const root = doc === document ? readerBodyRef.current : doc.body
-      if (!root) return false
-      const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-      const nodes = []
-      let node
-      let total = 0
-
-      while ((node = walker.nextNode())) {
-        const parent = node.parentElement
-        if (!parent || parent.closest('script,style,mark.reader-speech-word')) continue
-        const value = node.nodeValue || ''
-        nodes.push({ node, start: total, end: total + value.length })
-        total += value.length
-      }
-
-      let target = null
-      let bestDistance = Infinity
-      for (const item of nodes) {
-        const distance = index >= item.start && index <= item.end
-          ? 0
-          : Math.min(Math.abs(index - item.start), Math.abs(index - item.end))
-        if (distance < bestDistance) {
-          bestDistance = distance
-          target = item
-        }
-      }
-
-      if (!target) return false
-
-      const value = target.node.nodeValue || ''
-      const localStart = Math.max(0, Math.min(value.length, index - target.start))
-      const tail = value.slice(localStart)
-      const exact = tail.match(/^[^\s.,!?;:()[\]{}"'“”‘’]+/u)
-      if (!exact) return false
-
-      const range = doc.createRange()
-      range.setStart(target.node, localStart)
-      range.setEnd(target.node, localStart + exact[0].length)
-      const mark = doc.createElement('mark')
-      mark.className = 'reader-speech-word'
-      mark.textContent = exact[0]
-      range.deleteContents()
-      range.insertNode(mark)
-      return true
-    }
-
-    if (readerType === 'epub') {
-      const iframe = epubContainerRef.current?.querySelector('iframe')
-      try {
-        highlightInDocument(iframe?.contentDocument)
-      } catch { }
-    } else {
-      highlightInDocument(document)
-    }
+    const wordMatch = text.slice(index).match(/[^\\s.,!?;:()[\\]{}"“”‘’]+/u)
+    setReadAloudWord(wordMatch?.[0] || '')
   }
 
   const animateReaderTurn = (direction, callback) => {
@@ -7196,13 +7141,23 @@ function App() {
                         pdfPages || 1
                       }
                       value={
-                        pdfInputPage !== '' ? pdfInputPage : pdfPage
+                        pdfPageInputFocused ? pdfInputPage : pdfPage
                       }
+                      inputMode="numeric"
                       className="reader-page-input"
+                      onFocus={(event) => {
+                        setPdfPageInputFocused(true)
+                        setPdfInputPage(String(pdfPage))
+                        requestAnimationFrame(() => event.currentTarget.select())
+                      }}
+                      onBlur={() => {
+                        setPdfPageInputFocused(false)
+                        setPdfInputPage('')
+                      }}
                       onChange={(
                         event
                       ) => {
-                        setPdfInputPage(event.target.value)
+                        setPdfInputPage(event.target.value.replace(/\\D/g, ''))
                       }}
                       onKeyDown={(
                         event
@@ -7262,13 +7217,23 @@ function App() {
                         epubPages || 1
                       }
                       value={
-                        epubInputPage !== '' ? epubInputPage : epubPage
+                        epubPageInputFocused ? epubInputPage : epubPage
                       }
+                      inputMode="numeric"
                       className="reader-page-input"
+                      onFocus={(event) => {
+                        setEpubPageInputFocused(true)
+                        setEpubInputPage(String(epubPage))
+                        requestAnimationFrame(() => event.currentTarget.select())
+                      }}
+                      onBlur={() => {
+                        setEpubPageInputFocused(false)
+                        setEpubInputPage('')
+                      }}
                       onChange={(
                         event
                       ) => {
-                        setEpubInputPage(event.target.value)
+                        setEpubInputPage(event.target.value.replace(/\\D/g, ''))
                       }}
                       onKeyDown={(
                         event
