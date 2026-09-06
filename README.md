@@ -22,3 +22,5 @@ If you are developing a production application, we recommend using TypeScript wi
 <!-- runtime black-screen verification -->
 
 <!-- final startup verification -->
+
+<!-- startup root hardening -->
