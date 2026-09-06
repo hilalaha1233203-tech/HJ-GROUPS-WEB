@@ -100,6 +100,14 @@ new = """      const utterance =\n        new SpeechSynthesisUtterance(\n       
 if old in app:
     app = app.replace(old, new, 1)
 
+# Keep exactly one Sarvam bridge definition. Older patch runs could append a second
+# top-level const and make Vite/Rolldown fail the production build.
+_bridge_pattern = r"const installSarvamTamilSpeechBridge = \\(\\) => \\{.*?\\n\\}\\n(?=\\nfunction App\\(\\) \\{)"
+_bridge_matches = list(re.finditer(_bridge_pattern, app, flags=re.S))
+if len(_bridge_matches) > 1:
+    first = _bridge_matches[0]
+    app = app[:first.start()] + sarvam_bridge.rstrip() + app[_bridge_matches[-1].end():]
+
 APP.write_text(app, encoding='utf-8')
 
 if 'REAL BOOK PAGE TURN + SWIPE' not in css:
