@@ -18,3 +18,5 @@ If you are developing a production application, we recommend using TypeScript wi
 <!-- Production reader verification -->
 
 <!-- final black-screen hardening verification trigger -->
+
+<!-- runtime black-screen verification -->
