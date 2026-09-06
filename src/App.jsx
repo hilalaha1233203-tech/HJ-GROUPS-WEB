@@ -31,12 +31,19 @@ import 'react-pdf/dist/Page/TextLayer.css'
 
 import './App.css'
 
+// Keep a failed optional reader dependency from taking down the entire shell.
+const safeWindow = typeof window !== 'undefined' ? window : null
+
 const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString()
+try {
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.mjs',
+    import.meta.url
+  ).toString()
+} catch (error) {
+  console.error('PDF worker configuration failed:', error)
+}
 
 const PDF_OPTIONS = Object.freeze({
   cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
