@@ -34,9 +34,6 @@ jobs:
       - name: Run final reader hardening patcher
         run: python3 .github/scripts/fix_reader_final.py
 
-      - name: Run reader UX hardening patcher
-        run: python3 .github/scripts/fix_reader_ux.py
-
       - name: Commit patched files
         run: |
           git config user.name 'github-actions[bot]'
