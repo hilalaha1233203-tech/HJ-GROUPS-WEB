@@ -2081,39 +2081,32 @@ main {
 }
 
 .reader-player {
-  display: flex;
-
-  align-items: center;
-
-  gap: 7px;
-
-  min-width: 0;
+  display:grid;
+  grid-template-columns:auto auto auto minmax(120px,1fr) auto auto minmax(80px,110px) auto;
+  align-items:center;
+  gap:8px;
+  width:100%;
+  min-width:0;
+  padding:10px 12px;
+  border:1px solid rgba(124,131,255,.16);
+  border-radius:16px;
+  background:rgba(11,13,23,.94);
+  box-shadow:0 8px 28px rgba(0,0,0,.22);
 }
-
-.reader-player > button {
-  flex-shrink: 0;
-
-  width: 38px;
-  height: 38px;
-
-  border-radius: 50%;
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.08);
-
-  color: #ddd;
-
-  background:
-    rgba(255, 255, 255, 0.045);
+.reader-player > button{flex-shrink:0;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.08);color:#ddd;background:rgba(255,255,255,.045)}
+.reader-play-button{background:#fff!important;color:#000!important}
+.reader-player input[type="range"]{width:100%;min-width:60px;accent-color:#7c83ff}
+.reader-progress{width:100%;min-width:0;height:6px;overflow:hidden;border-radius:20px;background:rgba(255,255,255,.08)}
+.reader-progress-bar{height:100%;background:#7c83ff}
+.reader-progress-label{color:#777c96;font-size:10px;white-space:nowrap}
+.reader-read-status{position:absolute;right:14px;bottom:2px;color:#7c83ff;font-size:9px}
+@media(max-width:700px){
+ .reader-player{grid-template-columns:38px 38px 38px 1fr auto;gap:6px;padding:8px}
+ .reader-player .reader-progress{grid-column:1/-1}
+ .reader-player .reader-progress-label{grid-column:auto}
+ .reader-player select{max-width:86px;min-width:0}
+ .reader-player input[type="range"]{min-width:55px}
 }
-
-.reader-play-button {
-  background: #fff !important;
-
-  color: #000 !important;
-}
-
 .reader-player select {
   flex-shrink: 0;
 
