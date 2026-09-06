@@ -6,6 +6,7 @@ import { supabase } from './supabase'
 import Auth from './Auth'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
+import { Analytics } from '@vercel/analytics/react'
 
 import {
   resolveAccessType,
@@ -7597,6 +7598,7 @@ function App() {
           </button>
         )}
       </nav>
+      <Analytics />
     </div>
   )
 }
