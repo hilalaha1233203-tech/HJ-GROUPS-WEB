@@ -1,10 +1,12 @@
 import { supabase } from '../supabase'
 
-const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000'
+// Fallback to empty string instead of localhost to prevent CORS errors
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || ''
 
 export function fileUrlFromId(fileId, mediaType = 'audio') {
   if (!fileId) return ''
   if (!fileId.includes('.')) {
+    if (!STREAMING_SERVER_URL) return '' // Return empty if no server URL configured
     const route = mediaType === 'video' ? 'video' : 'audio'
     return `${STREAMING_SERVER_URL}/${route}/${encodeURIComponent(fileId)}`
   }
@@ -21,14 +23,16 @@ function normalizeStories(storyRows, episodeRows) {
     const messageId = ep.telegram_message_id
     const mediaType = ep.type === 'video' ? 'video' : 'audio'
 
+    const src = messageId && STREAMING_SERVER_URL
+      ? `${STREAMING_SERVER_URL}/${mediaType}/message/${encodeURIComponent(messageId)}`
+      : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id, mediaType) || null))
+
     list.push({
       number: ep.number || ep.episode_number,
       title: ep.title,
       type: mediaType,
       telegram_message_id: messageId || null,
-      src: messageId
-        ? `${STREAMING_SERVER_URL}/${mediaType}/message/${encodeURIComponent(messageId)}`
-        : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id, mediaType) || null)),
+      src: src,
       available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,
     })
@@ -66,14 +70,16 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
     const list = episodesByVideo.get(ep.video_story_id) || []
     const messageId = ep.telegram_message_id
 
+    const src = messageId && STREAMING_SERVER_URL
+      ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(messageId)}`
+      : fileUrlFromId(ep.file_id, 'video')
+
     list.push({
       number: ep.number,
       title: ep.title,
       type: 'video',
       telegram_message_id: messageId || null,
-      src: messageId
-        ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(messageId)}`
-        : fileUrlFromId(ep.file_id, 'video'),
+      src: src,
       available: ep.available !== false,
       accessType: ep.access_type,
     })
