@@ -46,10 +46,15 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('HJ GROUPS unhandled promise rejection:', event.reason)
 })
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <AppErrorBoundary>
-      <App />
-    </AppErrorBoundary>
-  </StrictMode>,
-)
+const rootElement = document.getElementById('root')
+if (!rootElement) {
+  document.body.innerHTML = '<div class="hj-runtime-error"><div class="hj-runtime-error-card"><strong>HJ GROUPS</strong><h1>Web Player startup failed</h1><p>Root element was not found.</p></div></div>'
+} else {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
+    </StrictMode>,
+  )
+}
