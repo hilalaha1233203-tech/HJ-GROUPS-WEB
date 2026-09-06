@@ -310,7 +310,7 @@ const installSarvamTamilSpeechBridge = () => {
   let run = 0
   const cache = new Map()
   const isTamil = (text) => /[\u0B80-\u0BFF]/u.test(String(text || ''))
-  const settings = () => { try { return {...{speaker:'ishita',pace:0.92,temperature:0.72}, ...JSON.parse(localStorage.getItem('hj_tts_settings_v2') || '{}')} } catch { return {speaker:'ishita',pace:0.92,temperature:0.72} } }
+  const settings = () => { try { return {...{speaker:'priya',pace:0.88,temperature:0.6}, ...JSON.parse(localStorage.getItem('hj_tts_settings_v2') || '{}')} } catch { return {speaker:'priya',pace:0.88,temperature:0.6} } }
   const getAudio = async (text) => {
     const key = text.trim()
     if (cache.has(key)) return cache.get(key)
