@@ -3,7 +3,7 @@ const TTS_KEY='hj_tts_settings_v2'
 const PAPER_KEY='hj_reader_paper_v3'
 const PAPER_FORMATS={auto:{label:'Auto',ratio:null},a4:{label:'A4',ratio:210/297},a3:{label:'A3',ratio:297/420},letter:{label:'Letter',ratio:8.5/11},legal:{label:'Legal',ratio:8.5/14},b5:{label:'B5',ratio:176/250}}
 
-const getTtsSettings=()=>{try{return {...{speaker:'ishita',pace:.92,temperature:.72},...JSON.parse(localStorage.getItem(TTS_KEY)||'{}')}}catch{return {speaker:'ishita',pace:.92,temperature:.72}}}
+const getTtsSettings=()=>{try{return {...{speaker:'priya',pace:.88,temperature:.6},...JSON.parse(localStorage.getItem(TTS_KEY)||'{}')}}catch{return {speaker:'priya',pace:.88,temperature:.6}}}
 const saveTtsSettings=v=>{try{localStorage.setItem(TTS_KEY,JSON.stringify(v));window.dispatchEvent(new CustomEvent('hj-tts-settings',{detail:v}))}catch{}}
 const getPaper=()=>{try{const v=localStorage.getItem(PAPER_KEY)||'auto';return PAPER_FORMATS[v]?v:'auto'}catch{return 'auto'}}
 const savePaper=v=>{try{localStorage.setItem(PAPER_KEY,v)}catch{}}
