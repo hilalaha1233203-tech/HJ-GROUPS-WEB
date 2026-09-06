@@ -3222,6 +3222,28 @@ function App() {
   ======================================================= */
 
   useEffect(() => {
+    if (!readerOpen || !readerType) return undefined
+
+    let timer = window.setTimeout(() => {
+      const hasVisibleContent =
+        readerType === 'pdf'
+          ? !!document.querySelector('.reader-body-full .react-pdf__Page canvas')
+          : !!document.querySelector('.reader-body-full .epub-reader iframe')
+
+      if (!hasVisibleContent && readerLoading && !readerError) {
+        setReaderLoading(false)
+        setReaderError(
+          readerType === 'pdf'
+            ? 'PDF renderer did not become visible. Please try opening the book again.'
+            : 'EPUB renderer did not become visible. Please try opening the book again.'
+        )
+      }
+    }, 15000)
+
+    return () => window.clearTimeout(timer)
+  }, [readerOpen, readerType, readerLoading, readerError])
+
+  useEffect(() => {
     if (
       !readerType ||
       !readerFile
