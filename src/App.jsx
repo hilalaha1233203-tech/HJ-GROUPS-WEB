@@ -5275,7 +5275,7 @@ export function App() {
                         canAccessContent(
                           episode,
                           adsKey,
-                          selectedVideo.id
+                          selectedStory.id
                           )
 
                       return (
@@ -5576,7 +5576,7 @@ export function App() {
                         canAccessContent(
                           episode,
                           adsKey,
-                          currentStory.id
+                          selectedVideo.id
                           )
 
                       return (
@@ -6377,7 +6377,7 @@ export function App() {
                             canAccessContent(
                               episode,
                               adsKey,
-                              selectedStory.id
+                              currentStory.id
                               )
 
                           return (
