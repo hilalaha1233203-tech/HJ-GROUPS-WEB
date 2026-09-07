@@ -43,3 +43,7 @@ jobs:
 
       - name: Verify Vite output exists
         run: test -f dist/index.html
+
+      - name: Final source sanity check
+        run: |
+          ! grep -R -n "story?.id" src/App.jsx
