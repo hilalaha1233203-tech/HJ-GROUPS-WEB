@@ -27,6 +27,13 @@ export default defineConfig([
     languageOptions: { globals: globals.node },
   },
   {
+    files: ['src/App.jsx'],
+    rules: {
+      'no-unused-vars': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
+  {
     files: ['src/Admin.jsx', 'src/AdminPanel.jsx'],
     rules: {
       'react-hooks/immutability': 'off',

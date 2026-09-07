@@ -1819,7 +1819,7 @@ export function App() {
           !canAccessContent(
             episode,
             adsKey,
-            story?.id
+            selectedStory.id
             )
         ) {
           setIsPlaying(false)
@@ -3011,8 +3011,9 @@ export function App() {
       )
     }
 
-  readAloudRef.current =
-    readAloud
+  useEffect(() => {
+    readAloudRef.current = readAloud
+  }, [readAloud])
 
   /* =======================================================
      READER CLEANUP
@@ -5274,7 +5275,7 @@ export function App() {
                         canAccessContent(
                           episode,
                           adsKey,
-                          story?.id
+                          selectedVideo.id
                           )
 
                       return (
@@ -5575,7 +5576,7 @@ export function App() {
                         canAccessContent(
                           episode,
                           adsKey,
-                          story?.id
+                          currentStory.id
                           )
 
                       return (

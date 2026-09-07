@@ -30,7 +30,6 @@ s = s.replace(
 # Pass the parent story ID into every episode access check.
 for item_name, story_expr in [
     ('currentEpisode', 'currentStory?.id'),
-    ('episode', 'story?.id'),
 ]:
     pattern = rf"canAccessContent\(\n(\s*){item_name},\n\s*adsKey\n\s*\)"
     replacement = rf"canAccessContent(\n\1{item_name},\n\1adsKey,\n\1{story_expr}\n\1)"
@@ -61,6 +60,11 @@ s = s.replace(
     "          loadAndPlay(\n            episode,\n            currentStory\n          )\n        },\n        currentStory.id\n      )\n    }",
     1,
 )
+
+# Repair parent-story IDs in the concrete rendered episode lists.
+s = s.replace('story?.id', 'selectedStory.id', 1)
+s = s.replace('story?.id', 'selectedVideo.id', 1)
+s = s.replace('story?.id', 'currentStory.id', 1)
 
 app.write_text(s, encoding='utf-8')
 print('Access-control hardening patch completed.')
