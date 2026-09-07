@@ -27,28 +27,16 @@ s = s.replace(
     1,
 )
 
-# Pass the parent story ID into every episode access check.
-for item_name, story_expr in [
-    ('currentEpisode', 'currentStory?.id'),
-]:
-    pattern = rf"canAccessContent\(\n(\s*){item_name},\n\s*adsKey\n\s*\)"
-    replacement = rf"canAccessContent(\n\1{item_name},\n\1adsKey,\n\1{story_expr}\n\1)"
-    s = re.sub(pattern, replacement, s, count=1)
+pattern = r"canAccessContent\(\n(\s*)currentEpisode,\n\s*adsKey\n\s*\)"
+replacement = r"canAccessContent(\n\1currentEpisode,\n\1adsKey,\n\1currentStory?.id\n\1)"
+s = re.sub(pattern, replacement, s, count=1)
 
-# requestAccess also needs the parent story ID for already-purchased stories.
 s = s.replace(
     "  const requestAccess = (\n    item,\n    adsKey,\n    onGranted\n  ) => {\n    if (canAccessContent(item, adsKey)) {",
     "  const requestAccess = (\n    item,\n    adsKey,\n    onGranted,\n    storyId\n  ) => {\n    if (canAccessContent(item, adsKey, storyId)) {",
     1,
 )
 
-s = s.replace(
-    "      () => {\n        if (isReading) {",
-    "      () => {\n        if (isReading) {",
-    1,
-)
-
-# Add story IDs to the two requestAccess call sites.
 s = s.replace(
     "        loadAndPlay(\n          episode,\n          story\n        )\n      }\n    )\n  }",
     "        loadAndPlay(\n          episode,\n          story\n        )\n      },\n      story.id\n    )\n  }",
@@ -61,10 +49,25 @@ s = s.replace(
     1,
 )
 
-# Repair parent-story IDs in the concrete rendered episode lists.
-s = s.replace('story?.id', 'selectedStory.id', 1)
-s = s.replace('story?.id', 'selectedVideo.id', 1)
-s = s.replace('story?.id', 'currentStory.id', 1)
+# Context-safe parent-story IDs for each rendered episode collection.
+s = re.sub(
+    r"(adsKeyFor\(\s*'episode',\s*selectedStory\.id,[\s\S]*?canAccessContent\(\s*episode,\s*adsKey,\s*)[^\n]+",
+    r"\1selectedStory.id",
+    s,
+    count=1,
+)
+s = re.sub(
+    r"(adsKeyFor\(\s*'video-episode',\s*selectedVideo\.id,[\s\S]*?canAccessContent\(\s*episode,\s*adsKey,\s*)[^\n]+",
+    r"\1selectedVideo.id",
+    s,
+    count=1,
+)
+s = re.sub(
+    r"(currentStory\.id,\s*episode\.number\s*\)\s*const accessible\s*=\s*canAccessContent\(\s*episode,\s*adsKey,\s*)[^\n]+",
+    r"\1currentStory.id",
+    s,
+    count=1,
+)
 
 app.write_text(s, encoding='utf-8')
 print('Access-control hardening patch completed.')
