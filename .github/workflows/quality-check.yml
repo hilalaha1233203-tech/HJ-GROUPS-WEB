@@ -1,0 +1,42 @@
+name: Quality Check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      - name: Verify critical startup exports
+        run: |
+          test -s src/App.jsx
+          grep -q "export function App(" src/App.jsx
+          grep -q "export default App" src/App.jsx
+          test -s src/main.jsx
+          grep -q "import('./App.jsx')" src/main.jsx
+          test -s index.html
+          grep -q 'id="root"' index.html
