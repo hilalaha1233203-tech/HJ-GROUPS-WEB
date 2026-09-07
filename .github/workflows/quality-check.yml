@@ -40,3 +40,6 @@ jobs:
           grep -q "import('./App.jsx')" src/main.jsx
           test -s index.html
           grep -q 'id="root"' index.html
+
+      - name: Verify Vite output exists
+        run: test -f dist/index.html
