@@ -6377,7 +6377,7 @@ export function App() {
                             canAccessContent(
                               episode,
                               adsKey,
-                              story?.id
+                              selectedStory.id
                               )
 
                           return (
