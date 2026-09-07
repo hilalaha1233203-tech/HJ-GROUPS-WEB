@@ -35,6 +35,22 @@ jobs:
               print('App.jsx size is healthy; no restore needed.')
           PY
 
+      - name: Repair generated regex escaping
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/App.jsx')
+          s = p.read_text(encoding='utf-8')
+          broken = r'/[^\\s.,!?;:()[\\]{}"“”‘’]+/u'
+          fixed = r'/[^\s.,!?;:()[\]{}"“”‘’]+/u'
+          if broken in s:
+              s = s.replace(broken, fixed)
+              p.write_text(s, encoding='utf-8')
+              print('Repaired doubled regex escapes in App.jsx')
+          else:
+              print('No broken regex escaping found')
+          PY
+
       - name: Run content sync patcher
         run: python3 .github/scripts/fix_content_sync.py
 
