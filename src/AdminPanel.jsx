@@ -151,6 +151,20 @@ const [bookCoverPath, setBookCoverPath] = useState('')
 
 const [bookAccessType, setBookAccessType] = useState('free')
 
+  // Multi-volume books: one parent book can contain many PDF/EPUB volumes.
+  const [bookVolumes, setBookVolumes] = useState([])
+  const [bookVolumeUploading, setBookVolumeUploading] = useState(false)
+
+  const addBookVolume = () => {
+    setBookVolumes(prev => [...prev, { id: Date.now() + Math.random(), title: `Volume ${prev.length + 1}`, file: '', filePath: '' }])
+  }
+  const updateBookVolume = (id, patch) => {
+    setBookVolumes(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v))
+  }
+  const removeBookVolume = (id) => {
+    setBookVolumes(prev => prev.filter(v => v.id !== id))
+  }
+
   /* =====================================================
      VIDEO FORM
   ===================================================== */
@@ -482,6 +496,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   setBookFile('')
   setBookFilePath('')
   setBookAccessType('free')
+  setBookVolumes([])
 }
 
   const startEditBook = (book) => {
@@ -501,6 +516,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   setBookFilePath(book.filePath || '')
 
   setBookAccessType(resolveAccessType(book))
+  setBookVolumes(Array.isArray(book.volumes) ? book.volumes.map((v, index) => ({ id: Date.now() + index + Math.random(), title: v.title || `Volume ${index + 1}`, file: v.file || '', filePath: v.filePath || '' })) : [])
 
   window.scrollTo({
     top: 0,
@@ -511,8 +527,9 @@ const [bookAccessType, setBookAccessType] = useState('free')
  const submitBook = (event) => {
   event.preventDefault()
 
-  if (!bookTitle.trim() || !bookCover.trim() || !bookFile.trim()) {
-    alert('Title, cover image and book file are all required')
+  const validVolumes = bookVolumes.filter(v => v.file && v.file.trim())
+  if (!bookTitle.trim() || !bookCover.trim() || (!bookFile.trim() && validVolumes.length === 0)) {
+    alert('Title, cover image and either a single book file or at least one volume are required')
     return
   }
 
@@ -530,6 +547,13 @@ const [bookAccessType, setBookAccessType] = useState('free')
     filePath: bookFilePath || '',
 
     accessType: bookAccessType,
+    volumes: validVolumes.map((v, index) => ({
+      number: index + 1,
+      title: (v.title || `Volume ${index + 1}`).trim(),
+      file: v.file.trim(),
+      filePath: v.filePath || '',
+      type: bookType,
+    })),
   }
 
   if (editingBookId) {
@@ -1001,9 +1025,40 @@ const [bookAccessType, setBookAccessType] = useState('free')
                   />
                 )}
 
+                <div className="multi-volume-box" style={{ marginTop: 16, padding: 16, border: '1px solid rgba(124,131,255,.28)', borderRadius: 12, background: 'rgba(124,131,255,.06)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div>
+                      <strong>📚 Multi-Volume Book</strong>
+                      <div style={{ fontSize: 12, opacity: .7, marginTop: 4 }}>For books with 2–10+ volumes. Upload each volume separately under one book.</div>
+                    </div>
+                    <button type="button" className="admin-submit" onClick={addBookVolume}>＋ Add Volume</button>
+                  </div>
+
+                  {bookVolumes.length > 0 && (
+                    <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+                      {bookVolumes.map((volume, index) => (
+                        <div key={volume.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(100px, .35fr) minmax(180px, 1fr) auto', gap: 10, alignItems: 'center', padding: 10, borderRadius: 10, background: 'rgba(0,0,0,.2)' }}>
+                          <input value={volume.title} placeholder={`Volume ${index + 1}`} onChange={e => updateBookVolume(volume.id, { title: e.target.value })} />
+                          <FileUploadField
+                            label={volume.file ? `✓ Volume ${index + 1} uploaded — replace` : `Choose Volume ${index + 1} ${bookType.toUpperCase()}`}
+                            kind={bookType}
+                            bucket="books"
+                            folder={bookType === 'pdf' ? 'pdf/volumes' : 'epub/volumes'}
+                            value={volume.file}
+                            accept={bookType === 'pdf' ? 'application/pdf,.pdf' : '.epub'}
+                            onUploaded={(url, path) => updateBookVolume(volume.id, { file: url, filePath: path || '' })}
+                            onUploadingChange={setBookVolumeUploading}
+                          />
+                          <button type="button" className="admin-delete" onClick={() => removeBookVolume(volume.id)}>🗑</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <AccessTypeField groupName="book-access" value={bookAccessType} onChange={setBookAccessType} />
 
-                <button type="submit" className="admin-submit" disabled={bookCoverUploading || bookFileUploading}>
+                <button type="submit" className="admin-submit" disabled={bookCoverUploading || bookFileUploading || bookVolumeUploading}>
                   {editingBookId ? '✓ Save Book' : '+ Add Book'}
                 </button>
 
