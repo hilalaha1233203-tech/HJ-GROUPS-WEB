@@ -2419,7 +2419,7 @@ export function App() {
     // Doing so can trigger a compositor repaint/black flash on mobile.
     const text = String(chunk || '')
     const index = Math.max(0, Number(charIndex) || 0)
-    const wordMatch = text.slice(index).match(/[^\s.,!?;:()[\]{}"“”‘’]+/u)
+    const wordMatch = text.slice(index).match(/[^\s.,!?;:()\[\]{}"“”‘’]+/u)
     setReadAloudWord(wordMatch?.[0] || '')
   }
 
