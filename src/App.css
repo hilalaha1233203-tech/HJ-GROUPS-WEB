@@ -3470,3 +3470,12 @@ body:has(.reader-overlay:not(.reader-minimized)),
 /* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
 .reader-body-full .epub-reader,
 .reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
+
+
+/* Multi-volume admin uploader */
+.multi-volume-box input,.multi-volume-box select{min-width:0}
+@media (max-width:700px){
+  .multi-volume-box > div > div[style*="grid-template-columns"],
+  .multi-volume-box div[style*="grid-template-columns: minmax"]{grid-template-columns:1fr !important}
+  .multi-volume-box .admin-delete{width:100%}
+}
