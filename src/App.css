@@ -3479,3 +3479,6 @@ body:has(.reader-overlay:not(.reader-minimized)),
   .multi-volume-box div[style*="grid-template-columns: minmax"]{grid-template-columns:1fr !important}
   .multi-volume-box .admin-delete{width:100%}
 }
+
+.multi-volume-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+@media(max-width:600px){.multi-volume-actions{display:grid;grid-template-columns:1fr}.multi-volume-actions button{width:100%}}
