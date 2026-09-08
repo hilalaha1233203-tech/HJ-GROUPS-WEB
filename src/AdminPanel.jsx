@@ -1076,6 +1076,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
                     <div>
                       <strong>{book.title}</strong>
                       <small>{book.type.toUpperCase()} · {book.category} · {resolveAccessType(book).join(', ').toUpperCase()}</small>
+                        {Array.isArray(book.volumes) && book.volumes.length > 0 && <small>📚 {book.volumes.length} Volumes</small>}
                     </div>
                     <button className="admin-edit" onClick={() => startEditBook(book)}>✏️ Edit</button>
                     <button className="admin-delete" onClick={() => { if (window.confirm(`Delete "${book.title}"?`)) onDeleteBook(book.id) }}>🗑 Delete</button>
