@@ -154,6 +154,11 @@ const [bookAccessType, setBookAccessType] = useState('free')
   // Multi-volume books: one parent book can contain many PDF/EPUB volumes.
   const [bookVolumes, setBookVolumes] = useState([])
   const [bookVolumeUploading, setBookVolumeUploading] = useState(false)
+  const [volumeBookId, setVolumeBookId] = useState('')
+  const [volumeTitle, setVolumeTitle] = useState('')
+  const [volumeFile, setVolumeFile] = useState('')
+  const [volumeFilePath, setVolumeFilePath] = useState('')
+
 
   const addBookVolume = () => {
     setBookVolumes(prev => [...prev, { id: Date.now() + Math.random(), title: `Volume ${prev.length + 1}`, file: '', filePath: '' }])
@@ -163,6 +168,41 @@ const [bookAccessType, setBookAccessType] = useState('free')
   }
   const removeBookVolume = (id) => {
     setBookVolumes(prev => prev.filter(v => v.id !== id))
+  }
+
+  const resetAddVolumeForm = () => {
+    setVolumeBookId('')
+    setVolumeTitle('')
+    setVolumeFile('')
+    setVolumeFilePath('')
+  }
+
+  const submitVolumeToExistingBook = (event) => {
+    event.preventDefault()
+    const book = books.find((item) => String(item.id) === String(volumeBookId))
+    if (!book) {
+      alert('Select a book first')
+      return
+    }
+    if (!volumeTitle.trim() || !volumeFile.trim()) {
+      alert('Volume name and file are required')
+      return
+    }
+    const existingVolumes = Array.isArray(book.volumes) ? book.volumes : []
+    const nextNumber = existingVolumes.length + 1
+    const nextVolume = {
+      number: nextNumber,
+      title: volumeTitle.trim(),
+      file: volumeFile.trim(),
+      filePath: volumeFilePath || '',
+      type: book.type || 'pdf',
+    }
+    onUpdateBook(book.id, {
+      ...book,
+      volumes: [...existingVolumes, nextVolume],
+    })
+    showToast(`Volume ${nextNumber} added to ${book.title}`)
+    resetAddVolumeForm()
   }
 
   /* =====================================================
@@ -962,6 +1002,67 @@ const [bookAccessType, setBookAccessType] = useState('free')
 
         {tab === 'books' && (
           <>
+            <section className="admin-section">
+              <h3>📚 Add Volume to Existing Book</h3>
+              <form onSubmit={submitVolumeToExistingBook} className="admin-form">
+                <select
+                  value={volumeBookId}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    setVolumeBookId(id)
+                    const selected = books.find((item) => String(item.id) === id)
+                    if (selected) {
+                      setBookType(selected.type || 'pdf')
+                      setVolumeFile('')
+                      setVolumeFilePath('')
+                    }
+                  }}
+                >
+                  <option value="">Select existing book…</option>
+                  {books.filter((book) => adminBookIds.includes(book.id)).map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.title} · {(book.volumes?.length || 0)} volume{(book.volumes?.length || 0) === 1 ? '' : 's'} · {(book.type || 'pdf').toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+
+                {volumeBookId && (
+                  <>
+                    <input
+                      placeholder="Volume name (e.g. Volume 2 / Part 2)"
+                      value={volumeTitle}
+                      onChange={(e) => setVolumeTitle(e.target.value)}
+                    />
+                    {(() => {
+                      const selected = books.find((item) => String(item.id) === String(volumeBookId))
+                      const type = selected?.type || 'pdf'
+                      return (
+                        <FileUploadField
+                          label={volumeFile ? '✓ Volume uploaded — replace' : `Choose ${type.toUpperCase()} for this volume`}
+                          kind={type}
+                          bucket="books"
+                          folder={type === 'pdf' ? 'pdf/volumes' : 'epub/volumes'}
+                          value={volumeFile}
+                          accept={type === 'pdf' ? 'application/pdf,.pdf' : '.epub'}
+                          onUploaded={(url, path) => {
+                            setVolumeFile(url)
+                            setVolumeFilePath(path || '')
+                          }}
+                          onUploadingChange={setBookVolumeUploading}
+                        />
+                      )
+                    })()}
+                    <div className="multi-volume-actions">
+                      <button type="submit" className="admin-submit" disabled={bookVolumeUploading || !volumeTitle.trim() || !volumeFile.trim()}>
+                        ＋ Add Volume
+                      </button>
+                      <button type="button" className="admin-cancel" onClick={resetAddVolumeForm}>Clear</button>
+                    </div>
+                  </>
+                )}
+              </form>
+            </section>
+
             <section className="admin-section">
               <h3>{editingBookId ? '✏️ Edit Book' : '➕ Add New Book'}</h3>
 
