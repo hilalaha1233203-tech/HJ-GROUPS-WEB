@@ -18,8 +18,11 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install production project dependencies
+        run: npm ci
+
+      - name: Install Playwright for QA only
+        run: npm install --no-save --no-package-lock @playwright/test@1.63.0
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
