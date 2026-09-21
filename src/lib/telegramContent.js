@@ -32,7 +32,8 @@ function normalizeStories(storyRows, episodeRows) {
       title: ep.title,
       type: mediaType,
       telegram_message_id: messageId || null,
-      src: src,
+      src: ep.file_url || src,
+      filePath: ep.file_path || '',
       available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,
     })
