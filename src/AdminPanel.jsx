@@ -415,7 +415,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
     showToast('Editing story — form moved to top')
   }
 
-  const submitStory = (event) => {
+  const submitStory = async (event) => {
     event.preventDefault()
 
     if (!storyTitle.trim() || !storyCover.trim()) {
@@ -425,7 +425,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
 
     try {
       if (editingStoryId) {
-        onUpdateStory(editingStoryId, {
+        await onUpdateStory(editingStoryId, {
           title: storyTitle.trim(),
           genre: storyGenre,
           cover: storyCover.trim(),
@@ -433,7 +433,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
         })
         showToast('Story updated successfully')
       } else {
-        onAddStory({
+        await onAddStory({
           title: storyTitle.trim(),
           genre: storyGenre,
           cover: storyCover.trim(),
@@ -480,7 +480,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
     showToast('Editing episode')
   }
 
-  const submitEpisode = (event) => {
+  const submitEpisode = async (event) => {
     event.preventDefault()
 
     if (!episodeStoryId) { showToast('Select a story', 'error'); return }
@@ -517,10 +517,10 @@ const [bookAccessType, setBookAccessType] = useState('free')
       }
 
       if (editingEpisode) {
-        onUpdateEpisode(Number(editingEpisode.storyId), Number(editingEpisode.originalNumber), data)
+        await onUpdateEpisode(Number(editingEpisode.storyId), Number(editingEpisode.originalNumber), data)
         showToast('Episode updated successfully')
       } else {
-        onAddEpisode(Number(episodeStoryId), data)
+        await onAddEpisode(Number(episodeStoryId), data)
         showToast('Episode added successfully')
       }
       resetEpisodeForm()
