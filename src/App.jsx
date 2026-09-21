@@ -35,7 +35,7 @@ import './App.css'
 // Keep a failed optional reader dependency from taking down the entire shell.
 const safeWindow = typeof window !== 'undefined' ? window : null
 
-const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'https://hj-telegram-streaming.onrender.com';
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'https://hj-telegram-streaming-et8rjk1fb-ak-3a25.vercel.app';
 
 try {
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
