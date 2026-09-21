@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -35,9 +35,8 @@ jobs:
         run: |
           test -s src/App.jsx
           grep -q "export function App(" src/App.jsx
-          grep -q "export default App" src/App.jsx
           test -s src/main.jsx
-          grep -q "import('./App.jsx')" src/main.jsx
+          grep -q "import { App } from './App.jsx'" src/main.jsx
           test -s index.html
           grep -q 'id="root"' index.html
 
