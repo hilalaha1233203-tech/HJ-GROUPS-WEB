@@ -778,7 +778,8 @@ export function App() {
       .insert({
         title: story.title,
         genre: story.genre || 'Fantasy',
-        cover_file_id: story.cover || null,
+        cover_url: story.cover || null,
+        cover_path: story.coverPath || '',
         description: story.description || '',
       })
       .select('*')
@@ -796,7 +797,8 @@ export function App() {
       const { error } = await supabase.from('stories').update({
         title: updates.title,
         genre: updates.genre,
-        cover_file_id: updates.cover,
+        cover_url: updates.cover || null,
+        cover_path: updates.coverPath || '',
         description: updates.description || '',
       }).eq('id', supabaseId)
       if (error) throw error
