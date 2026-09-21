@@ -821,25 +821,53 @@ export function App() {
   const addEpisodeToStory = async (storyId, episode) => {
     const supabaseId = getSupabaseStoryId(storyId)
     if (supabaseId !== null) {
-      const row = {
+      const messageId = Number(episode.telegram_message_id)
+      const modernRow = {
         story_id: supabaseId,
         number: Number(episode.number),
-        title: episode.title,
+        title: String(episode.title || 'Untitled Episode'),
         type: episode.type || 'audio',
         file_url: episode.src || null,
         file_path: episode.filePath || '',
         file_id: null,
         access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
         available: episode.available !== false,
+        ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
       }
-      if (episode.telegram_message_id) row.telegram_message_id = episode.telegram_message_id
-      const { error } = await supabase.from('episodes').insert(row)
-      if (error) {
-        console.error('Supabase episode insert error:', error)
-        throw error
+
+      let result = await supabase.from('episodes').insert(modernRow)
+      if (result.error) {
+        const message = String(result.error.message || '')
+        const schemaMismatch = /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
+        if (!schemaMismatch) {
+          console.error('Supabase episode insert error:', result.error)
+          throw result.error
+        }
+
+        const legacyRow = {
+          story_id: supabaseId,
+          episode_number: Number(episode.number),
+          title: String(episode.title || 'Untitled Episode'),
+          audio_url: Number.isFinite(messageId)
+            ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
+            : (episode.src || null),
+        }
+
+        result = await supabase.from('episodes').insert(legacyRow)
+        if (result.error) {
+          console.error('Supabase legacy episode insert error:', result.error)
+          throw result.error
+        }
+      }
+
+      try {
+        await refreshTelegramContent()
+      } catch (refreshError) {
+        console.warn('Episode imported, but catalogue refresh failed:', refreshError)
       }
       return
     }
+
     persistStories(adminStories.map((story) =>
       story.id === storyId ? { ...story, episodes: [...(story.episodes || []), episode] } : story
     ))
