@@ -6111,7 +6111,7 @@ export function App() {
                     <p>Save books from the Books section to find them here.</p>
                     <button
                       className="primary-btn"
-                      onClick={() => setBooksModalOpen(true)}
+                      onClick={() => { setBooksModalOpen(false); setPage('books'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                     >
                       Browse Books
                     </button>
@@ -6127,7 +6127,7 @@ export function App() {
                     <small>VIDEO STORIES</small>
                     <h2>Browse Video Stories</h2>
                   </div>
-                  <button className="secondary-btn" onClick={() => setVideoModalOpen(true)}>
+                  <button className="secondary-btn" onClick={() => { setVideoModalOpen(false); setPage('videos'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
                     Open Videos
                   </button>
                 </div>
@@ -7925,11 +7925,11 @@ export function App() {
           <span>🎧</span><small>Audio Stories</small>
         </button>
 
-        <button onClick={() => setBooksModalOpen(true)}>
+        <button onClick={() => { setBooksModalOpen(false); setPage('books'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
           <span>📚</span><small>Books</small>
         </button>
 
-        <button onClick={() => setVideoModalOpen(true)}>
+        <button onClick={() => { setVideoModalOpen(false); setPage('videos'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
           <span>🎬</span><small>Videos</small>
         </button>
 
