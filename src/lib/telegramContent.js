@@ -96,16 +96,30 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
   }))
 }
 
+async function selectOptional(table) {
+  const result = await supabase.from(table).select('*')
+  if (result.error) {
+    const message = String(result.error.message || '')
+    if (/could not find the table|schema cache|relation .* does not exist/i.test(message)) {
+      console.warn(`Optional content table "${table}" is not available yet:`, message)
+      return { data: [], error: null, missing: true }
+    }
+  }
+  return result
+}
+
 export async function fetchTelegramContent() {
+  // Audio stories/episodes are the core catalogue. Books/videos are optional
+  // until their production tables have been created.
   const [stories, episodes, books, videoStories, videoEpisodes] = await Promise.all([
     supabase.from('stories').select('*'),
     supabase.from('episodes').select('*'),
-    supabase.from('books').select('*'),
-    supabase.from('video_stories').select('*'),
-    supabase.from('video_episodes').select('*'),
+    selectOptional('books'),
+    selectOptional('video_stories'),
+    selectOptional('video_episodes'),
   ])
 
-  const firstError = stories.error || episodes.error || books.error || videoStories.error || videoEpisodes.error
+  const firstError = stories.error || episodes.error
   if (firstError) throw firstError
 
   return {
