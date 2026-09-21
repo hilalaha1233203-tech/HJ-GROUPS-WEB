@@ -335,92 +335,99 @@ const [bookAccessType, setBookAccessType] = useState('free')
       return
     }
 
-    const story = stories.find(s => String(s.id) === bulkStoryId)
+    const story = stories.find((s) => String(s.id) === String(bulkStoryId))
     if (!story) {
       showToast('Story not found', 'error')
       return
     }
 
-    const existingMsgIds = new Set((story.episodes || []).map(e => e.telegram_message_id).filter(Boolean))
-    
-    let maxEpisodeNumber = 0
-    if (story.episodes && story.episodes.length > 0) {
-      maxEpisodeNumber = Math.max(...story.episodes.map(e => e.number))
-    }
+    const existingMsgIds = new Set(
+      (story.episodes || [])
+        .map((episode) => episode.telegram_message_id)
+        .filter(Boolean)
+        .map(Number)
+    )
+
+    let maxEpisodeNumber = (story.episodes || []).reduce(
+      (max, episode) => Math.max(max, Number(episode.number) || 0),
+      0
+    )
+
+    const selectedMsgs = bulkSelectedIds
+      .map((id) => bulkMessages.find((message) => String(message.messageId) === String(id)))
+      .filter(Boolean)
 
     let importedCount = 0
     let skippedCount = 0
-    
-        const selectedMsgs = bulkSelectedIds.map(id => bulkMessages.find(m => m.messageId === id)).filter(Boolean)
+    let failedCount = 0
 
-    const newLocalEpisodes = []
-    const newSupabaseEpisodes = []
+    try {
+      for (const msg of selectedMsgs) {
+        const messageId = Number(msg.messageId)
 
-    for (const msg of selectedMsgs) {
-      if (existingMsgIds.has(msg.messageId)) {
-        skippedCount++
-        continue
-      }
-      
-      maxEpisodeNumber++
-      const finalNumber = bulkNumberOverrides[msg.messageId] || maxEpisodeNumber
-      const finalTitle = bulkTitleOverrides[msg.messageId] || msg.caption || msg.fileName || 'Untitled Episode'
-
-      // Independent object for local state UI
-      const localEpisodeObj = {
-        number: Number(finalNumber),
-        title: finalTitle.trim(),
-        type: 'audio',
-        src: '',
-        telegram_message_id: msg.messageId,
-        available: true,
-        accessType: ['free'],
-      }
-      newLocalEpisodes.push(localEpisodeObj)
-
-      // Independent object for Supabase insertion
-      const supabaseEpisodeObj = {
-        story_id: Number(bulkStoryId),
-        number: Number(finalNumber),
-        title: finalTitle.trim(),
-        telegram_message_id: msg.messageId,
-        file_id: null,
-        access_type: 'free',
-        available: true,
-        type: 'audio'
-      }
-      newSupabaseEpisodes.push(supabaseEpisodeObj)
-      
-      importedCount++
-    }
-
-    if (newSupabaseEpisodes.length > 0) {
-      try {
-        const { error } = await supabase.from('episodes').insert(newSupabaseEpisodes)
-        if (error) {
-          console.error('Supabase bulk insert error:', error)
-          showToast('Failed to insert some episodes to database', 'error')
+        if (!Number.isFinite(messageId) || existingMsgIds.has(messageId)) {
+          skippedCount++
+          continue
         }
-        
-        // Supabase is the source of truth for Telegram stories. Realtime refreshes the UI.
-        if (!String(bulkStoryId).startsWith('tg-story-')) {
-          onUpdateStory(Number(bulkStoryId), {
-            episodes: [...(story.episodes || []), ...newLocalEpisodes]
+
+        const overrideNumber = Number(bulkNumberOverrides[msg.messageId])
+        const finalNumber = Number.isFinite(overrideNumber) && overrideNumber > 0
+          ? overrideNumber
+          : maxEpisodeNumber + 1
+
+        const finalTitle = String(
+          bulkTitleOverrides[msg.messageId] ??
+          msg.caption ??
+          msg.fileName ??
+          'Untitled Episode'
+        ).trim()
+
+        const episode = {
+          number: finalNumber,
+          title: finalTitle || 'Untitled Episode',
+          type: 'audio',
+          src: '',
+          telegram_message_id: messageId,
+          available: true,
+          accessType: ['free'],
+        }
+
+        try {
+          // Always go through App.jsx's persistence callback. This correctly
+          // converts tg-story-<id> into the real Supabase story id and also
+          // refreshes the Telegram catalogue after a successful insert.
+          await onAddEpisode(story.id, episode)
+          importedCount++
+          existingMsgIds.add(messageId)
+          maxEpisodeNumber = Math.max(maxEpisodeNumber, finalNumber)
+        } catch (error) {
+          failedCount++
+          console.error('Telegram episode import failed:', {
+            storyId: story.id,
+            messageId,
+            error,
           })
         }
-      } catch (e) {
-        console.error('Error during bulk import', e)
-        showToast('Exception occurred during bulk import', 'error')
       }
-    }
 
-    if (skippedCount > 0) {
-      showToast(`${importedCount} episodes imported successfully. ${skippedCount} duplicates skipped.`)
-    } else {
-      showToast(`${importedCount} episodes imported successfully`)
-    }
+      setBulkSelectedIds([])
 
-    setBulkSelectedIds([])
+      if (failedCount > 0) {
+        showToast(
+          `${importedCount} imported, ${failedCount} failed. Check the console for details.`,
+          'error'
+        )
+      } else if (skippedCount > 0) {
+        showToast(
+          `${importedCount} episodes imported successfully. ${skippedCount} duplicates skipped.`
+        )
+      } else {
+        showToast(`${importedCount} episodes imported successfully`)
+      }
+    } catch (error) {
+      console.error('Error during bulk Telegram import:', error)
+      showToast('Telegram import failed. Check console.', 'error')
+    }
   }
 
   const resetStoryForm = () => {
