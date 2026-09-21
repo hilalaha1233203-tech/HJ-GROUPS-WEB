@@ -6922,7 +6922,7 @@ export function App() {
               deleteAdminVideo
             }
             adminStoryIds={
-              adminStories.map(
+              stories.map(
                 (story) =>
                   story.id
               )
