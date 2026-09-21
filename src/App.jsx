@@ -6768,7 +6768,7 @@ export function App() {
       ===================================================== */}
 
       {adminOpen && (
-        <div className="login-overlay">
+        <div className="login-overlay admin-overlay">
           <AdminPanel
             stories={stories}
             books={books}
