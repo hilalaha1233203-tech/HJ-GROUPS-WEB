@@ -2,7 +2,7 @@ name: Quality Check
 
 on:
   push:
-    branches: [main, ui-redesign-inspo-2026-09-21]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
