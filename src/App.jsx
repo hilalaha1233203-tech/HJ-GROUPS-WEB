@@ -4865,11 +4865,25 @@ export function App() {
             <span>🎧</span><small>Audio Stories</small>
           </button>
 
-          <button onClick={() => setBooksModalOpen(true)}>
+          <button className={page === 'books' ? 'active' : ''} onClick={() => {
+            teardownReader()
+            closePlayer()
+            setBooksModalOpen(false)
+            setSelectedBook(null)
+            setPage('books')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}>
             <span>📚</span><small>Books</small>
           </button>
 
-          <button onClick={() => setVideoModalOpen(true)}>
+          <button className={page === 'videos' ? 'active' : ''} onClick={() => {
+            teardownReader()
+            closePlayer()
+            setVideoModalOpen(false)
+            setSelectedVideo(null)
+            setPage('videos')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}>
             <span>🎬</span><small>Videos</small>
           </button>
 
@@ -5825,6 +5839,133 @@ export function App() {
             </div>
           </main>
         )}
+
+      {/* =====================================================
+         BOOKS — FULL PAGE
+      ===================================================== */}
+
+      {page === 'books' && (
+        <main className="media-catalog-page">
+          <section className="media-catalog-hero">
+            <div>
+              <div className="eyebrow">HJ GROUPS • BOOKS</div>
+              <h1>📚 Books</h1>
+              <p>Read your favourite stories as PDF and EPUB books in one place.</p>
+            </div>
+            <span className="media-count-chip">{filteredBooks.length} Books</span>
+          </section>
+
+          <section className="media-catalog-content">
+            <div className="media-catalog-toolbar">
+              <div className="library-categories media-category-list">
+                {bookCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    className={bookCategory === cat ? 'active' : ''}
+                    onClick={() => setBookCategory(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredBooks.length ? (
+              <div className="library-grid media-catalog-grid">
+                {filteredBooks.map((book) => (
+                  <button
+                    key={book.id}
+                    className="library-card media-catalog-card"
+                    onClick={() => openBook(book)}
+                  >
+                    <span className="library-card-type">
+                      {accessLabel(book, { isAdmin }).toUpperCase()}
+                    </span>
+                    <div className="media-catalog-cover">
+                      <img src={book.cover} alt={book.title} />
+                    </div>
+                    <strong>{book.title}</strong>
+                    <small>{book.author || book.category || 'Book'}</small>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state library-empty-state media-catalog-empty">
+                <span>📚</span>
+                <h2>No books available</h2>
+                <p>Books will appear here when they are added.</p>
+              </div>
+            )}
+          </section>
+        </main>
+      )}
+
+      {/* =====================================================
+         VIDEOS — FULL PAGE
+      ===================================================== */}
+
+      {page === 'videos' && (
+        <main className="media-catalog-page">
+          <section className="media-catalog-hero">
+            <div>
+              <div className="eyebrow">HJ GROUPS • VIDEO STORIES</div>
+              <h1>🎬 Video Stories</h1>
+              <p>Explore your video stories and continue watching from one full-screen catalogue.</p>
+            </div>
+            <span className="media-count-chip">{filteredVideos.length} Videos</span>
+          </section>
+
+          <section className="media-catalog-content">
+            <div className="media-catalog-toolbar">
+              <div className="library-categories media-category-list">
+                {videoCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    className={videoCategory === cat ? 'active' : ''}
+                    onClick={() => setVideoCategory(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredVideos.length ? (
+              <div className="library-grid media-catalog-grid">
+                {filteredVideos.map((story) => (
+                  <button
+                    key={story.id}
+                    className="library-card media-catalog-card"
+                    onClick={() => {
+                      setPreDetailsPage('videos')
+                      setVideoModalOpen(false)
+                      setSelectedVideo(story)
+                      setPage('video-details')
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                  >
+                    <span className="library-card-type">
+                      {accessLabel(story, { isAdmin }).toUpperCase()}
+                    </span>
+                    <div className="media-catalog-cover">
+                      <img src={story.cover} alt={story.title} />
+                      <span className="media-catalog-play">▶</span>
+                    </div>
+                    <strong>{story.title}</strong>
+                    <small>{story.category || 'Video Story'}</small>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state library-empty-state media-catalog-empty">
+                <span>🎬</span>
+                <h2>No video stories available</h2>
+                <p>Video stories will appear here when they are added.</p>
+              </div>
+            )}
+          </section>
+        </main>
+      )}
 
       {/* =====================================================
          LIBRARY
