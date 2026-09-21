@@ -1504,14 +1504,27 @@ const [bookAccessType, setBookAccessType] = useState('free')
                   onUploadingChange={setVideoCoverUploading}
                 />
 
+                <input
+                  type="text"
+                  placeholder="Paste Telegram video message URL"
+                  value={videoTelegramUrl}
+                  onChange={(e) => {
+                    setVideoTelegramUrl(e.target.value)
+                    if (e.target.value) setVideoSrc('')
+                  }}
+                />
+                <div style={{ textAlign: 'center', margin: '10px 0', fontWeight: 'bold' }}>OR</div>
                 <FileUploadField
-                  label="Choose Video"
+                  label={videoSrc ? '✓ Video uploaded — replace' : 'Choose Video'}
                   kind="video"
                   bucket="videos"
                   folder="video-stories"
                   value={videoSrc}
                   accept="video/*,.mp4,.webm,.mov"
-                  onUploaded={(url) => setVideoSrc(url)}
+                  onUploaded={(url, path) => {
+                    setVideoSrc(url)
+                    setVideoTelegramUrl('')
+                  }}
                   onUploadingChange={setVideoFileUploading}
                 />
 
@@ -1525,6 +1538,95 @@ const [bookAccessType, setBookAccessType] = useState('free')
 
                 {editingVideoId && <button type="button" className="admin-cancel" onClick={resetVideoForm}>Cancel Edit</button>}
               </form>
+            </section>
+
+            <section className="admin-section bulk-telegram-section">
+              <h3>🎬 Bulk Telegram Video Import</h3>
+              <div className="admin-form">
+                <select value={bulkVideoStoryId} onChange={(e) => setBulkVideoStoryId(e.target.value)}>
+                  <option value="">Select Video Story</option>
+                  {videoStories.filter((video) => adminVideoIds.includes(video.id)).map((video) => (
+                    <option key={video.id} value={video.id}>{video.title}</option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  className="admin-submit"
+                  style={{ backgroundColor: '#7C83FF' }}
+                  onClick={handleScanVideoTelegram}
+                  disabled={videoBulkLoading}
+                >
+                  {videoBulkLoading ? '🔄 Scanning Videos...' : '🔄 Scan Telegram Videos'}
+                </button>
+
+                {videoBulkMessages.length > 0 && (
+                  <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', alignItems: 'center' }}>
+                      <strong style={{ color: '#fff' }}>Selected: {videoBulkSelectedIds.length}</strong>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button type="button" className="primary-btn" style={{ padding: '5px 10px', fontSize: '14px' }} onClick={handleVideoBulkToggleAll}>Toggle All</button>
+                        <button type="button" className="admin-cancel" style={{ padding: '5px 10px', fontSize: '14px' }} onClick={() => setVideoBulkSelectedIds([])}>Clear</button>
+                      </div>
+                    </div>
+
+                    <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {videoBulkMessages.map((msg) => {
+                        const isSelected = videoBulkSelectedIds.includes(msg.messageId)
+                        const defaultTitle = msg.caption || msg.fileName || 'Untitled Video Episode'
+                        return (
+                          <div key={msg.messageId} style={{
+                            background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px',
+                            borderLeft: isSelected ? '4px solid #7C83FF' : '4px solid transparent',
+                            display: 'flex', gap: '15px', alignItems: 'flex-start'
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleVideoBulkToggle(msg.messageId)}
+                              style={{ width: '20px', height: '20px', marginTop: '10px' }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '12px', color: '#999', marginBottom: '5px' }}>
+                                ID: {msg.messageId} · {new Date(msg.date * 1000).toLocaleString()} · {Math.round(msg.size / 1024 / 1024 * 100) / 100} MB
+                                {msg.width && msg.height ? ` · ${msg.width}×${msg.height}` : ''}
+                              </div>
+                              <input
+                                type="text"
+                                placeholder={defaultTitle}
+                                value={videoBulkTitleOverrides[msg.messageId] !== undefined ? videoBulkTitleOverrides[msg.messageId] : defaultTitle}
+                                onChange={(e) => handleVideoBulkTitleChange(msg.messageId, e.target.value)}
+                                style={{ width: '100%', padding: '8px', marginBottom: '5px', borderRadius: '5px', border: '1px solid #333', background: '#222', color: '#fff' }}
+                              />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <label style={{ fontSize: '12px', color: '#ccc' }}>Episode No:</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  placeholder="Auto"
+                                  value={videoBulkNumberOverrides[msg.messageId] || ''}
+                                  onChange={(e) => handleVideoBulkNumberChange(msg.messageId, e.target.value)}
+                                  style={{ width: '80px', padding: '5px', borderRadius: '5px', border: '1px solid #333', background: '#222', color: '#fff' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="admin-submit"
+                      style={{ marginTop: '20px' }}
+                      onClick={handleVideoBulkImport}
+                      disabled={videoBulkSelectedIds.length === 0 || !bulkVideoStoryId}
+                    >
+                      ⬆️ Import Selected Videos
+                    </button>
+                  </div>
+                )}
+              </div>
             </section>
 
             <section className="admin-section">
