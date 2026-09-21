@@ -4494,3 +4494,130 @@ body:has(.reader-overlay:not(.reader-minimized)),
     padding: 9px 12px;
   }
 }
+
+
+/* =========================================================
+   HJ GROUPS — MOBILE ADMIN FIXES
+========================================================= */
+@media (max-width: 650px) {
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .admin-overlay {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 6px;
+    overflow-x: hidden;
+  }
+
+  .admin-panel {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .admin-header,
+  .admin-tabs,
+  .admin-body,
+  .admin-section,
+  .bulk-telegram-section {
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .admin-body {
+    padding: 12px;
+  }
+
+  .admin-section {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .admin-list-item {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  .admin-list-item img {
+    width: 72px !important;
+    height: 96px !important;
+    max-width: 72px !important;
+    max-height: 96px !important;
+    min-width: 0;
+    object-fit: cover;
+    border-radius: 9px;
+    display: block;
+  }
+
+  .admin-list-item > div {
+    min-width: 0;
+  }
+
+  .admin-list-item strong,
+  .admin-list-item small {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-list-item .admin-edit,
+  .admin-list-item .admin-delete {
+    grid-row: 2;
+  }
+
+  .bulk-telegram-section input,
+  .bulk-telegram-section select,
+  .bulk-telegram-section textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .bulk-telegram-section > * {
+    min-width: 0;
+  }
+
+  .bulk-telegram-section button {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 450px) {
+  .admin-overlay {
+    padding: 4px;
+  }
+
+  .admin-panel {
+    border-radius: 14px;
+  }
+
+  .admin-body {
+    padding: 10px;
+  }
+
+  .admin-list-item {
+    grid-template-columns: 60px minmax(0, 1fr);
+    padding: 8px;
+  }
+
+  .admin-list-item img {
+    width: 60px !important;
+    height: 80px !important;
+    max-width: 60px !important;
+    max-height: 80px !important;
+  }
+}
