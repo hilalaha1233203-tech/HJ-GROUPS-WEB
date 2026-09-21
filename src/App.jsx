@@ -895,150 +895,251 @@ export function App() {
     )
   }
 
-  const addBook = (book) =>
-    persistBooks([
-      ...adminBooks,
-      book,
-    ])
+  const getSupabaseBookId = (bookId) => {
+    const text = String(bookId || '')
+    if (text.startsWith('tg-book-')) {
+      const id = Number(text.slice('tg-book-'.length))
+      return Number.isFinite(id) ? id : null
+    }
+    return null
+  }
 
-  const updateBook = (
-    bookId,
-    updates
-  ) =>
-    persistBooks(
-      adminBooks.map((book) =>
-        book.id === bookId
-          ? {
-            ...book,
-            ...updates,
-          }
-          : book
-      )
-    )
+  const getSupabaseVideoId = (videoId) => {
+    const text = String(videoId || '')
+    if (text.startsWith('tg-video-')) {
+      const id = Number(text.slice('tg-video-'.length))
+      return Number.isFinite(id) ? id : null
+    }
+    return null
+  }
 
-  const deleteAdminBook = (
-    bookId
-  ) => {
-    persistBooks(
-      adminBooks.filter(
-        (book) =>
-          book.id !== bookId
-      )
-    )
+  const refreshTelegramContent = async () => {
+    const data = await fetchTelegramContent()
+    setTelegramStories(data.stories)
+    setTelegramBooks(data.books)
+    setTelegramVideoStories(data.videoStories)
+    return data
+  }
 
-    if (
-      selectedBook?.id === bookId
-    ) {
+  const addBook = async (book) => {
+    const row = {
+      title: book.title,
+      author: book.author || '',
+      description: book.description || '',
+      type: book.type || 'pdf',
+      category: book.category || 'Other',
+      cover_url: book.cover || null,
+      cover_path: book.coverPath || '',
+      file_url: book.file || null,
+      file_path: book.filePath || '',
+      telegram_message_id: book.telegram_message_id ? Number(book.telegram_message_id) : null,
+      access_type: Array.isArray(book.accessType) ? (book.accessType[0] || 'free') : (book.accessType || 'free'),
+      volumes: Array.isArray(book.volumes) ? book.volumes : [],
+    }
+
+    const { data, error } = await supabase
+      .from('books')
+      .insert(row)
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('Supabase book insert error:', error)
+      throw error
+    }
+
+    await refreshTelegramContent()
+    return data
+  }
+
+  const updateBook = async (bookId, updates) => {
+    const supabaseId = getSupabaseBookId(bookId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('books').update({
+        title: updates.title,
+        author: updates.author || '',
+        description: updates.description || '',
+        type: updates.type || 'pdf',
+        category: updates.category || 'Other',
+        cover_url: updates.cover || null,
+        cover_path: updates.coverPath || '',
+        file_url: updates.file || null,
+        file_path: updates.filePath || '',
+        telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
+        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+        volumes: Array.isArray(updates.volumes) ? updates.volumes : [],
+      }).eq('id', supabaseId)
+      if (error) throw error
+      await refreshTelegramContent()
+      return
+    }
+
+    persistBooks(adminBooks.map((book) =>
+      book.id === bookId ? { ...book, ...updates } : book
+    ))
+  }
+
+  const deleteAdminBook = async (bookId) => {
+    const supabaseId = getSupabaseBookId(bookId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('books').delete().eq('id', supabaseId)
+      if (error) throw error
+      await refreshTelegramContent()
+      return
+    }
+
+    persistBooks(adminBooks.filter((book) => book.id !== bookId))
+    if (selectedBook?.id === bookId) {
       setSelectedBook(null)
       setPage('home')
     }
   }
 
-  const addVideoStory = (
-    video
-  ) =>
-    persistVideos([
-      ...adminVideos,
-      video,
-    ])
+  const addVideoStory = async (video) => {
+    const { data, error } = await supabase
+      .from('video_stories')
+      .insert({
+        title: video.title,
+        category: video.category || 'Action',
+        cover_url: video.cover || null,
+        cover_path: video.coverPath || '',
+        telegram_message_id: video.telegram_message_id ? Number(video.telegram_message_id) : null,
+        access_type: Array.isArray(video.accessType) ? (video.accessType[0] || 'free') : (video.accessType || 'free'),
+      })
+      .select('*')
+      .single()
 
-  const updateVideoStory = (
-    videoId,
-    updates
-  ) =>
-    persistVideos(
-      adminVideos.map((video) =>
-        video.id === videoId
-          ? {
-            ...video,
-            ...updates,
-          }
-          : video
-      )
-    )
+    if (error) {
+      console.error('Supabase video story insert error:', error)
+      throw error
+    }
 
-  const updateVideoEpisode = (
-    videoId,
-    episodeNumber,
-    updates
-  ) =>
-    persistVideos(
-      adminVideos.map((video) =>
-        video.id === videoId
-          ? {
-            ...video,
-            episodes: (
-              video.episodes ||
-              []
-            ).map(
-              (episode) =>
-                episode.number ===
-                  episodeNumber
-                  ? {
-                    ...episode,
-                    ...updates,
-                  }
-                  : episode
-            ),
-          }
-          : video
-      )
-    )
+    const episodes = Array.isArray(video.episodes) ? video.episodes : []
+    if (episodes.length) {
+      const rows = episodes.map((episode, index) => ({
+        video_story_id: data.id,
+        number: Number(episode.number || index + 1),
+        title: episode.title || `Episode ${String(index + 1).padStart(2, '0')}`,
+        file_url: episode.src || null,
+        file_path: episode.filePath || '',
+        telegram_message_id: episode.telegram_message_id ? Number(episode.telegram_message_id) : null,
+        access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
+        available: episode.available !== false,
+      }))
+      const { error: episodeError } = await supabase.from('video_episodes').insert(rows)
+      if (episodeError) {
+        console.error('Supabase video episode insert error:', episodeError)
+        throw episodeError
+      }
+    }
 
-  const addVideoEpisode = (
-    videoId,
-    episode
-  ) =>
-    persistVideos(
-      adminVideos.map((video) =>
-        video.id === videoId
-          ? {
-            ...video,
-            episodes: [
-              ...(video.episodes ||
-                []),
-              episode,
-            ],
-          }
-          : video
-      )
-    )
+    await refreshTelegramContent()
+    return data
+  }
 
-  const deleteVideoEpisode = (
-    videoId,
-    episodeNumber
-  ) =>
-    persistVideos(
-      adminVideos.map((video) =>
-        video.id === videoId
-          ? {
-            ...video,
-            episodes: (
-              video.episodes ||
-              []
-            ).filter(
-              (episode) =>
-                episode.number !==
-                episodeNumber
-            ),
-          }
-          : video
-      )
-    )
+  const updateVideoStory = async (videoId, updates) => {
+    const supabaseId = getSupabaseVideoId(videoId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('video_stories').update({
+        title: updates.title,
+        category: updates.category || 'Action',
+        cover_url: updates.cover || null,
+        cover_path: updates.coverPath || '',
+        telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
+        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+      }).eq('id', supabaseId)
+      if (error) throw error
+      await refreshTelegramContent()
+      return
+    }
 
-  const deleteAdminVideo = (
-    videoId
-  ) => {
-    persistVideos(
-      adminVideos.filter(
-        (video) =>
-          video.id !== videoId
-      )
-    )
+    persistVideos(adminVideos.map((video) =>
+      video.id === videoId ? { ...video, ...updates } : video
+    ))
+  }
 
-    if (
-      selectedVideo?.id === videoId
-    ) {
+  const addVideoEpisode = async (videoId, episode) => {
+    const supabaseId = getSupabaseVideoId(videoId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('video_episodes').insert({
+        video_story_id: supabaseId,
+        number: Number(episode.number),
+        title: episode.title,
+        file_url: episode.src || null,
+        file_path: episode.filePath || '',
+        telegram_message_id: episode.telegram_message_id ? Number(episode.telegram_message_id) : null,
+        access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
+        available: episode.available !== false,
+      })
+      if (error) throw error
+      await refreshTelegramContent()
+      return
+    }
+
+    persistVideos(adminVideos.map((video) =>
+      video.id === videoId
+        ? { ...video, episodes: [...(video.episodes || []), episode] }
+        : video
+    ))
+  }
+
+  const updateVideoEpisode = async (videoId, episodeNumber, updates) => {
+    const supabaseId = getSupabaseVideoId(videoId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('video_episodes').update({
+        number: Number(updates.number || episodeNumber),
+        title: updates.title,
+        file_url: updates.src || null,
+        file_path: updates.filePath || '',
+        telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
+        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+        available: updates.available !== false,
+      }).eq('video_story_id', supabaseId).eq('number', Number(episodeNumber))
+      if (error) throw error
+      await refreshTelegramContent()
+      return
+    }
+
+    persistVideos(adminVideos.map((video) =>
+      video.id === videoId
+        ? {
+          ...video,
+          episodes: (video.episodes || []).map((episode) =>
+            episode.number === episodeNumber ? { ...episode, ...updates } : episode
+          ),
+        }
+        : video
+    ))
+  }
+
+  const deleteVideoEpisode = async (videoId, episodeNumber) => {
+    const supabaseId = getSupabaseVideoId(videoId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('video_episodes').delete()
+        .eq('video_story_id', supabaseId).eq('number', Number(episodeNumber))
+      if (error) throw error
+      await refreshTelegramContent()
+      return
+    }
+
+    persistVideos(adminVideos.map((video) =>
+      video.id === videoId
+        ? { ...video, episodes: (video.episodes || []).filter((episode) => episode.number !== episodeNumber) }
+        : video
+    ))
+  }
+
+  const deleteAdminVideo = async (videoId) => {
+    const supabaseId = getSupabaseVideoId(videoId)
+    if (supabaseId !== null) {
+      const { error } = await supabase.from('video_stories').delete().eq('id', supabaseId)
+      if (error) throw error
+      await refreshTelegramContent()
+      return
+    }
+
+    persistVideos(adminVideos.filter((video) => video.id !== videoId))
+    if (selectedVideo?.id === videoId) {
       setSelectedVideo(null)
       setPage('home')
     }
@@ -1132,6 +1233,11 @@ export function App() {
           .eq('user_id', user.id)
 
         if (error) {
+          const message = String(error.message || '')
+          if (/could not find the table|schema cache|relation .* does not exist/i.test(message)) {
+            setPurchasedStoryIds(new Set())
+            return
+          }
           console.warn('Could not fetch purchases:', error.message)
           return
         }
@@ -6928,13 +7034,13 @@ export function App() {
               )
             }
             adminBookIds={
-              adminBooks.map(
+              books.map(
                 (book) =>
                   book.id
               )
             }
             adminVideoIds={
-              adminVideos.map(
+              videoStories.map(
                 (video) =>
                   video.id
               )
