@@ -1,5 +1,6 @@
 import { Component, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { App } from './App.jsx'
 import './index.css'
 
 class AppErrorBoundary extends Component {
@@ -32,15 +33,6 @@ if (!rootElement) {
 } else {
   const appRoot = createRoot(rootElement)
   appRoot.render(<BootShell />)
-  Promise.all([
-    import('./App.jsx'),
-    import('./readerEnhancements.js').catch((error) => { console.error('Reader enhancements disabled:', error); return null }),
-  ]).then(([appModule]) => {
-    const App = appModule?.default || appModule?.App
-    if (!App) throw new Error('App module contains no usable App component export.')
-    appRoot.render(<StrictMode><AppErrorBoundary><App /></AppErrorBoundary></StrictMode>)
-  }).catch((error) => {
-    console.error('HJ GROUPS application startup failed:', error)
-    appRoot.render(<RuntimeFailure error={error} />)
-  })
+  import('./readerEnhancements.js').catch((error) => console.error('Reader enhancements disabled:', error))
+  appRoot.render(<StrictMode><AppErrorBoundary><App /></AppErrorBoundary></StrictMode>)
 }
