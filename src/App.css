@@ -4860,3 +4860,25 @@ body:has(.reader-overlay:not(.reader-minimized)),
     font-size: 32px;
   }
 }
+
+
+@media (max-width: 750px) {
+  .top-nav {
+    max-width: calc(100vw - 135px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .top-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-nav button {
+    flex: 0 0 auto;
+  }
+
+  .top-nav button:nth-child(4),
+  .top-nav button:nth-child(5) {
+    font-size: 18px;
+  }
+}
