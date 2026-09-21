@@ -817,7 +817,9 @@ export function App() {
         number: Number(episode.number),
         title: episode.title,
         type: episode.type || 'audio',
-        file_id: episode.file_id || null,
+        file_url: episode.src || null,
+        file_path: episode.filePath || '',
+        file_id: null,
         access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
         available: episode.available !== false,
       }
@@ -841,7 +843,9 @@ export function App() {
         number: Number(updates.number),
         title: updates.title,
         type: updates.type || 'audio',
-        file_id: updates.file_id || null,
+        file_url: updates.src || null,
+        file_path: updates.filePath || '',
+        file_id: null,
         access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
         available: updates.available !== false,
       }
