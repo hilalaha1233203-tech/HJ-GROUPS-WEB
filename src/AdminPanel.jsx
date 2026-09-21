@@ -860,7 +860,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
         {tab === 'stories' && (
           <>
             <section className="admin-section">
-              <h3>{editingStoryId ? '✏️ Edit Story' : '➕ Add New Story'}</h3>
+              <h3>{editingStoryId ? '✏️ Edit Audio Story' : '➕ Add New Audio Story'}</h3>
 
               <form onSubmit={submitStory} className="admin-form">
                 <input placeholder="Story title" value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} />
@@ -885,7 +885,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
                 <textarea placeholder="Description" value={storyDescription} onChange={(e) => setStoryDescription(e.target.value)} />
 
                 <button type="submit" className="admin-submit" disabled={storyCoverUploading}>
-                  {editingStoryId ? '✓ Save Story' : '+ Add Story'}
+                  {editingStoryId ? '✓ Save Audio Story' : '+ Add Story'}
                 </button>
 
                 {editingStoryId && <button type="button" className="admin-cancel" onClick={resetStoryForm}>Cancel Edit</button>}
@@ -897,7 +897,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
 
               <form onSubmit={submitEpisode} className="admin-form">
                 <select value={episodeStoryId} onChange={(e) => setEpisodeStoryId(e.target.value)}>
-                  <option value="">Select story</option>
+                  <option value="">Select audio story</option>
                   {adminStoryIds.length > 0 &&
                     stories
                       .filter((story) => adminStoryIds.includes(story.id))
