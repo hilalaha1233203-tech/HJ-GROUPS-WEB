@@ -122,3 +122,35 @@ test.describe('HJ GROUPS public website health', () => {
     }
   })
 })
+
+
+test.describe('HJ GROUPS Telegram streaming health', () => {
+  test('streaming server health and CORS preflight', async ({ request }) => {
+    const streamingURL =
+      process.env.PLAYWRIGHT_STREAMING_URL ||
+      'https://hj-telegram-streaming.vercel.app'
+
+    const health = await request.get(streamingURL + '/health')
+    expect(health.status()).toBe(200)
+
+    const preflight = await request.fetch(streamingURL + '/telegram/messages', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://hj-groups-website.getvoroa.com',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'authorization',
+      },
+      maxRedirects: 0,
+    })
+
+    expect(
+      preflight.status(),
+      'OPTIONS must not redirect; browser CORS preflight rejects redirects'
+    ).toBe(204)
+
+    expect(
+      preflight.headers()['access-control-allow-origin'],
+      'streaming server must allow the website origin'
+    ).toBe('https://hj-groups-website.getvoroa.com')
+  })
+})
