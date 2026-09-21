@@ -243,6 +243,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [videoBulkLoading, setVideoBulkLoading] = useState(false)
   const [videoBulkTitleOverrides, setVideoBulkTitleOverrides] = useState({})
   const [videoBulkNumberOverrides, setVideoBulkNumberOverrides] = useState({})
+  const [bulkVideoStoryId, setBulkVideoStoryId] = useState('')
 
   /* =====================================================
      STORY
@@ -631,20 +632,150 @@ const [bookAccessType, setBookAccessType] = useState('free')
     })),
   }
 
-  if (editingBookId) {
-    await onUpdateBook(editingBookId, data)
-  } else {
-    await onAddBook({
-      id: Date.now(),
-      ...data,
-    })
+  try {
+    if (editingBookId) {
+      await onUpdateBook(editingBookId, data)
+    } else {
+      await onAddBook({
+        id: Date.now(),
+        ...data,
+      })
+    }
+    resetBookForm()
+  } catch (error) {
+    console.error('Error saving book:', error)
+    alert(`Error saving book: ${error?.message || error}`)
   }
-
-  resetBookForm()
 }
   /* =====================================================
      VIDEO
   ===================================================== */
+
+  const handleScanVideoTelegram = async () => {
+    setVideoBulkLoading(true)
+    showToast('Scanning Telegram videos...')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        showToast('Not authenticated', 'error')
+        return
+      }
+
+      const res = await fetch(`${STREAMING_SERVER_URL}/telegram/messages?type=video`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      })
+      if (!res.ok) {
+        showToast('Unable to load Telegram videos', 'error')
+        return
+      }
+
+      const msgs = await res.json()
+      setVideoBulkMessages(Array.isArray(msgs) ? msgs : [])
+      setVideoBulkSelectedIds([])
+      setVideoBulkTitleOverrides({})
+      setVideoBulkNumberOverrides({})
+      showToast(Array.isArray(msgs) && msgs.length ? 'Telegram videos loaded' : 'No Telegram videos found')
+    } catch (error) {
+      console.error(error)
+      showToast('Unable to connect to Telegram server', 'error')
+    } finally {
+      setVideoBulkLoading(false)
+    }
+  }
+
+  const handleVideoBulkToggle = (messageId) => {
+    setVideoBulkSelectedIds((prev) =>
+      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId]
+    )
+  }
+
+  const handleVideoBulkToggleAll = () => {
+    if (videoBulkSelectedIds.length === videoBulkMessages.length) {
+      setVideoBulkSelectedIds([])
+    } else {
+      setVideoBulkSelectedIds(videoBulkMessages.map((msg) => msg.messageId))
+    }
+  }
+
+  const handleVideoBulkTitleChange = (messageId, title) => {
+    setVideoBulkTitleOverrides((prev) => ({ ...prev, [messageId]: title }))
+  }
+
+  const handleVideoBulkNumberChange = (messageId, number) => {
+    setVideoBulkNumberOverrides((prev) => ({ ...prev, [messageId]: number }))
+  }
+
+  const handleVideoBulkImport = async () => {
+    if (!bulkVideoStoryId) {
+      showToast('Select a video story first', 'error')
+      return
+    }
+    if (!videoBulkSelectedIds.length) {
+      showToast('Select at least one Telegram video', 'error')
+      return
+    }
+
+    const story = videoStories.find((item) => String(item.id) === String(bulkVideoStoryId))
+    if (!story) {
+      showToast('Video story not found', 'error')
+      return
+    }
+
+    const existingIds = new Set((story.episodes || []).map((ep) => ep.telegram_message_id).filter(Boolean))
+    let maxNumber = Math.max(0, ...(story.episodes || []).map((ep) => Number(ep.number) || 0))
+    const selected = videoBulkSelectedIds
+      .map((id) => videoBulkMessages.find((msg) => msg.messageId === id))
+      .filter(Boolean)
+      .filter((msg) => !existingIds.has(msg.messageId))
+
+    if (!selected.length) {
+      showToast('All selected videos are already imported')
+      return
+    }
+
+    const rows = selected.map((msg, index) => {
+      maxNumber += 1
+      const number = Number(videoBulkNumberOverrides[msg.messageId] || maxNumber)
+      return {
+        number,
+        title: String(videoBulkTitleOverrides[msg.messageId] || msg.caption || msg.fileName || `Episode ${String(number).padStart(2, '0')}`).trim(),
+        type: 'video',
+        telegram_message_id: Number(msg.messageId),
+        src: '',
+        filePath: '',
+        available: true,
+        accessType: ['free'],
+      }
+    })
+
+    try {
+      if (String(bulkVideoStoryId).startsWith('tg-video-')) {
+        const videoId = Number(String(bulkVideoStoryId).slice('tg-video-'.length))
+        const dbRows = rows.map((row) => ({
+          video_story_id: videoId,
+          number: row.number,
+          title: row.title,
+          telegram_message_id: row.telegram_message_id,
+          file_url: null,
+          file_path: '',
+          access_type: 'free',
+          available: true,
+        }))
+        const { error } = await supabase.from('video_episodes').insert(dbRows)
+        if (error) throw error
+      } else {
+        for (const row of rows) {
+          await onAddVideoEpisode(Number(bulkVideoStoryId), row)
+        }
+      }
+
+      showToast(`${rows.length} videos imported successfully`)
+      setVideoBulkSelectedIds([])
+    } catch (error) {
+      console.error('Video bulk import error:', error)
+      showToast(`Video import failed: ${error?.message || error}`, 'error')
+    }
+  }
 
   const resetVideoForm = () => {
     setEditingVideoId(null)
@@ -1236,42 +1367,48 @@ const [bookAccessType, setBookAccessType] = useState('free')
                   onUploadingChange={setBookCoverUploading}
                 />
 
+                <input
+                  type="text"
+                  placeholder="Paste Telegram document message URL (PDF / EPUB)"
+                  value={bookTelegramUrl}
+                  onChange={(e) => {
+                    setBookTelegramUrl(e.target.value)
+                    if (e.target.value) {
+                      setBookFile('')
+                      setBookFilePath('')
+                    }
+                  }}
+                />
+                <div style={{ textAlign: 'center', margin: '10px 0', fontWeight: 'bold' }}>OR</div>
+
                 {bookType === 'pdf' ? (
                   <FileUploadField
-                    label="Choose PDF"
+                    label={bookFile ? '✓ PDF uploaded — replace' : 'Choose PDF'}
                     kind="pdf"
                     bucket="books"
                     folder="pdf"
                     value={bookFile}
                     accept="application/pdf,.pdf"
                     onUploaded={(url, path) => {
-  setBookFile(url)
-  setBookFilePath(path || '')
-}}
+                      setBookFile(url)
+                      setBookFilePath(path || '')
+                      setBookTelegramUrl('')
+                    }}
                     onUploadingChange={setBookFileUploading}
                   />
                 ) : (
-                  <input
-                    type="text"
-                    placeholder="Paste Telegram document message URL (PDF / EPUB)"
-                    value={bookTelegramUrl}
-                    onChange={(e) => {
-                      setBookTelegramUrl(e.target.value)
-                      if (e.target.value) setBookFile('')
-                    }}
-                  />
-                  <div style={{ textAlign: 'center', margin: '10px 0', fontWeight: 'bold' }}>OR</div>
                   <FileUploadField
-                    label="Choose EPUB"
+                    label={bookFile ? '✓ EPUB uploaded — replace' : 'Choose EPUB'}
                     kind="epub"
                     bucket="books"
                     folder="epub"
                     value={bookFile}
                     accept=".epub"
                     onUploaded={(url, path) => {
-  setBookFile(url)
-  setBookFilePath(path || '')
-}}
+                      setBookFile(url)
+                      setBookFilePath(path || '')
+                      setBookTelegramUrl('')
+                    }}
                     onUploadingChange={setBookFileUploading}
                   />
                 )}
