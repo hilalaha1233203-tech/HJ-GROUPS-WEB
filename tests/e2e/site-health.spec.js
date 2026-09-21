@@ -109,7 +109,7 @@ test.describe('HJ GROUPS public website health', () => {
 
     const merged = mergeHealth(reports)
     console.log(JSON.stringify({
-      baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com',
+      baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-web.vercel.app',
       scanned: labels,
       ...merged,
     }, null, 2))
@@ -136,7 +136,7 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     const preflight = await request.fetch(streamingURL + '/telegram/messages', {
       method: 'OPTIONS',
       headers: {
-        Origin: 'https://hj-groups-website.getvoroa.com',
+        Origin: 'https://hj-groups-web.vercel.app',
         'Access-Control-Request-Method': 'GET',
         'Access-Control-Request-Headers': 'authorization',
       },
@@ -151,6 +151,6 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     expect(
       preflight.headers()['access-control-allow-origin'],
       'streaming server must allow the website origin'
-    ).toBe('https://hj-groups-website.getvoroa.com')
+    ).toBe('https://hj-groups-web.vercel.app')
   })
 })
