@@ -38,7 +38,7 @@ const safeWindow = typeof window !== 'undefined' ? window : null
 const DEFAULT_STREAMING_SERVER_URL = 'https://hj-telegram-streaming-et8rjk1fb-ak-3a25.vercel.app'
 const RAW_STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || DEFAULT_STREAMING_SERVER_URL
 const STREAMING_SERVER_URL = (() => {
-  const value = String(RAW_STREAMING_SERVER_URL || '').trim().replace(/\\/+$/, '')
+  const value = String(RAW_STREAMING_SERVER_URL || '').trim().replace(/\/+$/, '')
   try {
     const parsed = new URL(value)
     if (parsed.hostname.toLowerCase() === 'hj-telegram-streaming.vercel.app') return DEFAULT_STREAMING_SERVER_URL
