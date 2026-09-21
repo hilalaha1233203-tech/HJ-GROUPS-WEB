@@ -838,10 +838,6 @@ export function App() {
         console.error('Supabase episode insert error:', error)
         throw error
       }
-
-      // Re-read Supabase content immediately so a successful Telegram import
-      // is visible without waiting for Realtime or a manual refresh.
-      await refreshTelegramContent()
       return
     }
     persistStories(adminStories.map((story) =>
