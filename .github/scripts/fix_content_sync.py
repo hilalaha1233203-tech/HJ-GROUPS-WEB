@@ -11,7 +11,7 @@ app = Path('src/App.jsx')
 s = app.read_text(encoding='utf-8')
 s = s.replace(
     "const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;",
-    "const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';",
+    "const DEFAULT_STREAMING_SERVER_URL = 'https://hj-telegram-streaming-et8rjk1fb-ak-3a25.vercel.app'\\nconst RAW_STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || DEFAULT_STREAMING_SERVER_URL\\nconst STREAMING_SERVER_URL = (() => {\\n  const value = String(RAW_STREAMING_SERVER_URL || '').trim().replace(/\\\\/+$/, '')\\n  try {\\n    const parsed = new URL(value)\\n    if (parsed.hostname.toLowerCase() === 'hj-telegram-streaming.vercel.app') return DEFAULT_STREAMING_SERVER_URL\\n  } catch {}\\n  return value || DEFAULT_STREAMING_SERVER_URL\\n})()",
     1,
 )
 
