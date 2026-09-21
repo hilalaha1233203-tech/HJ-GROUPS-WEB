@@ -57,8 +57,12 @@ function normalizeBooks(bookRows) {
     description: book.description || '',
     type: book.type,
     category: book.category,
-    cover: fileUrlFromId(book.cover_file_id, 'image'),
-    file: fileUrlFromId(book.file_id, 'document'),
+    cover: book.cover_url || fileUrlFromId(book.cover_file_id, 'image'),
+    coverPath: book.cover_path || '',
+    file: book.file_url || fileUrlFromId(book.file_id, 'document'),
+    filePath: book.file_path || '',
+    telegram_message_id: book.telegram_message_id || null,
+    volumes: Array.isArray(book.volumes) ? book.volumes : [],
     accessType: book.access_type,
   }))
 }
@@ -79,7 +83,8 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
       title: ep.title,
       type: 'video',
       telegram_message_id: messageId || null,
-      src: src,
+      src: ep.file_url || src,
+      filePath: ep.file_path || '',
       available: ep.available !== false,
       accessType: ep.access_type,
     })
@@ -90,7 +95,9 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
     id: `tg-video-${video.id}`,
     title: video.title,
     category: video.category,
-    cover: fileUrlFromId(video.cover_file_id, 'image'),
+    cover: video.cover_url || fileUrlFromId(video.cover_file_id, 'image'),
+    coverPath: video.cover_path || '',
+    telegram_message_id: video.telegram_message_id || null,
     accessType: video.access_type,
     episodes: (episodesByVideo.get(video.id) || []).sort((a, b) => a.number - b.number),
   }))
