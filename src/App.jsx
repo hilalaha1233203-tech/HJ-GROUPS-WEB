@@ -820,13 +820,8 @@ export function App() {
 
   const addEpisodeToStory = async (storyId, episode) => {
     const supabaseId = getSupabaseStoryId(storyId)
-
     if (supabaseId !== null) {
-      const messageId = episode.telegram_message_id
-        ? Number(episode.telegram_message_id)
-        : null
-
-      const modernRow = {
+      const row = {
         story_id: supabaseId,
         number: Number(episode.number),
         title: episode.title,
@@ -834,70 +829,19 @@ export function App() {
         file_url: episode.src || null,
         file_path: episode.filePath || '',
         file_id: null,
-        access_type: Array.isArray(episode.accessType)
-          ? (episode.accessType[0] || 'free')
-          : (episode.accessType || 'free'),
+        access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
         available: episode.available !== false,
-        ...(messageId ? { telegram_message_id: messageId } : {}),
       }
-
-      let result = await supabase
-        .from('episodes')
-        .insert(modernRow)
-
-      /*
-       * Backward compatibility:
-       * The production Supabase project still has the older episodes schema
-       * on some deployments (episode_number + audio_url). If the new columns
-       * are not present yet, retry using the legacy columns instead of showing
-       * a misleading "Import failed" message.
-       */
-      if (result.error) {
-        const message = String(result.error.message || '')
-        const isSchemaMismatch =
-          /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(message)
-
-        if (!isSchemaMismatch) {
-          console.error('Supabase episode insert error:', result.error)
-          throw result.error
-        }
-
-        const legacyAudioUrl = messageId
-          ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
-          : (episode.src || null)
-
-        const legacyRow = {
-          story_id: supabaseId,
-          episode_number: Number(episode.number),
-          title: episode.title,
-          audio_url: legacyAudioUrl,
-        }
-
-        result = await supabase
-          .from('episodes')
-          .insert(legacyRow)
-
-        if (result.error) {
-          console.error('Supabase legacy episode insert error:', result.error)
-          throw result.error
-        }
+      if (episode.telegram_message_id) row.telegram_message_id = episode.telegram_message_id
+      const { error } = await supabase.from('episodes').insert(row)
+      if (error) {
+        console.error('Supabase episode insert error:', error)
+        throw error
       }
-
-      try {
-        await refreshTelegramContent()
-      } catch (refreshError) {
-        // The insert already succeeded. Do not report a false import failure
-        // merely because the post-import catalogue refresh failed.
-        console.warn('Episode imported, but catalogue refresh failed:', refreshError)
-      }
-
       return
     }
-
     persistStories(adminStories.map((story) =>
-      story.id === storyId
-        ? { ...story, episodes: [...(story.episodes || []), episode] }
-        : story
+      story.id === storyId ? { ...story, episodes: [...(story.episodes || []), episode] } : story
     ))
   }
 
