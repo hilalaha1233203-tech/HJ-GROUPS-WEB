@@ -4605,6 +4605,29 @@ export function App() {
         videoCategory
     )
 
+  const featuredStory = searchedStories[0] || stories[0] || null
+
+  const playStoryFromHome = (story) => {
+    if (!story) return
+    const first = story.episodes?.find(
+      (episode) =>
+        episode.available !== false &&
+        canAccessContent(
+          episode,
+          adsKeyFor(
+            'episode',
+            story.id,
+            episode.number
+          )
+        )
+    )
+    if (first) {
+      openPlayer(story, first)
+    } else {
+      alert('No playable episode available.')
+    }
+  }
+
   /* =======================================================
      RENDER
   ======================================================= */
@@ -4696,36 +4719,54 @@ export function App() {
           />
         </button>
 
-        <nav className="top-nav">
-          <button
-            onClick={() =>
-              setBooksModalOpen(
-                true
-              )
-            }
-          >
-            📚Books
+        <nav className="top-nav" aria-label="Primary navigation">
+          <button className={page === 'home' ? 'active' : ''} onClick={() => {
+            teardownReader()
+            closePlayer()
+            setPage('home')
+            setSelectedStory(null)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}>
+            <span>⌂</span><small>Home</small>
           </button>
 
-          <button
-            onClick={() =>
-              setVideoModalOpen(
-                true
-              )
-            }
-          >
-            🎬Video Stories
+          <button className={page === 'home' ? 'active' : ''} onClick={() => {
+            teardownReader()
+            closePlayer()
+            setPage('home')
+            setSelectedStory(null)
+            requestAnimationFrame(() => {
+              document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            })
+          }}>
+            <span>🎧</span><small>Audio Stories</small>
           </button>
 
-          <button
-            onClick={() =>
-              setSearchOpen(
-                (value) =>
-                  !value
-              )
-            }
-          >
-            🔍Search
+          <button onClick={() => setBooksModalOpen(true)}>
+            <span>📚</span><small>Books</small>
+          </button>
+
+          <button onClick={() => setVideoModalOpen(true)}>
+            <span>🎬</span><small>Videos</small>
+          </button>
+
+          <button className={page === 'vip' ? 'active' : ''} onClick={() => setPage('vip')}>
+            <span>♛</span><small>VIP</small>
+          </button>
+
+          <button className={page === 'library' ? 'active' : ''} onClick={() => setPage('library')}>
+            <span>♡</span><small>Library</small>
+          </button>
+
+          <button className={page === 'account' ? 'active' : ''} onClick={() => {
+            if (loggedIn) setPage('account')
+            else setLoginOpen(true)
+          }}>
+            <span>👤</span><small>Account</small>
+          </button>
+
+          <button className="nav-search" aria-label="Search" onClick={() => setSearchOpen((value) => !value)}>
+            <span>⌕</span><small>Search</small>
           </button>
         </nav>
 
@@ -4833,6 +4874,38 @@ export function App() {
 
       {page === 'home' && (
         <main>
+          {featuredStory && (
+            <section className="hero-section">
+              <div className="hero-copy">
+                <div className="eyebrow">FEATURED AUDIO STORY</div>
+                <h1>{featuredStory.title}</h1>
+                <p>{featuredStory.description || 'A new world is waiting. Press play and continue listening.'}</p>
+                <div className="hero-actions">
+                  <button className="primary-btn hero-primary" onClick={() => playStoryFromHome(featuredStory)}>
+                    ▶ Listen Now
+                  </button>
+                  <button className="secondary-btn hero-secondary" onClick={() => openStoryDetails(featuredStory)}>
+                    View Story
+                  </button>
+                </div>
+                <div className="hero-meta">
+                  <span>{featuredStory.genre || 'Audio Story'}</span>
+                  <span>{featuredStory.episodes?.length || 0} Episodes</span>
+                  <span className="hero-live-dot">● New Listening Experience</span>
+                </div>
+              </div>
+              <div className="hero-art">
+                <img src={featuredStory.cover} alt={featuredStory.title} />
+                <div className="hero-art-glow" />
+                <div className="hero-art-shade" />
+                <div className="hero-art-caption">
+                  <span>HJ GROUPS</span>
+                  <strong>Now streaming</strong>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="category-section">
             <div className="eyebrow">
               EXPLORE
@@ -4877,16 +4950,15 @@ export function App() {
             <div className="section-heading">
               <div>
                 <div className="eyebrow">
-                  LIBRARY
+                  AUDIO STORIES
                 </div>
 
                 <h2>
-                  Popular Stories
+                  Popular Audio Stories
                 </h2>
 
                 <p>
-                  Enter a new world
-                  with every story.
+                  Enter a new world with every episode.
                 </p>
               </div>
             </div>
@@ -7476,126 +7548,51 @@ export function App() {
       ===================================================== */}
 
       <nav
-        className={`bottom-nav ${isAdmin
-          ? 'admin-bottom-nav'
-          : ''
-          }`}
+        className={`bottom-nav ${isAdmin ? 'admin-bottom-nav' : ''}`}
+        aria-label="Mobile navigation"
       >
-        <button
-          className={
-            page ===
-              'home'
-              ? 'active'
-              : ''
-          }
-          onClick={() => {
-            setPage('home')
-            setSelectedStory(
-              null
-            )
-
-            window.scrollTo({
-              top: 0,
-              behavior:
-                'smooth',
-            })
-          }}
-        >
-          <span>
-            ⌂
-          </span>
-          <small>
-            Home
-          </small>
+        <button className={page === 'home' ? 'active' : ''} onClick={() => {
+          setPage('home')
+          setSelectedStory(null)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }}>
+          <span>⌂</span><small>Home</small>
         </button>
 
-        <button
-          className={
-            page ===
-              'library'
-              ? 'active'
-              : ''
-          }
-          onClick={() =>
-            setPage(
-              'library'
-            )
-          }
-        >
-          <span>
-            ♡
-          </span>
-          <small>
-            My Library
-          </small>
+        <button className={page === 'home' ? 'active' : ''} onClick={() => {
+          setPage('home')
+          setSelectedStory(null)
+          requestAnimationFrame(() => document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+        }}>
+          <span>🎧</span><small>Audio Stories</small>
         </button>
 
-        <button
-          className={
-            page === 'vip'
-              ? 'active'
-              : ''
-          }
-          onClick={() =>
-            setPage('vip')
-          }
-        >
-          <span>
-            ♛
-          </span>
-          <small>
-            VIP
-          </small>
+        <button onClick={() => setBooksModalOpen(true)}>
+          <span>📚</span><small>Books</small>
         </button>
 
-        <button
-          className={
-            page ===
-              'account'
-              ? 'active'
-              : ''
-          }
-          onClick={() => {
-            if (loggedIn) {
-              setPage(
-                'account'
-              )
-            } else {
-              setLoginOpen(
-                true
-              )
-            }
-          }}
-        >
-          <span>
-            👤
-          </span>
-          <small>
-            {loggedIn
-              ? 'Account'
-              : 'Login'}
-          </small>
+        <button onClick={() => setVideoModalOpen(true)}>
+          <span>🎬</span><small>Videos</small>
+        </button>
+
+        <button className={page === 'vip' ? 'active' : ''} onClick={() => setPage('vip')}>
+          <span>♛</span><small>VIP</small>
+        </button>
+
+        <button className={page === 'library' ? 'active' : ''} onClick={() => setPage('library')}>
+          <span>♡</span><small>Library</small>
+        </button>
+
+        <button className={page === 'account' ? 'active' : ''} onClick={() => {
+          if (loggedIn) setPage('account')
+          else setLoginOpen(true)
+        }}>
+          <span>👤</span><small>{loggedIn ? 'Account' : 'Login'}</small>
         </button>
 
         {isAdmin && (
-          <button
-            className={
-              adminOpen
-                ? 'active'
-                : ''
-            }
-            onClick={() =>
-              setAdminOpen(
-                true
-              )
-            }
-          >
-            <span>
-              ⚙
-            </span>
-            <small>
-              Admin
-            </small>
+          <button className={adminOpen ? 'active' : ''} onClick={() => setAdminOpen(true)}>
+            <span>⚙</span><small>Admin</small>
           </button>
         )}
       </nav>
