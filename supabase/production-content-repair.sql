@@ -8,6 +8,8 @@ begin;
 -- Stories / episodes (upgrade older schema)
 -- -----------------------------
 alter table public.stories add column if not exists cover_url text;
+alter table public.stories add column if not exists description text default '';
+alter table public.stories add column if not exists genre text default 'Fantasy';
 alter table public.stories add column if not exists cover_path text;
 alter table public.stories add column if not exists telegram_message_id bigint;
 
@@ -259,5 +261,8 @@ begin
     alter publication supabase_realtime add table public.video_episodes;
   end if;
 end $$;
+
+-- Refresh PostgREST schema cache immediately.
+notify pgrst, 'reload schema';
 
 commit;
