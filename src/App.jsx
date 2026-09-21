@@ -35,13 +35,13 @@ import './App.css'
 // Keep a failed optional reader dependency from taking down the entire shell.
 const safeWindow = typeof window !== 'undefined' ? window : null
 
-const DEFAULT_STREAMING_SERVER_URL = 'https://hj-telegram-streaming-et8rjk1fb-ak-3a25.vercel.app'
+const DEFAULT_STREAMING_SERVER_URL = 'https://hj-telegram-streaming.vercel.app'
 const RAW_STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || DEFAULT_STREAMING_SERVER_URL
 const STREAMING_SERVER_URL = (() => {
   const value = String(RAW_STREAMING_SERVER_URL || '').trim().replace(/\/+$/, '')
   try {
     const parsed = new URL(value)
-    if (parsed.hostname.toLowerCase() === 'hj-telegram-streaming.vercel.app') return DEFAULT_STREAMING_SERVER_URL
+    if (parsed.hostname.toLowerCase().endsWith('.vercel.app') && parsed.hostname.toLowerCase().includes('hj-telegram-streaming')) return DEFAULT_STREAMING_SERVER_URL
   } catch {}
   return value || DEFAULT_STREAMING_SERVER_URL
 })()
