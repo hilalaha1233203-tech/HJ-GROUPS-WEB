@@ -91,7 +91,17 @@ function AdminPanel({
     setTimeout(() => setToastMessage(''), 3000)
   }
 
-  const [tab, setTab] = useState('stories')
+  const [tab, setTab] = useState('overview')
+
+  const totalEpisodes = stories.reduce(
+    (sum, story) => sum + (story?.episodes?.length || 0),
+    0
+  )
+  const premiumStories = stories.filter(
+    (story) => resolveAccessType(story).some((type) => ['vip', 'premium'].includes(type))
+  ).length
+  const totalBooks = books.length
+  const totalVideos = videoStories.length
 
   const [editingStoryId, setEditingStoryId] = useState(null)
   const [editingBookId, setEditingBookId] = useState(null)
@@ -749,12 +759,102 @@ const [bookAccessType, setBookAccessType] = useState('free')
       </div>
 
       <div className="admin-tabs">
-        <button className={tab === 'stories' ? 'active' : ''} onClick={() => setTab('stories')}>📖 Stories & Episodes</button>
+        <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>⌂ Overview</button>
+        <button className={tab === 'stories' ? 'active' : ''} onClick={() => setTab('stories')}>🎧 Audio Stories</button>
         <button className={tab === 'books' ? 'active' : ''} onClick={() => setTab('books')}>📚 Books</button>
-        <button className={tab === 'videos' ? 'active' : ''} onClick={() => setTab('videos')}>🎬 Video Stories</button>
+        <button className={tab === 'videos' ? 'active' : ''} onClick={() => setTab('videos')}>🎬 Videos</button>
       </div>
 
       <div className="admin-body">
+        {tab === 'overview' && (
+          <section className="admin-overview">
+            <div className="admin-overview-intro">
+              <div>
+                <div className="admin-eyebrow">HJ GROUPS CONTENT STUDIO</div>
+                <h2>Control your streaming library</h2>
+                <p>Manage audio stories, episodes, books and video stories from one workspace.</p>
+              </div>
+              <div className="admin-status-chip">
+                <span />
+                Live content console
+              </div>
+            </div>
+
+            <div className="admin-stat-grid">
+              <div className="admin-stat-card">
+                <span className="admin-stat-icon">🎧</span>
+                <small>Audio Stories</small>
+                <strong>{stories.length}</strong>
+              </div>
+              <div className="admin-stat-card">
+                <span className="admin-stat-icon">▶</span>
+                <small>Total Episodes</small>
+                <strong>{totalEpisodes}</strong>
+              </div>
+              <div className="admin-stat-card">
+                <span className="admin-stat-icon">♛</span>
+                <small>Premium / VIP</small>
+                <strong>{premiumStories}</strong>
+              </div>
+              <div className="admin-stat-card">
+                <span className="admin-stat-icon">📚</span>
+                <small>Books</small>
+                <strong>{totalBooks}</strong>
+              </div>
+              <div className="admin-stat-card">
+                <span className="admin-stat-icon">🎬</span>
+                <small>Video Stories</small>
+                <strong>{totalVideos}</strong>
+              </div>
+            </div>
+
+            <div className="admin-overview-grid">
+              <div className="admin-overview-card">
+                <div className="admin-overview-card-head">
+                  <div>
+                    <small>QUICK ACTIONS</small>
+                    <h3>Content management</h3>
+                  </div>
+                  <span>↗</span>
+                </div>
+                <div className="admin-quick-actions">
+                  <button onClick={() => setTab('stories')}>＋ Add Audio Story</button>
+                  <button onClick={() => setTab('stories')}>＋ Add Episode</button>
+                  <button onClick={() => setTab('books')}>＋ Add Book</button>
+                  <button onClick={() => setTab('videos')}>＋ Add Video Story</button>
+                </div>
+              </div>
+
+              <div className="admin-overview-card">
+                <div className="admin-overview-card-head">
+                  <div>
+                    <small>RECENT AUDIO STORIES</small>
+                    <h3>Current catalogue</h3>
+                  </div>
+                  <span>{stories.length}</span>
+                </div>
+                <div className="admin-recent-list">
+                  {stories.slice(0, 5).map((story) => (
+                    <button key={story.id} onClick={() => setTab('stories')}>
+                      <span className="admin-recent-avatar">
+                        {story.cover ? <img src={story.cover} alt="" /> : '🎧'}
+                      </span>
+                      <span>
+                        <strong>{story.title}</strong>
+                        <small>{story.episodes?.length || 0} episodes · {story.genre || 'Audio Story'}</small>
+                      </span>
+                      <span>›</span>
+                    </button>
+                  ))}
+                  {!stories.length && (
+                    <p className="admin-empty">No audio stories yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* ================= STORIES ================= */}
 
         {tab === 'stories' && (
