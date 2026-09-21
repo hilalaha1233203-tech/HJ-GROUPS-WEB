@@ -160,6 +160,7 @@ const [bookFileUploading, setBookFileUploading] = useState(false)
 const [bookCoverPath, setBookCoverPath] = useState('')
 
 const [bookAccessType, setBookAccessType] = useState('free')
+  const [bookTelegramUrl, setBookTelegramUrl] = useState('')
 
   // Multi-volume books: one parent book can contain many PDF/EPUB volumes.
   const [bookVolumes, setBookVolumes] = useState([])
@@ -178,6 +179,14 @@ const [bookAccessType, setBookAccessType] = useState('free')
   }
   const removeBookVolume = (id) => {
     setBookVolumes(prev => prev.filter(v => v.id !== id))
+  }
+
+  const extractTelegramMessageId = (value) => {
+    const raw = String(value || '').trim()
+    if (!raw) return null
+    const parts = raw.split('/').filter(Boolean)
+    const last = parts[parts.length - 1] || ''
+    return /^\d+$/.test(last) ? Number(last) : null
   }
 
   const resetAddVolumeForm = () => {
@@ -227,6 +236,13 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [videoFileUploading, setVideoFileUploading] = useState(false)
   const [videoAccessType, setVideoAccessType] = useState('free')
   const [videoEpisodeTitle, setVideoEpisodeTitle] = useState('Episode 01')
+  const [videoTelegramUrl, setVideoTelegramUrl] = useState('')
+  
+  const [videoBulkMessages, setVideoBulkMessages] = useState([])
+  const [videoBulkSelectedIds, setVideoBulkSelectedIds] = useState([])
+  const [videoBulkLoading, setVideoBulkLoading] = useState(false)
+  const [videoBulkTitleOverrides, setVideoBulkTitleOverrides] = useState({})
+  const [videoBulkNumberOverrides, setVideoBulkNumberOverrides] = useState({})
 
   /* =====================================================
      STORY
@@ -546,6 +562,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   setBookFile('')
   setBookFilePath('')
   setBookAccessType('free')
+  setBookTelegramUrl('')
   setBookVolumes([])
 }
 
@@ -564,6 +581,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
 
   setBookFile(book.file || '')
   setBookFilePath(book.filePath || '')
+  setBookTelegramUrl(book.telegram_message_id ? `https://t.me/c/id/${book.telegram_message_id}` : '')
 
   setBookAccessType(resolveAccessType(book))
   setBookVolumes(Array.isArray(book.volumes) ? book.volumes.map((v, index) => ({ id: Date.now() + index + Math.random(), title: v.title || `Volume ${index + 1}`, file: v.file || '', filePath: v.filePath || '' })) : [])
@@ -574,12 +592,18 @@ const [bookAccessType, setBookAccessType] = useState('free')
   })
 }
 
- const submitBook = (event) => {
+ const submitBook = async (event) => {
   event.preventDefault()
 
+  const bookTelegramMessageId = extractTelegramMessageId(bookTelegramUrl)
   const validVolumes = bookVolumes.filter(v => v.file && v.file.trim())
-  if (!bookTitle.trim() || !bookCover.trim() || (!bookFile.trim() && validVolumes.length === 0)) {
-    alert('Title, cover image and either a single book file or at least one volume are required')
+  if (!bookTitle.trim() || !bookCover.trim() || (!bookFile.trim() && !bookTelegramMessageId && validVolumes.length === 0)) {
+    alert('Title, cover image and either a Telegram message URL, a book upload, or at least one volume are required')
+    return
+  }
+
+  if (bookTelegramUrl.trim() && !bookTelegramMessageId) {
+    alert('Invalid Telegram URL. Make sure it ends with the message ID.')
     return
   }
 
@@ -597,6 +621,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
     filePath: bookFilePath || '',
 
     accessType: bookAccessType,
+    telegram_message_id: bookTelegramMessageId,
     volumes: validVolumes.map((v, index) => ({
       number: index + 1,
       title: (v.title || `Volume ${index + 1}`).trim(),
@@ -607,9 +632,9 @@ const [bookAccessType, setBookAccessType] = useState('free')
   }
 
   if (editingBookId) {
-    onUpdateBook(editingBookId, data)
+    await onUpdateBook(editingBookId, data)
   } else {
-    onAddBook({
+    await onAddBook({
       id: Date.now(),
       ...data,
     })
@@ -629,6 +654,11 @@ const [bookAccessType, setBookAccessType] = useState('free')
     setVideoSrc('')
     setVideoAccessType('free')
     setVideoEpisodeTitle('Episode 01')
+    setVideoTelegramUrl('')
+    setVideoBulkMessages([])
+    setVideoBulkSelectedIds([])
+    setVideoBulkTitleOverrides({})
+    setVideoBulkNumberOverrides({})
   }
 
   const startEditVideo = (video) => {
@@ -640,16 +670,23 @@ const [bookAccessType, setBookAccessType] = useState('free')
     const firstEpisode = video.episodes?.[0]
     setVideoSrc(firstEpisode?.src || '')
     setVideoEpisodeTitle(firstEpisode?.title || 'Episode 01')
+    setVideoTelegramUrl(firstEpisode?.telegram_message_id ? `https://t.me/c/id/${firstEpisode.telegram_message_id}` : '')
     setVideoAccessType(resolveAccessType(video))
 
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const submitVideo = (event) => {
+  const submitVideo = async (event) => {
     event.preventDefault()
 
-    if (!videoTitle.trim() || !videoCover.trim() || !videoSrc.trim()) {
-      alert('Title, cover image and video file are all required')
+    const videoTelegramMessageId = extractTelegramMessageId(videoTelegramUrl)
+    if (!videoTitle.trim() || !videoCover.trim() || (!videoSrc.trim() && !videoTelegramMessageId)) {
+      alert('Title, cover image and either a Telegram video URL or a video upload are required')
+      return
+    }
+
+    if (videoTelegramUrl.trim() && !videoTelegramMessageId) {
+      alert('Invalid Telegram URL. Make sure it ends with the message ID.')
       return
     }
 
@@ -664,25 +701,27 @@ const [bookAccessType, setBookAccessType] = useState('free')
       })
 
       if (currentVideo?.episodes?.length) {
-        onUpdateVideoEpisode(editingVideoId, currentVideo.episodes[0].number, {
+        await onUpdateVideoEpisode(editingVideoId, currentVideo.episodes[0].number, {
           title: videoEpisodeTitle.trim(),
           src: videoSrc.trim(),
           type: 'video',
           available: true,
           accessType: videoAccessType,
+          telegram_message_id: videoTelegramMessageId,
         })
       } else {
-        onAddVideoEpisode(editingVideoId, {
+        await onAddVideoEpisode(editingVideoId, {
           number: 1,
           title: videoEpisodeTitle.trim(),
           type: 'video',
           src: videoSrc.trim(),
           available: true,
           accessType: videoAccessType,
+          telegram_message_id: videoTelegramMessageId,
         })
       }
     } else {
-      onAddVideo({
+      await onAddVideo({
         id: Date.now(),
         title: videoTitle.trim(),
         category: videoCategory,
@@ -696,6 +735,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
             src: videoSrc.trim(),
             available: true,
             accessType: videoAccessType,
+            telegram_message_id: videoTelegramMessageId,
           },
         ],
       })
@@ -1211,6 +1251,16 @@ const [bookAccessType, setBookAccessType] = useState('free')
                     onUploadingChange={setBookFileUploading}
                   />
                 ) : (
+                  <input
+                    type="text"
+                    placeholder="Paste Telegram document message URL (PDF / EPUB)"
+                    value={bookTelegramUrl}
+                    onChange={(e) => {
+                      setBookTelegramUrl(e.target.value)
+                      if (e.target.value) setBookFile('')
+                    }}
+                  />
+                  <div style={{ textAlign: 'center', margin: '10px 0', fontWeight: 'bold' }}>OR</div>
                   <FileUploadField
                     label="Choose EPUB"
                     kind="epub"
