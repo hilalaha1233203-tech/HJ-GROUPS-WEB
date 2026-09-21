@@ -821,10 +821,11 @@ const [bookAccessType, setBookAccessType] = useState('free')
       return
     }
 
+    try {
     if (editingVideoId) {
       const currentVideo = videoStories.find((video) => video.id === editingVideoId)
 
-      onUpdateVideo(editingVideoId, {
+      await onUpdateVideo(editingVideoId, {
         title: videoTitle.trim(),
         category: videoCategory,
         cover: videoCover.trim(),
@@ -870,6 +871,11 @@ const [bookAccessType, setBookAccessType] = useState('free')
           },
         ],
       })
+    }
+
+    } catch (error) {
+      console.error('Error saving video:', error)
+      alert(`Error saving video: ${error?.message || error}`)
     }
 
     resetVideoForm()
