@@ -3,7 +3,7 @@ import { resolveAccessType } from './lib/accessControl'
 import { supabase } from './supabase'
 import React, { useState } from 'react'
 
-const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'https://hj-telegram-streaming.onrender.com';
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'https://hj-telegram-streaming-et8rjk1fb-ak-3a25.vercel.app';
 
 
 function AccessTypeField({ groupName, value, onChange }) {
