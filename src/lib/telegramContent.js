@@ -43,7 +43,8 @@ function normalizeStories(storyRows, episodeRows) {
     id: `tg-story-${story.id}`,
     title: story.title,
     genre: story.genre,
-    cover: fileUrlFromId(story.cover_file_id, 'image'),
+    cover: story.cover_url || fileUrlFromId(story.cover_file_id, 'image'),
+    coverPath: story.cover_path || '',
     description: story.description || '',
     episodes: (episodesByStory.get(story.id) || []).sort((a, b) => a.number - b.number),
   }))
@@ -59,7 +60,9 @@ function normalizeBooks(bookRows) {
     category: book.category,
     cover: book.cover_url || fileUrlFromId(book.cover_file_id, 'image'),
     coverPath: book.cover_path || '',
-    file: book.file_url || fileUrlFromId(book.file_id, 'document'),
+    file: book.file_url || (book.telegram_message_id && STREAMING_SERVER_URL
+      ? `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(book.telegram_message_id)}`
+      : fileUrlFromId(book.file_id, 'document')),
     filePath: book.file_path || '',
     telegram_message_id: book.telegram_message_id || null,
     volumes: Array.isArray(book.volumes) ? book.volumes : [],
