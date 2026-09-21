@@ -1,7 +1,7 @@
 import { supabase } from '../supabase'
 
 // Fallback to empty string instead of localhost to prevent CORS errors
-const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || ''
+const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'https://hj-telegram-streaming.onrender.com'
 
 export function fileUrlFromId(fileId, mediaType = 'audio') {
   if (!fileId) return ''
