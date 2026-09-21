@@ -249,7 +249,7 @@ ap = Path('src/AdminPanel.jsx')
 a = ap.read_text(encoding='utf-8')
 a = a.replace(
     "const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || STREAMING_SERVER_URL;",
-    "const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'http://localhost:3000';",
+    "const STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || 'https://hj-telegram-streaming-et8rjk1fb-ak-3a25.vercel.app';",
     1,
 )
 a = a.replace("episode_number: Number(finalNumber),", "number: Number(finalNumber),")
