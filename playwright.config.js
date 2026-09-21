@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com'
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-web.vercel.app'
 
 export default defineConfig({
   testDir: './tests/e2e',
