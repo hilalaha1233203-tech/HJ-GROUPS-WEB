@@ -575,6 +575,8 @@ export function App() {
   const [libraryMessage, setLibraryMessage] =
     useState('')
 
+  const [libraryTab, setLibraryTab] = useState('audio')
+
   /* =======================================================
      MODALS
   ======================================================= */
@@ -4605,6 +4607,29 @@ export function App() {
         videoCategory
     )
 
+  const featuredStory = searchedStories[0] || stories[0] || null
+
+  const playStoryFromHome = (story) => {
+    if (!story) return
+    const first = story.episodes?.find(
+      (episode) =>
+        episode.available !== false &&
+        canAccessContent(
+          episode,
+          adsKeyFor(
+            'episode',
+            story.id,
+            episode.number
+          )
+        )
+    )
+    if (first) {
+      openPlayer(story, first)
+    } else {
+      alert('No playable episode available.')
+    }
+  }
+
   /* =======================================================
      RENDER
   ======================================================= */
@@ -4696,36 +4721,54 @@ export function App() {
           />
         </button>
 
-        <nav className="top-nav">
-          <button
-            onClick={() =>
-              setBooksModalOpen(
-                true
-              )
-            }
-          >
-            📚Books
+        <nav className="top-nav" aria-label="Primary navigation">
+          <button className={page === 'home' ? 'active' : ''} onClick={() => {
+            teardownReader()
+            closePlayer()
+            setPage('home')
+            setSelectedStory(null)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}>
+            <span>⌂</span><small>Home</small>
           </button>
 
-          <button
-            onClick={() =>
-              setVideoModalOpen(
-                true
-              )
-            }
-          >
-            🎬Video Stories
+          <button className={page === 'home' ? 'active' : ''} onClick={() => {
+            teardownReader()
+            closePlayer()
+            setPage('home')
+            setSelectedStory(null)
+            requestAnimationFrame(() => {
+              document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            })
+          }}>
+            <span>🎧</span><small>Audio Stories</small>
           </button>
 
-          <button
-            onClick={() =>
-              setSearchOpen(
-                (value) =>
-                  !value
-              )
-            }
-          >
-            🔍Search
+          <button onClick={() => setBooksModalOpen(true)}>
+            <span>📚</span><small>Books</small>
+          </button>
+
+          <button onClick={() => setVideoModalOpen(true)}>
+            <span>🎬</span><small>Videos</small>
+          </button>
+
+          <button className={page === 'vip' ? 'active' : ''} onClick={() => setPage('vip')}>
+            <span>♛</span><small>VIP</small>
+          </button>
+
+          <button className={page === 'library' ? 'active' : ''} onClick={() => setPage('library')}>
+            <span>♡</span><small>Library</small>
+          </button>
+
+          <button className={page === 'account' ? 'active' : ''} onClick={() => {
+            if (loggedIn) setPage('account')
+            else setLoginOpen(true)
+          }}>
+            <span>👤</span><small>Account</small>
+          </button>
+
+          <button className="nav-search" aria-label="Search" onClick={() => setSearchOpen((value) => !value)}>
+            <span>⌕</span><small>Search</small>
           </button>
         </nav>
 
@@ -4833,6 +4876,38 @@ export function App() {
 
       {page === 'home' && (
         <main>
+          {featuredStory && (
+            <section className="hero-section">
+              <div className="hero-copy">
+                <div className="eyebrow">FEATURED AUDIO STORY</div>
+                <h1>{featuredStory.title}</h1>
+                <p>{featuredStory.description || 'A new world is waiting. Press play and continue listening.'}</p>
+                <div className="hero-actions">
+                  <button className="primary-btn hero-primary" onClick={() => playStoryFromHome(featuredStory)}>
+                    ▶ Listen Now
+                  </button>
+                  <button className="secondary-btn hero-secondary" onClick={() => openStoryDetails(featuredStory)}>
+                    View Story
+                  </button>
+                </div>
+                <div className="hero-meta">
+                  <span>{featuredStory.genre || 'Audio Story'}</span>
+                  <span>{featuredStory.episodes?.length || 0} Episodes</span>
+                  <span className="hero-live-dot">● New Listening Experience</span>
+                </div>
+              </div>
+              <div className="hero-art">
+                <img src={featuredStory.cover} alt={featuredStory.title} />
+                <div className="hero-art-glow" />
+                <div className="hero-art-shade" />
+                <div className="hero-art-caption">
+                  <span>HJ GROUPS</span>
+                  <strong>Now streaming</strong>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="category-section">
             <div className="eyebrow">
               EXPLORE
@@ -4877,16 +4952,15 @@ export function App() {
             <div className="section-heading">
               <div>
                 <div className="eyebrow">
-                  LIBRARY
+                  AUDIO STORIES
                 </div>
 
                 <h2>
-                  Popular Stories
+                  Popular Audio Stories
                 </h2>
 
                 <p>
-                  Enter a new world
-                  with every story.
+                  Enter a new world with every episode.
                 </p>
               </div>
             </div>
@@ -5637,99 +5711,193 @@ export function App() {
 
       {page ===
         'library' && (
-          <main className="account-page">
-            <div className="eyebrow">
-              MY LIBRARY
+          <main className="account-page library-page">
+            <div className="library-page-head">
+              <div>
+                <div className="eyebrow">MY LIBRARY</div>
+                <h1>Your Library</h1>
+                <p>Keep your listening, reading and watching in one place.</p>
+              </div>
+              <span className="library-count-chip">
+                {libraryTab === 'audio'
+                  ? library.length
+                  : libraryTab === 'books'
+                    ? bookLibrary.length
+                    : videoStories.length} items
+              </span>
             </div>
 
-            <h1>
-              Your Library
-            </h1>
+            <div className="library-page-tabs" role="tablist" aria-label="Library categories">
+              <button
+                className={libraryTab === 'audio' ? 'active' : ''}
+                onClick={() => setLibraryTab('audio')}
+              >
+                🎧 Audio Stories
+              </button>
+              <button
+                className={libraryTab === 'books' ? 'active' : ''}
+                onClick={() => setLibraryTab('books')}
+              >
+                📚 Books
+              </button>
+              <button
+                className={libraryTab === 'videos' ? 'active' : ''}
+                onClick={() => setLibraryTab('videos')}
+              >
+                🎬 Videos
+              </button>
+            </div>
 
-            {library.length ===
-              0 ? (
-              <div className="empty-state">
-                <span>
-                  📚
-                </span>
-
-                <h2>
-                  Your library is empty
-                </h2>
-
-                <p>
-                  Add stories to your library to find them here.
-                </p>
-
-                <button
-                  className="primary-btn"
-                  onClick={() =>
-                    setPage(
-                      'home'
-                    )
-                  }
-                >
-                  Explore Stories
-                </button>
-              </div>
-            ) : (
-              <div className="story-grid">
-                {library.map(
-                  (
-                    story
-                  ) => (
-                    <article
-                      key={
-                        story.id
-                      }
-                      className="story-card"
+            {libraryTab === 'audio' && (
+              <>
+                {library.length === 0 ? (
+                  <div className="empty-state library-empty-state">
+                    <span>🎧</span>
+                    <h2>Your audio library is empty</h2>
+                    <p>Save an audio story and it will appear here for quick access.</p>
+                    <button
+                      className="primary-btn"
+                      onClick={() => {
+                        setPage('home')
+                        requestAnimationFrame(() =>
+                          document.getElementById('stories')?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                          })
+                        )
+                      }}
                     >
-                      <div
-                        className="story-image"
-                        onClick={() =>
-                          openStoryDetails(
-                            story
-                          )
-                        }
-                      >
-                        <img
-                          src={
-                            story.cover
-                          }
-                          alt={
-                            story.title
-                          }
-                        />
+                      Explore Audio Stories
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="library-page-subhead">
+                      <div>
+                        <small>CONTINUE LISTENING</small>
+                        <h2>Saved Audio Stories</h2>
                       </div>
-
-                      <div className="story-info">
-                        <small>
-                          {
-                            story.genre
-                          }
-                        </small>
-
-                        <h3>
-                          {
-                            story.title
-                          }
-                        </h3>
-
-                        <button
-                          className="library-add"
-                          onClick={() =>
-                            removeFromLibrary(
-                              story.id
-                            )
-                          }
-                        >
-                          Remove from Library
-                        </button>
-                      </div>
-                    </article>
-                  )
+                    </div>
+                    <div className="story-grid">
+                      {library.map((story) => (
+                        <article key={story.id} className="story-card">
+                          <div
+                            className="story-image"
+                            onClick={() => openStoryDetails(story)}
+                          >
+                            <img src={story.cover} alt={story.title} />
+                            <div className="story-overlay" />
+                            <span className="story-status">Saved</span>
+                            <button
+                              className="story-play"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                playStoryFromHome(story)
+                              }}
+                            >
+                              ▶
+                            </button>
+                          </div>
+                          <div className="story-info">
+                            <div className="story-meta">
+                              <span>{story.genre || 'Audio Story'}</span>
+                              <span>{story.episodes?.length || 0} Episodes</span>
+                            </div>
+                            <h3>{story.title}</h3>
+                            <button
+                              className="library-add"
+                              onClick={() => removeFromLibrary(story.id)}
+                            >
+                              Remove from Library
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </>
                 )}
-              </div>
+              </>
+            )}
+
+            {libraryTab === 'books' && (
+              <>
+                <div className="library-page-subhead">
+                  <div>
+                    <small>YOUR BOOKS</small>
+                    <h2>Saved Books</h2>
+                  </div>
+                </div>
+                {bookLibrary.length ? (
+                  <div className="library-grid">
+                    {bookLibrary.map((book) => (
+                      <button
+                        key={book.id}
+                        className="library-card"
+                        onClick={() => openReaderForBook(book)}
+                      >
+                        <span className="library-card-type">BOOK</span>
+                        <img src={book.cover} alt={book.title} />
+                        <strong>{book.title}</strong>
+                        <small>{book.author || book.category || 'Book'}</small>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state library-empty-state">
+                    <span>📚</span>
+                    <h2>Your book library is empty</h2>
+                    <p>Save books from the Books section to find them here.</p>
+                    <button
+                      className="primary-btn"
+                      onClick={() => setBooksModalOpen(true)}
+                    >
+                      Browse Books
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {libraryTab === 'videos' && (
+              <>
+                <div className="library-page-subhead">
+                  <div>
+                    <small>VIDEO STORIES</small>
+                    <h2>Browse Video Stories</h2>
+                  </div>
+                  <button className="secondary-btn" onClick={() => setVideoModalOpen(true)}>
+                    Open Videos
+                  </button>
+                </div>
+                {filteredVideos.length ? (
+                  <div className="library-grid">
+                    {filteredVideos.map((video) => (
+                      <button
+                        key={video.id}
+                        className="library-card"
+                        onClick={() => {
+                          setPreDetailsPage('library')
+                          setSelectedVideo(video)
+                          setPage('video-details')
+                        }}
+                      >
+                        <span className="library-card-type">
+                          {accessLabel(video, { isAdmin }).toUpperCase()}
+                        </span>
+                        <img src={video.cover} alt={video.title} />
+                        <strong>{video.title}</strong>
+                        <small>{video.category || 'Video Story'}</small>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state library-empty-state">
+                    <span>🎬</span>
+                    <h2>No video stories yet</h2>
+                    <p>Video stories added by the admin will appear here.</p>
+                  </div>
+                )}
+              </>
             )}
           </main>
         )}
@@ -6696,7 +6864,7 @@ export function App() {
       ===================================================== */}
 
       {adminOpen && (
-        <div className="login-overlay">
+        <div className="login-overlay admin-overlay">
           <AdminPanel
             stories={stories}
             books={books}
@@ -7476,126 +7644,51 @@ export function App() {
       ===================================================== */}
 
       <nav
-        className={`bottom-nav ${isAdmin
-          ? 'admin-bottom-nav'
-          : ''
-          }`}
+        className={`bottom-nav ${isAdmin ? 'admin-bottom-nav' : ''}`}
+        aria-label="Mobile navigation"
       >
-        <button
-          className={
-            page ===
-              'home'
-              ? 'active'
-              : ''
-          }
-          onClick={() => {
-            setPage('home')
-            setSelectedStory(
-              null
-            )
-
-            window.scrollTo({
-              top: 0,
-              behavior:
-                'smooth',
-            })
-          }}
-        >
-          <span>
-            ⌂
-          </span>
-          <small>
-            Home
-          </small>
+        <button className={page === 'home' ? 'active' : ''} onClick={() => {
+          setPage('home')
+          setSelectedStory(null)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }}>
+          <span>⌂</span><small>Home</small>
         </button>
 
-        <button
-          className={
-            page ===
-              'library'
-              ? 'active'
-              : ''
-          }
-          onClick={() =>
-            setPage(
-              'library'
-            )
-          }
-        >
-          <span>
-            ♡
-          </span>
-          <small>
-            My Library
-          </small>
+        <button className={page === 'home' ? 'active' : ''} onClick={() => {
+          setPage('home')
+          setSelectedStory(null)
+          requestAnimationFrame(() => document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+        }}>
+          <span>🎧</span><small>Audio Stories</small>
         </button>
 
-        <button
-          className={
-            page === 'vip'
-              ? 'active'
-              : ''
-          }
-          onClick={() =>
-            setPage('vip')
-          }
-        >
-          <span>
-            ♛
-          </span>
-          <small>
-            VIP
-          </small>
+        <button onClick={() => setBooksModalOpen(true)}>
+          <span>📚</span><small>Books</small>
         </button>
 
-        <button
-          className={
-            page ===
-              'account'
-              ? 'active'
-              : ''
-          }
-          onClick={() => {
-            if (loggedIn) {
-              setPage(
-                'account'
-              )
-            } else {
-              setLoginOpen(
-                true
-              )
-            }
-          }}
-        >
-          <span>
-            👤
-          </span>
-          <small>
-            {loggedIn
-              ? 'Account'
-              : 'Login'}
-          </small>
+        <button onClick={() => setVideoModalOpen(true)}>
+          <span>🎬</span><small>Videos</small>
+        </button>
+
+        <button className={page === 'vip' ? 'active' : ''} onClick={() => setPage('vip')}>
+          <span>♛</span><small>VIP</small>
+        </button>
+
+        <button className={page === 'library' ? 'active' : ''} onClick={() => setPage('library')}>
+          <span>♡</span><small>Library</small>
+        </button>
+
+        <button className={page === 'account' ? 'active' : ''} onClick={() => {
+          if (loggedIn) setPage('account')
+          else setLoginOpen(true)
+        }}>
+          <span>👤</span><small>{loggedIn ? 'Account' : 'Login'}</small>
         </button>
 
         {isAdmin && (
-          <button
-            className={
-              adminOpen
-                ? 'active'
-                : ''
-            }
-            onClick={() =>
-              setAdminOpen(
-                true
-              )
-            }
-          >
-            <span>
-              ⚙
-            </span>
-            <small>
-              Admin
-            </small>
+          <button className={adminOpen ? 'active' : ''} onClick={() => setAdminOpen(true)}>
+            <span>⚙</span><small>Admin</small>
           </button>
         )}
       </nav>
