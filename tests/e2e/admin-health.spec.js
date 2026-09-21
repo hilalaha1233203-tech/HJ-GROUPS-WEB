@@ -39,8 +39,12 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(page.getByText('Password Login', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: /password login/i }).first().click()
 
-    await page.getByLabel('Email').fill(process.env.E2E_ADMIN_EMAIL)
-    await page.getByLabel('Password').fill(process.env.E2E_ADMIN_PASSWORD)
+    const emailInput = page.locator('.auth-field input[type="email"]').last()
+    const passwordInput = page.locator('.auth-field input[type="password"]').last()
+    await expect(emailInput).toBeVisible()
+    await expect(passwordInput).toBeVisible()
+    await emailInput.fill(process.env.E2E_ADMIN_EMAIL)
+    await passwordInput.fill(process.env.E2E_ADMIN_PASSWORD)
     await page.getByRole('button', { name: /^login$/i }).click()
 
     await page.waitForTimeout(1800)
