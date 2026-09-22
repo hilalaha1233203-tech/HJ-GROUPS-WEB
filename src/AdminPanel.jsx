@@ -23,24 +23,38 @@ function AccessTypeSelect({ groupName, value, onChange }) {
     { value: 'ads', label: 'Ads' },
   ]
 
+  const selectedValues = Array.isArray(value)
+    ? value
+    : (typeof value === 'string' && value ? [value] : ['free'])
+
+  const toggle = (type, checked) => {
+    let next = checked
+      ? [...new Set([...selectedValues, type])]
+      : selectedValues.filter((item) => item !== type)
+
+    if (!next.length) next = ['free']
+    onChange(next)
+  }
+
   return (
-    <label className="bulk-access-type">
-      <span className="access-type-label">Access Type</span>
-      <select
-        name={groupName}
-        value={value || 'free'}
-        onChange={(event) => onChange(event.target.value)}
-      >
+    <div className="access-type-field">
+      <span className="access-type-label">Access Types</span>
+      <div className="access-type-options">
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <label key={option.value} className="access-type-option">
+            <input
+              type="checkbox"
+              name={`${groupName}_${option.value}`}
+              checked={selectedValues.includes(option.value)}
+              onChange={(event) => toggle(option.value, event.target.checked)}
+            />
             {option.label}
-          </option>
+          </label>
         ))}
-      </select>
-    </label>
+      </div>
+    </div>
   )
 }
-
 function AccessTypeField({ groupName, value, onChange }) {
   const options = [
     { value: 'free', label: 'Free' },
@@ -177,7 +191,7 @@ function AdminPanel({
   const [bulkTitleOverrides, setBulkTitleOverrides] = useState({})
   const [bulkNumberOverrides, setBulkNumberOverrides] = useState({})
   const [bulkAccessTypes, setBulkAccessTypes] = useState({})
-  const [bulkDefaultAccessType, setBulkDefaultAccessType] = useState('free')
+  const [bulkDefaultAccessType, setBulkDefaultAccessType] = useState(['free'])
 
   /* =====================================================
      BOOK FORM
@@ -287,7 +301,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [videoBulkNumberOverrides, setVideoBulkNumberOverrides] = useState({})
   const [bulkVideoStoryId, setBulkVideoStoryId] = useState('')
   const [videoBulkAccessTypes, setVideoBulkAccessTypes] = useState({})
-  const [videoBulkDefaultAccessType, setVideoBulkDefaultAccessType] = useState('free')
+  const [videoBulkDefaultAccessType, setVideoBulkDefaultAccessType] = useState(['free'])
 
   /* =====================================================
      BOOK BULK TELEGRAM IMPORT
@@ -298,7 +312,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [bookBulkTitleOverrides, setBookBulkTitleOverrides] = useState({})
   const [bookBulkTypeOverrides, setBookBulkTypeOverrides] = useState({})
   const [bookBulkAccessTypes, setBookBulkAccessTypes] = useState({})
-  const [bookBulkDefaultAccessType, setBookBulkDefaultAccessType] = useState('free')
+  const [bookBulkDefaultAccessType, setBookBulkDefaultAccessType] = useState(['free'])
 
   /* =====================================================
      STORY
@@ -436,7 +450,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
           src: '',
           telegram_message_id: messageId,
           available: true,
-          accessType: [bulkAccessTypes[msg.messageId] || bulkDefaultAccessType],
+          accessType: bulkAccessTypes[msg.messageId] || bulkDefaultAccessType,
         }
 
         try {
@@ -597,7 +611,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
       }
 
       if (editingEpisode) {
-        await onUpdateEpisode(Number(editingEpisode.storyId), Number(editingEpisode.originalNumber), data)
+        await onUpdateEpisode(editingEpisode.storyId, Number(editingEpisode.originalNumber), data)
         showToast('Episode updated successfully')
       } else {
         await onAddEpisode(Number(episodeStoryId), data)
@@ -827,7 +841,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
           src: '',
           filePath: '',
           available: true,
-          accessType: [videoBulkAccessTypes[msg.messageId] || videoBulkDefaultAccessType],
+          accessType: videoBulkAccessTypes[msg.messageId] || videoBulkDefaultAccessType,
         })
         importedCount++
         existingIds.add(messageId)
@@ -963,7 +977,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
           file: '',
           filePath: '',
           telegram_message_id: messageId,
-          accessType: [bookBulkAccessTypes[msg.messageId] || bookBulkDefaultAccessType],
+          accessType: bookBulkAccessTypes[msg.messageId] || bookBulkDefaultAccessType,
           volumes: [],
         })
         importedCount++
