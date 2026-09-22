@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 /*
  * Vite only exposes client-side environment variables that use the
  * VITE_ prefix. Keep the current publishable-key name, but also accept
- * the legacy anon-key name so older Vercel/local configurations continue
+ * the legacy anon-key name so older local configurations continue
  * to work.
  *
  * The Supabase project URL is not a secret and is safe to expose in the
@@ -24,7 +24,7 @@ const supabaseKey = String(
 if (!supabaseKey) {
   console.error(
     '[HJ GROUPS] Supabase key is missing. Set VITE_SUPABASE_PUBLISHABLE_KEY ' +
-    '(or VITE_SUPABASE_ANON_KEY) in the Vite/Vercel environment.'
+    '(or VITE_SUPABASE_ANON_KEY) in the Vite environment.'
   )
 }
 
