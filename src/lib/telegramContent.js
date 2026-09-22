@@ -1,16 +1,9 @@
 import { supabase } from '../supabase'
 
-// Fallback to empty string instead of localhost to prevent CORS errors
-const DEFAULT_STREAMING_SERVER_URL = 'https://hj-telegram-streaming.vercel.app'
-const RAW_STREAMING_SERVER_URL = import.meta.env.VITE_STREAMING_SERVER_URL || DEFAULT_STREAMING_SERVER_URL
-const STREAMING_SERVER_URL = (() => {
-  const value = String(RAW_STREAMING_SERVER_URL || '').trim().replace(/\/+$/, '')
-  try {
-    const parsed = new URL(value)
-    if (parsed.hostname.toLowerCase().endsWith('.vercel.app') && parsed.hostname.toLowerCase().includes('hj-telegram-streaming')) return DEFAULT_STREAMING_SERVER_URL
-  } catch {}
-  return value || DEFAULT_STREAMING_SERVER_URL
-})()
+// The streaming service is deployed separately. Configure its public URL in VITE_STREAMING_SERVER_URL.
+const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL || '')
+  .trim()
+  .replace(/\/+$/, '')
 
 export function fileUrlFromId(fileId, mediaType = 'audio') {
   if (!fileId) return ''
