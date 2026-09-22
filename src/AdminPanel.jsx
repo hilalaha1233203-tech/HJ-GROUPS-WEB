@@ -614,7 +614,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
         await onUpdateEpisode(editingEpisode.storyId, Number(editingEpisode.originalNumber), data)
         showToast('Episode updated successfully')
       } else {
-        await onAddEpisode(Number(episodeStoryId), data)
+        await onAddEpisode(episodeStoryId, data)
         showToast('Episode added successfully')
       }
       resetEpisodeForm()
