@@ -440,6 +440,7 @@ const installEdgeTtsSpeechBridge = () => {
 
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)
+      audio.preload = 'auto'
       activeAudio = audio
       window.__hjEdgeTtsAudioElement = audio
       window.__hjEdgeTtsPending = false
@@ -506,29 +507,14 @@ const installEdgeTtsSpeechBridge = () => {
     }).catch((error) => {
       if (token !== run) return
 
-      // A temporary Microsoft TTS outage must not stop the reader.
-      // Fall back to the device/browser speech engine so continuous
-      // page reading can continue instead of ending on tts-failed.
       window.__hjEdgeTtsAudioElement = null
       window.__hjEdgeTtsActiveAudio = false
       window.__hjEdgeTtsPending = false
+      window.__hjNativeSpeaking = false
 
-      try {
-        window.__hjNativeSpeaking = true
-        const originalEnd = utterance.onend
-        const originalError = utterance.onerror
-        utterance.onend = (event) => {
-          window.__hjNativeSpeaking = false
-          try { originalEnd?.(event) } catch {}
-        }
-        utterance.onerror = (event) => {
-          window.__hjNativeSpeaking = false
-          try { originalError?.(event) } catch {}
-        }
-        originalSpeak(utterance)
-        return
-      } catch {}
-
+      // Surface the transport failure to the reader engine. It owns the
+      // retry/skip policy so a temporary Edge TTS outage cannot terminate
+      // continuous page reading.
       try {
         utterance.onerror?.({
           type: 'error',
@@ -617,6 +603,7 @@ export function App() {
   const speechUtteranceRef = useRef(null)
   const speechChunksRef = useRef([])
   const speechChunkIndexRef = useRef(0)
+  const speechChunkRetryRef = useRef(0)
   const speechRunRef = useRef(0)
   const speechVoiceRef = useRef(null)
 
@@ -3080,6 +3067,8 @@ export function App() {
       speechChunkIndexRef.current =
         0
 
+      speechChunkRetryRef.current = 0
+
       if (
         'speechSynthesis' in
         window
@@ -3308,6 +3297,8 @@ export function App() {
       const total =
         chunks.length
 
+      speechChunkRetryRef.current = 0
+
       setReadAloudLabel(
         `Reading ${index + 1
         } / ${total}`
@@ -3438,10 +3429,28 @@ export function App() {
             event
           )
 
-          setIsReading(false)
-          setReadAloudLabel(
-            'Speech stopped'
-          )
+          // Keep Read Aloud alive when the online TTS transport has a
+          // transient failure. Retry the same chunk a few times instead
+          // of ending the entire reader session.
+          const retryCount = speechChunkRetryRef.current
+          if (retryCount < 2) {
+            speechChunkRetryRef.current = retryCount + 1
+            setReadAloudLabel(
+              `TTS retry ${retryCount + 1} / 2…`
+            )
+            setTimeout(() => {
+              if (speechRunRef.current !== runId) return
+              speakNextChunk(runId)
+            }, 900)
+            return
+          }
+
+          // Do not trap the reader forever on one bad network/TTS chunk.
+          // Move to the next chunk/page while keeping Read Aloud active.
+          console.warn('Skipping failed TTS chunk after retries.')
+          speechChunkRetryRef.current = 0
+          speechChunkIndexRef.current += 1
+          speakNextChunk(runId)
         }
 
       /*
@@ -3603,6 +3612,8 @@ export function App() {
 
       speechChunkIndexRef.current =
         0
+
+      speechChunkRetryRef.current = 0
 
       setReadAloudProgress(
         0
