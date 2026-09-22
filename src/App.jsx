@@ -1117,7 +1117,11 @@ export function App() {
       }
     }
 
-    await refreshTelegramContent()
+    try {
+      await refreshTelegramContent()
+    } catch {
+      // Database write succeeded; Realtime or the next reload will refresh the UI.
+    }
     return result.data
   }
 
@@ -1292,7 +1296,11 @@ export function App() {
         }
       }
 
-      await refreshTelegramContent()
+      try {
+        await refreshTelegramContent()
+      } catch {
+        // Database write succeeded; Realtime or the next reload will refresh the UI.
+      }
       return
     }
 
