@@ -60,6 +60,7 @@ function applyPaperFormat(){
 function mountControls(){
  const readerBottom=document.querySelector('.reader-bottom')
  if(!document.querySelector('.reader-body-full')||document.querySelector('.hj-reader-tools'))return
+ document.querySelectorAll('.hj-tts-panel').forEach((node)=>node.remove())
  const extra=document.createElement('div');extra.className='hj-reader-extra-controls'
  const tools=document.createElement('div');tools.className='hj-reader-tools';tools.innerHTML=`<span class="hj-paper-label">Paper</span><select data-hj-paper aria-label="Paper format"><option value="auto">Auto</option><option value="a4">A4</option><option value="a3">A3</option><option value="letter">Letter</option><option value="legal">Legal</option><option value="b5">B5</option></select>`;document.body.appendChild(tools)
  extra.appendChild(tools)
