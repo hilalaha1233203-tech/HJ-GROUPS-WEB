@@ -4108,18 +4108,32 @@ export function App() {
                 only until then so the UI isn't
                 blank while locations build.
               */
-              const book =
-                epubBookRef.current
+              const book = epubBookRef.current
+
+              let locations = null
+              try {
+                locations = book?.locations || null
+              } catch {
+                locations = null
+              }
+
+              let locationCount = 0
+              try {
+                locationCount = Number(locations?.length) || 0
+              } catch {
+                locationCount = 0
+              }
 
               const hasLocations =
-                book?.locations?.length > 0
+                locationCount > 0
 
               if (
                 hasLocations &&
-                start?.cfi
+                start?.cfi &&
+                locations
               ) {
                 const index =
-                  book.locations.locationFromCfi(
+                  locations.locationFromCfi(
                     start.cfi
                   )
 
@@ -4134,9 +4148,7 @@ export function App() {
                   )
                 }
 
-                setEpubPages(
-                  book.locations.length
-                )
+                setEpubPages(locationCount)
               } else if (
                 start?.displayed
               ) {
@@ -4241,30 +4253,39 @@ export function App() {
             per "page" matches epub.js's own
             default/typical convention.
           */
-          book.locations
-            .generate(1600)
-            .then(() => {
-              if (cancelled) return
+          let locations = null
+          try {
+            locations = book?.locations || null
+          } catch {
+            locations = null
+          }
 
-              setEpubLocationsReady(
-                true
-              )
+          if (locations?.generate) {
+            locations
+              .generate(1600)
+              .then(() => {
+                if (cancelled || epubBookRef.current !== book) return
 
-              setEpubPages(
-                book.locations
-                  .length
-              )
+                let locationCount = 0
+                try {
+                  locationCount = Number(locations.length) || 0
+                } catch {
+                  locationCount = 0
+                }
 
-              try {
-                const currentCfi =
-                  rendition.currentLocation()
-                    ?.start?.cfi
+                setEpubLocationsReady(locationCount > 0)
+                setEpubPages(locationCount)
 
-                if (currentCfi) {
-                  const index =
-                    book.locations.locationFromCfi(
-                      currentCfi
-                    )
+                try {
+                  const currentCfi =
+                    rendition.currentLocation()
+                      ?.start?.cfi
+
+                  if (currentCfi) {
+                    const index =
+                      locations.locationFromCfi(
+                        currentCfi
+                      )
 
                   if (
                     Number.isFinite(
@@ -4275,16 +4296,14 @@ export function App() {
                     setEpubPage(
                       index + 1
                     )
+                    }
                   }
-                }
-              } catch { }
-            })
-            .catch((error) => {
-              console.warn(
-                'EPUB location generation failed:',
-                error
-              )
-            })
+                } catch { }
+              })
+              .catch(() => {
+                // Location generation is optional; chapter-relative pagination still works.
+              })
+          }
         } catch (error) {
           if (cancelled)
             return
@@ -4487,15 +4506,36 @@ export function App() {
         const location = epubRenditionRef.current.currentLocation()
         const cfi = location?.start?.cfi
         const book = epubBookRef.current
-        const target = cfi && book?.locations?.length
-          ? book.locations.locationFromCfi(cfi) + 1
+        let locations = null
+        let hasLocations = false
+        try {
+          locations = book?.locations || null
+          hasLocations = Number(locations?.length) > 0
+        } catch {
+          locations = null
+          hasLocations = false
+        }
+        const target = cfi && hasLocations && locations
+          ? locations.locationFromCfi(cfi) + 1
           : epubPage
 
         if (!canReadBookPage(target)) {
-          await epubRenditionRef.current.display(
-            book.locations.cfiFromLocation(Math.max(0, BOOK_FREE_PAGES - 1))
+          let locations = null
+          try {
+            locations = book?.locations || null
+          } catch {
+            locations = null
+          }
+          if (locations?.cfiFromLocation) {
+            await epubRenditionRef.current.display(
+              locations.cfiFromLocation(Math.max(0, BOOK_FREE_PAGES - 1))
+            )
+          }
+          const freePageLimit = Math.min(
+            BOOK_FREE_PAGES,
+            Number(locations?.length) || BOOK_FREE_PAGES
           )
-          setEpubPage(Math.min(BOOK_FREE_PAGES, book.locations.length || BOOK_FREE_PAGES))
+          setEpubPage(freePageLimit)
           requestBookPageAccess(target, () => {
             animateReaderTurn('next', async () => {
               await epubRenditionRef.current.display(item.href)
@@ -4534,8 +4574,12 @@ export function App() {
     const book =
       epubBookRef.current
 
-    const total =
-      book.locations?.length || 0
+    let total = 0
+    try {
+      total = Number(book.locations?.length) || 0
+    } catch {
+      total = 0
+    }
 
     if (!total) {
       alert(
@@ -7799,7 +7843,8 @@ export function App() {
                       onFocus={(event) => {
                         setPdfPageInputFocused(true)
                         setPdfInputPage(String(pdfPage))
-                        requestAnimationFrame(() => event.currentTarget.select())
+                        const input = event.currentTarget
+                        requestAnimationFrame(() => input?.select())
                       }}
                       onBlur={() => {
                         setPdfPageInputFocused(false)
@@ -7875,7 +7920,8 @@ export function App() {
                       onFocus={(event) => {
                         setEpubPageInputFocused(true)
                         setEpubInputPage(String(epubPage))
-                        requestAnimationFrame(() => event.currentTarget.select())
+                        const input = event.currentTarget
+                        requestAnimationFrame(() => input?.select())
                       }}
                       onBlur={() => {
                         setEpubPageInputFocused(false)
