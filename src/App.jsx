@@ -816,6 +816,7 @@ export function App() {
         description: updates.description || '',
       }).eq('id', supabaseId)
       if (error) throw error
+      await refreshTelegramContent().catch(() => {})
       return
     }
     persistStories(adminStories.map((story) =>
