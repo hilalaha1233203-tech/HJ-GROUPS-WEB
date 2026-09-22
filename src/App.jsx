@@ -821,66 +821,100 @@ export function App() {
     const supabaseId = getSupabaseStoryId(storyId)
 
     if (supabaseId !== null) {
-      const messageId = episode.telegram_message_id
-        ? Number(episode.telegram_message_id)
-        : null
+      const messageId = episode.telegram_message_id ? Number(episode.telegram_message_id) : null
+      const streamUrl = Number.isFinite(messageId)
+        ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
+        : (episode.src || null)
 
-      const modernRow = {
+      // Production has existed with both the original
+      // episode_number/audio_url schema and the newer number/file_url schema.
+      // Try the original shape first so old databases can import immediately.
+      const legacyRow = {
         story_id: supabaseId,
-        number: Number(episode.number),
+        episode_number: Number(episode.number),
         title: String(episode.title || 'Untitled Episode'),
-        type: episode.type || 'audio',
-        file_url: episode.src || null,
-        file_path: episode.filePath || '',
-        file_id: null,
-        access_type: Array.isArray(episode.accessType)
-          ? (episode.accessType[0] || 'free')
-          : (episode.accessType || 'free'),
-        available: episode.available !== false,
-        ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
+        audio_url: streamUrl,
       }
 
-      let result = await supabase.from('episodes').insert(modernRow)
+      let result = await supabase.from('episodes').insert(legacyRow)
 
-      // Some production databases still use the original schema:
-      // episode_number + audio_url. Retry only when the first insert is
-      // rejected because a column/schema is missing.
       if (result.error) {
         const message = String(result.error.message || '')
         const isSchemaMismatch =
           /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
 
         if (!isSchemaMismatch) {
-          console.error('Supabase episode insert error:', result.error)
+          console.error('Supabase episode insert error:', {
+            code: result.error.code,
+            status: result.error.status,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+          })
           throw result.error
         }
 
-        const legacyAudioUrl = Number.isFinite(messageId)
-          ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
-          : (episode.src || null)
-
-        const legacyRow = {
+        const modernRow = {
           story_id: supabaseId,
-          episode_number: Number(episode.number),
+          number: Number(episode.number),
           title: String(episode.title || 'Untitled Episode'),
-          audio_url: legacyAudioUrl,
+          type: episode.type || 'audio',
+          file_url: streamUrl,
+          file_path: episode.filePath || '',
+          file_id: null,
+          access_type: Array.isArray(episode.accessType)
+            ? (episode.accessType[0] || 'free')
+            : (episode.accessType || 'free'),
+          available: episode.available !== false,
+          ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
         }
 
-        result = await supabase.from('episodes').insert(legacyRow)
+        result = await supabase.from('episodes').insert(modernRow)
 
         if (result.error) {
-          console.error('Supabase legacy episode insert error:', result.error)
+          console.error('Supabase modern episode insert error:', {
+            code: result.error.code,
+            status: result.error.status,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+          })
           throw result.error
+        }
+      } else {
+        // Preserve the access setting and Telegram id on partially upgraded
+        // legacy databases when the corresponding columns already exist.
+        const metadata = {
+          access_type: Array.isArray(episode.accessType)
+            ? (episode.accessType[0] || 'free')
+            : (episode.accessType || 'free'),
+          available: episode.available !== false,
+          ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
+          ...(episode.filePath ? { file_path: episode.filePath } : {}),
+        }
+
+        for (const [column, value] of Object.entries(metadata)) {
+          const { error: metadataError } = await supabase
+            .from('episodes')
+            .update({ [column]: value })
+            .eq('story_id', supabaseId)
+            .eq('episode_number', Number(episode.number))
+
+          if (
+            metadataError &&
+            !/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(
+              String(metadataError.message || '')
+            )
+          ) {
+            console.warn('Episode metadata update skipped:', column, metadataError.message || metadataError)
+          }
         }
       }
 
-      // The database insert is the success condition. Realtime normally
-      // refreshes the catalogue; this extra refresh must never turn a
-      // successful import into a reported failure.
       try {
         await refreshTelegramContent()
-      } catch (refreshError) {
-        console.warn('Episode imported, but catalogue refresh failed:', refreshError)
+      } catch {
+        // The database write already succeeded; Realtime or the next reload will refresh the UI.
       }
 
       return
@@ -892,6 +926,7 @@ export function App() {
         : story
     ))
   }
+
 
   const updateEpisode = async (storyId, episodeNumber, updates) => {
     const supabaseId = getSupabaseStoryId(storyId)
@@ -1293,41 +1328,22 @@ export function App() {
   ======================================================= */
 
   useEffect(() => {
-    if(currentEpisode) {
-      console.log("SELECTED EPISODE", currentEpisode);
-      console.log("FINAL AUDIO SRC", currentEpisode?.src);
-      console.log('AUDIO SRC', currentEpisode?.src);
-      setTimeout(() => {
-        console.log('AUDIO ELEMENT SRC', audioRef.current?.src);
-        
-        if (audioRef.current) {
-          const el = audioRef.current;
-          console.log('[AUDIO INIT STATUS]', {
-            ref: !!el,
-            src: el.src,
-            currentSrc: el.currentSrc,
-            readyState: el.readyState,
-            networkState: el.networkState,
-            error: el.error,
-            currentEpisodeSrc: currentEpisode?.src
-          });
+    if (!currentEpisode || !audioRef.current) return undefined
 
-          const events = ['loadstart','loadedmetadata','loadeddata','canplay','canplaythrough','waiting','stalled','suspend','error','abort','ended', 'play', 'pause'];
-          events.forEach(e => {
-            el.addEventListener(e, (ev) => {
-              console.log(`[AUDIO EVENT] ${e}`, {
-                src: el.src,
-                currentSrc: el.currentSrc,
-                readyState: el.readyState,
-                networkState: el.networkState,
-                error: el.error
-              });
-            });
-          });
-        }
-      }, 100);
+    const element = audioRef.current
+    const syncPlayingState = () => setIsPlaying(!element.paused)
+
+    element.addEventListener('play', syncPlayingState)
+    element.addEventListener('pause', syncPlayingState)
+    element.addEventListener('ended', syncPlayingState)
+
+    return () => {
+      element.removeEventListener('play', syncPlayingState)
+      element.removeEventListener('pause', syncPlayingState)
+      element.removeEventListener('ended', syncPlayingState)
     }
-  }, [currentEpisode]);
+  }, [currentEpisode])
+
 
   useEffect(() => {
     let mounted = true
@@ -1354,8 +1370,7 @@ export function App() {
         }
       )
 
-    console.log("FINAL STORIES STATE", stories);
-  return () => {
+    return () => {
       mounted = false
       listener.subscription.unsubscribe()
     }
@@ -1414,9 +1429,8 @@ export function App() {
     const load = () => {
       fetchTelegramContent()
         .then((data) => {
-            console.log("APP RECEIVED STORIES:", data.stories.length);
           if (!mounted) return
-          console.log('FETCHED STORIES IN APP:', data.stories); setTelegramStories(data.stories)
+          setTelegramStories(data.stories)
           setTelegramBooks(data.books)
           setTelegramVideoStories(data.videoStories)
         })
