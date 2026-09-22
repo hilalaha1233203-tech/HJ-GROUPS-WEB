@@ -92,7 +92,7 @@ const baseHeaders = {
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
     '(KHTML, like Gecko) Chrome/' + CHROMIUM_MAJOR_VERSION +
     '.0.0.0 Safari/537.36 Edg/' + CHROMIUM_MAJOR_VERSION + '.0.0.0',
-  'Accept-Encoding': 'gzip, deflate, br',
+  'Accept-Encoding': 'gzip, deflate, br, zstd',
   'Accept-Language': 'en-US,en;q=0.9',
 }
 
@@ -192,16 +192,20 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
 
     const socket = new WebSocket(url, {
       headers: makeWsHeaders(),
-      perMessageDeflate: false,
-      handshakeTimeout: 15000,
+      handshakeTimeout: 30000,
     })
 
     const audio = []
     let settled = false
+    let timer = null
 
     const finish = (error, value) => {
       if (settled) return
       settled = true
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
       try { socket.close() } catch {}
       error ? reject(error) : resolve(Buffer.concat(value || []))
     }
@@ -275,34 +279,46 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
       if (!settled && audio.length) finish(null, audio)
     })
 
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       finish(new Error('Microsoft Edge TTS connection timed out'))
-    }, 60000)
-
-    const originalFinish = finish
-    // Clear the timeout after settlement.
-    // Reassigning through a wrapper keeps this implementation compatible with ws.
-    void originalFinish
+    }, 30000)
   })
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 const synthesizeWithRetry = async (args) => {
-  try {
-    return await synthesizeChunk(args)
-  } catch (error) {
-    const status = Number(error?.statusCode)
-    if (status === 403) {
-      const headers = error?.responseHeaders || {}
-      const serverDate = headers.date || headers.Date
-      if (serverDate) {
-        const parsed = Date.parse(serverDate)
-        if (Number.isFinite(parsed)) {
-          clockSkewSeconds += (parsed / 1000) - (Date.now() / 1000)
-          return synthesizeChunk(args)
+  let lastError = null
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await synthesizeChunk(args)
+    } catch (error) {
+      lastError = error
+      const status = Number(error?.statusCode)
+      const message = String(error?.message || '')
+      const retryable =
+        status === 403 ||
+        status >= 500 ||
+        /timed out|timeout|websocket|socket/i.test(message)
+
+      if (!retryable || attempt === 1) break
+
+      if (status === 403) {
+        const headers = error?.responseHeaders || {}
+        const serverDate = headers.date || headers.Date
+        if (serverDate) {
+          const parsed = Date.parse(serverDate)
+          if (Number.isFinite(parsed)) {
+            clockSkewSeconds += (parsed / 1000) - (Date.now() / 1000)
+          }
         }
       }
+
+      await sleep(650 * (attempt + 1))
     }
-    throw error
   }
+
+  throw lastError || new Error('Microsoft Edge TTS request failed')
 }
 
 export async function synthesizeEdgeTts({ text, voice, rate = 1, pitch = 0 }) {
