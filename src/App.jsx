@@ -8308,148 +8308,90 @@ export function App() {
               </div>
 
               <div className="reader-player">
-                <button
-                  onClick={
-                    readerPrevious
-                  }
-                  title="Previous page / chapter"
-                >
-                  ⏮
-                </button>
+                <div className="reader-player-nav">
+                  <button
+                    onClick={readerPrevious}
+                    title="Previous page / chapter"
+                    aria-label="Previous page or chapter"
+                  >
+                    ⏮
+                  </button>
 
-                <button
-                  className="reader-play-button"
-                  onClick={
-                    readAloud
-                  }
-                >
-                  {isReading
-                    ? '❚❚'
-                    : '▶'}
-                </button>
+                  <button
+                    className="reader-play-button"
+                    onClick={readAloud}
+                    aria-label={isReading ? 'Pause read aloud' : 'Start read aloud'}
+                  >
+                    {isReading ? '❚❚' : '▶'}
+                  </button>
 
-                <button
-                  onClick={
-                    readerNext
-                  }
-                  title="Next page / chapter"
-                >
-                  ⏭
-                </button>
-
-                <div className="reader-progress">
-                  <div
-                    className="reader-progress-bar"
-                    style={{
-                      width: `${readAloudProgress}%`,
-                    }}
-                  />
+                  <button
+                    onClick={readerNext}
+                    title="Next page / chapter"
+                    aria-label="Next page or chapter"
+                  >
+                    ⏭
+                  </button>
                 </div>
 
-                <span className="reader-progress-label">
-                  {Math.round(
-                    readAloudProgress
-                  )}
-                  %
-                </span>
+                <div className="reader-player-progress">
+                  <div className="reader-progress">
+                    <div
+                      className="reader-progress-bar"
+                      style={{
+                        width: `${readAloudProgress}%`,
+                      }}
+                    />
+                  </div>
 
-                <span>
-                  🔊
-                </span>
+                  <span className="reader-progress-label">
+                    {Math.round(readAloudProgress)}%
+                  </span>
+                </div>
 
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={
-                    volume
-                  }
-                  onChange={
-                    changeVolume
-                  }
-                />
+                <label className="reader-player-volume">
+                  <span aria-hidden="true">🔊</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={changeVolume}
+                    aria-label="Read aloud volume"
+                  />
+                </label>
 
                 <select
-                  value={
-                    speed
+                  className="reader-player-speed"
+                  value={speed}
+                  onChange={(event) =>
+                    changeSpeed(Number(event.target.value))
                   }
-                  onChange={(
-                    event
-                  ) =>
-                    changeSpeed(
-                      Number(
-                        event
-                          .target
-                          .value
-                      )
-                    )
-                  }
+                  aria-label="Read aloud speed"
                 >
-                  <option value="0.5">
-                    0.5x
-                  </option>
-
-                  <option value="0.75">
-                    0.75x
-                  </option>
-
-                  <option value="1">
-                    1x
-                  </option>
-
-                  <option value="1.25">
-                    1.25x
-                  </option>
-
-                  <option value="1.5">
-                    1.5x
-                  </option>
-
-                  <option value="2">
-                    2x
-                  </option>
+                  <option value="0.5">0.5x</option>
+                  <option value="0.75">0.75x</option>
+                  <option value="1">1x</option>
+                  <option value="1.25">1.25x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
                 </select>
 
                 <select
-                  value={
-                    sleepMinutes
+                  className="reader-player-sleep"
+                  value={sleepMinutes}
+                  onChange={(event) =>
+                    startSleepTimer(Number(event.target.value))
                   }
-                  onChange={(
-                    event
-                  ) =>
-                    startSleepTimer(
-                      Number(
-                        event
-                          .target
-                          .value
-                      )
-                    )
-                  }
+                  aria-label="Sleep timer"
                 >
-                  <option value="0">
-                    😴Sleep Off
-                  </option>
-
-                  <option value="5">
-                    5 min
-                  </option>
-
-                  <option value="10">
-                    10 min
-                  </option>
-
-                  <option value="15">
-                    15 min
-                  </option>
-
-                  <option value="30">
-                    30 min
-                  </option>
-
-                  <option value="60">
-                    60 min
-                  </option>
+                  <option value="0">😴 Sleep Off</option>
+                  <option value="5">5 min</option>
+                  <option value="10">10 min</option>
+                  <option value="15">15 min</option>
+                  <option value="30">30 min</option>
+                  <option value="60">60 min</option>
                 </select>
               </div>
 
