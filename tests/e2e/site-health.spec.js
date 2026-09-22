@@ -101,7 +101,7 @@ test.describe('HJ GROUPS public website health', () => {
 
     const merged = mergeHealth(reports)
     console.log(JSON.stringify({
-      baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-web.vercel.app',
+      baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com',
       scanned: labels,
       ...merged,
     }, null, 2))
@@ -118,9 +118,8 @@ test.describe('HJ GROUPS public website health', () => {
 
 test.describe('HJ GROUPS Telegram streaming health', () => {
   test('streaming server health and CORS preflight', async ({ request }) => {
-    const streamingURL =
-      process.env.PLAYWRIGHT_STREAMING_URL ||
-      'https://hj-telegram-streaming.vercel.app'
+    const streamingURL = String(process.env.PLAYWRIGHT_STREAMING_URL || '').trim().replace(/\/+$/, '')
+    test.skip(!streamingURL, 'PLAYWRIGHT_STREAMING_URL is not configured')
 
     const health = await request.get(streamingURL + '/health')
     expect(health.status()).toBe(200)
@@ -128,7 +127,7 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     const preflight = await request.fetch(streamingURL + '/telegram/messages', {
       method: 'OPTIONS',
       headers: {
-        Origin: 'https://hj-groups-web.vercel.app',
+        Origin: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com',
         'Access-Control-Request-Method': 'GET',
         'Access-Control-Request-Headers': 'authorization',
       },
@@ -143,6 +142,6 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     expect(
       preflight.headers()['access-control-allow-origin'],
       'streaming server must allow the website origin'
-    ).toBe('https://hj-groups-web.vercel.app')
+    ).toBe(process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com')
   })
 })
