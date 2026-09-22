@@ -25,7 +25,7 @@ app = re.sub(
     flags=re.S,
 )
 
-# Remove any old UX2 block before re-inserting it so repeated Vercel builds stay idempotent.
+# Remove any old UX2 block before re-inserting it so repeated build runs stay idempotent.
 app = re.sub(r"\n\s*/\* HJ EPUB UX2 START \*/.*?/\* HJ EPUB UX2 END \*/\n", "\n", app, flags=re.S)
 
 ux2 = r'''\n          /* HJ EPUB UX2 START */
