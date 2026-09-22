@@ -1,13 +1,5 @@
 import { test, expect } from '@playwright/test'
 
-const ignoredConsolePatterns = [
-  /_vercel\/insights\/script\.js/i,
-  /Vercel Web Analytics/i,
-]
-
-const isIgnoredMessage = (value) =>
-  ignoredConsolePatterns.some((pattern) => pattern.test(String(value || '')))
-
 async function collectHealth(page, action) {
   const consoleErrors = []
   const pageErrors = []
@@ -17,23 +9,23 @@ async function collectHealth(page, action) {
   const onConsole = (message) => {
     if (message.type() !== 'error') return
     const text = message.text()
-    if (!isIgnoredMessage(text)) consoleErrors.push(text)
+    consoleErrors.push(text)
   }
 
   const onPageError = (error) => {
     const text = error?.message || String(error)
-    if (!isIgnoredMessage(text)) pageErrors.push(text)
+    pageErrors.push(text)
   }
 
   const onRequestFailed = (request) => {
     const text = request.method() + ' ' + request.url() + ' :: ' + (request.failure()?.errorText || 'request failed')
-    if (!isIgnoredMessage(text)) failedRequests.push(text)
+    failedRequests.push(text)
   }
 
   const onResponse = (response) => {
     if (response.status() < 400) return
     const text = response.status() + ' ' + response.request().method() + ' ' + response.url()
-    if (!isIgnoredMessage(text)) badResponses.push(text)
+    badResponses.push(text)
   }
 
   page.on('console', onConsole)
