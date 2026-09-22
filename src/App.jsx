@@ -826,34 +826,48 @@ export function App() {
         ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
         : (episode.src || null)
 
-      // Production has existed with both the original
-      // episode_number/audio_url schema and the newer number/file_url schema.
-      // Try the original shape first so old databases can import immediately.
-      const legacyRow = {
+      const accessType = Array.isArray(episode.accessType)
+        ? (episode.accessType[0] || 'free')
+        : (episode.accessType || 'free')
+
+      // Try a hybrid payload first. This succeeds when production has both
+      // legacy episode_number/audio_url columns and newer number/file_url
+      // columns. It also keeps Access Type / availability / Telegram ID.
+      const hybridRow = {
         story_id: supabaseId,
         episode_number: Number(episode.number),
+        number: Number(episode.number),
         title: String(episode.title || 'Untitled Episode'),
         audio_url: streamUrl,
+        file_url: streamUrl,
+        type: episode.type || 'audio',
+        file_path: episode.filePath || '',
+        file_id: null,
+        access_type: accessType,
+        available: episode.available !== false,
+        ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
       }
 
-      let result = await supabase.from('episodes').insert(legacyRow)
+      let result = await supabase.from('episodes').insert(hybridRow)
 
       if (result.error) {
-        const message = String(result.error.message || '')
-        const isSchemaMismatch =
+        const hybridError = result.error
+        const message = String(hybridError.message || '')
+        const schemaMismatch =
           /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
 
-        if (!isSchemaMismatch) {
+        if (!schemaMismatch) {
           console.error('Supabase episode insert error:', {
-            code: result.error.code,
-            status: result.error.status,
-            message: result.error.message,
-            details: result.error.details,
-            hint: result.error.hint,
+            code: hybridError.code,
+            status: hybridError.status,
+            message: hybridError.message,
+            details: hybridError.details,
+            hint: hybridError.hint,
           })
-          throw result.error
+          throw hybridError
         }
 
+        // Newer schema without legacy columns.
         const modernRow = {
           story_id: supabaseId,
           number: Number(episode.number),
@@ -862,51 +876,76 @@ export function App() {
           file_url: streamUrl,
           file_path: episode.filePath || '',
           file_id: null,
-          access_type: Array.isArray(episode.accessType)
-            ? (episode.accessType[0] || 'free')
-            : (episode.accessType || 'free'),
+          access_type: accessType,
           available: episode.available !== false,
           ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
         }
 
         result = await supabase.from('episodes').insert(modernRow)
 
+        // Original/legacy schema without the newer columns.
         if (result.error) {
-          console.error('Supabase modern episode insert error:', {
-            code: result.error.code,
-            status: result.error.status,
-            message: result.error.message,
-            details: result.error.details,
-            hint: result.error.hint,
-          })
-          throw result.error
-        }
-      } else {
-        // Preserve the access setting and Telegram id on partially upgraded
-        // legacy databases when the corresponding columns already exist.
-        const metadata = {
-          access_type: Array.isArray(episode.accessType)
-            ? (episode.accessType[0] || 'free')
-            : (episode.accessType || 'free'),
-          available: episode.available !== false,
-          ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
-          ...(episode.filePath ? { file_path: episode.filePath } : {}),
-        }
+          const modernError = result.error
+          const modernMessage = String(modernError.message || '')
+          const modernSchemaMismatch =
+            /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(modernMessage)
 
-        for (const [column, value] of Object.entries(metadata)) {
-          const { error: metadataError } = await supabase
-            .from('episodes')
-            .update({ [column]: value })
-            .eq('story_id', supabaseId)
-            .eq('episode_number', Number(episode.number))
+          if (!modernSchemaMismatch) {
+            console.error('Supabase modern episode insert error:', {
+              code: modernError.code,
+              status: modernError.status,
+              message: modernError.message,
+              details: modernError.details,
+              hint: modernError.hint,
+            })
+            throw modernError
+          }
 
-          if (
-            metadataError &&
-            !/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(
-              String(metadataError.message || '')
-            )
-          ) {
-            console.warn('Episode metadata update skipped:', column, metadataError.message || metadataError)
+          const legacyRow = {
+            story_id: supabaseId,
+            episode_number: Number(episode.number),
+            title: String(episode.title || 'Untitled Episode'),
+            audio_url: streamUrl,
+          }
+
+          result = await supabase.from('episodes').insert(legacyRow)
+
+          if (result.error) {
+            console.error('Supabase legacy episode insert error:', {
+              code: result.error.code,
+              status: result.error.status,
+              message: result.error.message,
+              details: result.error.details,
+              hint: result.error.hint,
+            })
+            throw result.error
+          }
+
+          // On partially upgraded legacy tables, persist newer fields
+          // individually when they exist; missing columns are safely ignored.
+          const metadata = {
+            access_type: accessType,
+            available: episode.available !== false,
+            ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
+            ...(episode.filePath ? { file_path: episode.filePath } : {}),
+            file_url: streamUrl,
+          }
+
+          for (const [column, value] of Object.entries(metadata)) {
+            const { error: metadataError } = await supabase
+              .from('episodes')
+              .update({ [column]: value })
+              .eq('story_id', supabaseId)
+              .eq('episode_number', Number(episode.number))
+
+            if (
+              metadataError &&
+              !/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(
+                String(metadataError.message || '')
+              )
+            ) {
+              console.warn('Episode metadata update skipped:', column, metadataError.message || metadataError)
+            }
           }
         }
       }
@@ -914,7 +953,7 @@ export function App() {
       try {
         await refreshTelegramContent()
       } catch {
-        // The database write already succeeded; Realtime or the next reload will refresh the UI.
+        // Database write succeeded; Realtime or the next reload will refresh the UI.
       }
 
       return
