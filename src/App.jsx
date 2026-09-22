@@ -409,6 +409,7 @@ const installEdgeTtsSpeechBridge = () => {
       activeAudio = null
     }
     window.__hjEdgeTtsActiveAudio = false
+    window.__hjEdgeTtsAudioElement = null
     window.__hjEdgeTtsPaused = false
     window.__hjEdgeTtsPending = false
   }
@@ -427,6 +428,7 @@ const installEdgeTtsSpeechBridge = () => {
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)
       activeAudio = audio
+      window.__hjEdgeTtsAudioElement = audio
       window.__hjEdgeTtsPending = false
       window.__hjEdgeTtsActiveAudio = true
 
@@ -461,6 +463,7 @@ const installEdgeTtsSpeechBridge = () => {
       audio.onended = () => {
         if (token !== run) return
         activeAudio = null
+        window.__hjEdgeTtsAudioElement = null
         window.__hjEdgeTtsActiveAudio = false
         window.__hjEdgeTtsPending = false
         URL.revokeObjectURL(url)
@@ -470,6 +473,7 @@ const installEdgeTtsSpeechBridge = () => {
       audio.onerror = () => {
         if (token !== run) return
         activeAudio = null
+        window.__hjEdgeTtsAudioElement = null
         window.__hjEdgeTtsActiveAudio = false
         window.__hjEdgeTtsPending = false
         URL.revokeObjectURL(url)
@@ -488,6 +492,7 @@ const installEdgeTtsSpeechBridge = () => {
       })
     }).catch((error) => {
       if (token !== run) return
+      window.__hjEdgeTtsAudioElement = null
       window.__hjEdgeTtsActiveAudio = false
       window.__hjEdgeTtsPending = false
       try {
@@ -602,6 +607,19 @@ export function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
     return installEdgeTtsSpeechBridge()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const onTtsSpeed = (event) => {
+      const value = Number(event?.detail)
+      if (!Number.isFinite(value)) return
+      setSpeed(Math.max(0.5, Math.min(2, value)))
+    }
+
+    window.addEventListener('hj-tts-speed', onTtsSpeed)
+    return () => window.removeEventListener('hj-tts-speed', onTtsSpeed)
   }, [])
 
   useEffect(() => {
@@ -2652,6 +2670,15 @@ export function App() {
         speechUtteranceRef.current.volume =
           value
       }
+
+      if (
+        window.__hjEdgeTtsAudioElement
+      ) {
+        try {
+          window.__hjEdgeTtsAudioElement.volume =
+            value
+        } catch { }
+      }
     }
 
   const changeSpeed =
@@ -2667,6 +2694,18 @@ export function App() {
         videoRef.current.playbackRate =
           value
       }
+
+      if (window.__hjEdgeTtsAudioElement) {
+        try {
+          window.__hjEdgeTtsAudioElement.playbackRate = value
+        } catch { }
+      }
+
+      window.dispatchEvent?.(
+        new CustomEvent('hj-tts-speed', {
+          detail: value,
+        })
+      )
 
       /*
         Edge TTS receives the selected rate for the next chunk.
