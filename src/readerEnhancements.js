@@ -30,14 +30,14 @@ function injectReaderStyles(){
 .hj-page-transition.next::after{right:2%}.hj-page-transition.prev::after{left:2%;transform:scaleX(-1)}
 @keyframes hjBookPageNext{0%{transform:rotateY(0) scaleX(1);border-radius:0;filter:brightness(1)}35%{transform:rotateY(-48deg) scaleX(.84);border-radius:0 18% 18% 0;filter:brightness(.96)}68%{transform:rotateY(-82deg) scaleX(.42);border-radius:0 32% 32% 0;filter:brightness(.9)}100%{transform:rotateY(-110deg) scaleX(.02);border-radius:0 50% 50% 0;filter:brightness(.82)}}
 @keyframes hjBookPagePrev{0%{transform:rotateY(0) scaleX(1);border-radius:0}35%{transform:rotateY(48deg) scaleX(.84);border-radius:18% 0 0 18%}68%{transform:rotateY(82deg) scaleX(.42);border-radius:32% 0 0 32%}100%{transform:rotateY(110deg) scaleX(.02);border-radius:50% 0 0 50%}}
-.hj-reader-tools{position:fixed;right:14px;bottom:14px;z-index:100050;display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid rgba(124,131,255,.28);border-radius:14px;background:rgba(14,16,28,.96);backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(0,0,0,.28);font:500 12px/1.2 system-ui,sans-serif;color:#e9ebff}
+.hj-reader-extra-controls{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;min-width:0;order:4}.hj-reader-tools{position:static;z-index:1;display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid rgba(124,131,255,.28);border-radius:14px;background:rgba(14,16,28,.96);backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(0,0,0,.28);font:500 12px/1.2 system-ui,sans-serif;color:#e9ebff}
 .hj-reader-tools select{height:32px;border:1px solid rgba(255,255,255,.13);border-radius:9px;background:#1b1e31;color:#eef0ff;padding:0 10px;cursor:pointer;min-width:105px}
 .hj-paper-label{color:#9ea5c7;font-size:11px}
-.hj-tts-launcher{position:fixed;left:14px;bottom:14px;z-index:100052;width:42px;height:42px;border:1px solid rgba(124,131,255,.35);border-radius:50%;background:rgba(14,16,28,.97);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.hj-tts-launcher{position:static;z-index:1;width:38px;height:38px;border:1px solid rgba(124,131,255,.35);border-radius:50%;background:rgba(14,16,28,.97);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 .hj-tts-launcher.active{border-color:#7c83ff;box-shadow:0 0 0 3px rgba(124,131,255,.12),0 10px 30px rgba(0,0,0,.32)}
 .hj-tts-panel{position:fixed;left:14px;bottom:64px;z-index:100053;width:280px;padding:15px;border:1px solid rgba(124,131,255,.3);border-radius:16px;background:rgba(14,16,28,.98);backdrop-filter:blur(18px);box-shadow:0 16px 42px rgba(0,0,0,.4);font:500 12px/1.35 system-ui,sans-serif;color:#eef0ff;display:none}
 .hj-tts-panel.open{display:block}.hj-tts-title{font-size:15px;font-weight:700;margin-bottom:12px}.hj-tts-row{display:grid;grid-template-columns:72px 1fr 44px;align-items:center;gap:8px;margin:11px 0}.hj-tts-row label{color:#aeb3d2}.hj-tts-row select{width:100%;height:30px;border:1px solid rgba(255,255,255,.13);border-radius:8px;background:#1b1e31;color:#eef0ff;padding:0 7px}.hj-tts-row input{width:100%;accent-color:#7c83ff}.hj-tts-value{text-align:right;color:#fff}.hj-tts-note{font-size:10px;color:#858ba9;margin-top:10px}
-@media(max-width:700px){.hj-reader-tools{right:8px;bottom:8px;max-width:calc(100vw - 58px);overflow-x:auto}.hj-tts-launcher{left:8px;bottom:8px}.hj-tts-panel{left:8px;bottom:58px;width:min(280px,calc(100vw - 16px))}}
+@media(max-width:700px){.hj-reader-extra-controls{width:100%;gap:6px}.hj-reader-tools{max-width:100%;overflow-x:auto}.hj-reader-tools select{min-width:92px}.hj-tts-launcher{flex:0 0 38px}.hj-tts-panel{left:8px;bottom:112px;width:min(280px,calc(100vw - 16px))}}
 `;
  document.head.appendChild(s)
 }
@@ -58,14 +58,19 @@ function applyPaperFormat(){
 }
 
 function mountControls(){
+ const readerBottom=document.querySelector('.reader-bottom')
  if(!document.querySelector('.reader-body-full')||document.querySelector('.hj-reader-tools'))return
+ const extra=document.createElement('div');extra.className='hj-reader-extra-controls'
  const tools=document.createElement('div');tools.className='hj-reader-tools';tools.innerHTML=`<span class="hj-paper-label">Paper</span><select data-hj-paper aria-label="Paper format"><option value="auto">Auto</option><option value="a4">A4</option><option value="a3">A3</option><option value="letter">Letter</option><option value="legal">Legal</option><option value="b5">B5</option></select>`;document.body.appendChild(tools)
+ extra.appendChild(tools)
  const sel=tools.querySelector('[data-hj-paper]');sel.value=getPaper();sel.addEventListener('change',()=>{savePaper(sel.value);applyPaperFormat();window.dispatchEvent(new CustomEvent('hj-reader-paper-change',{detail:sel.value}))})
  const launch=document.createElement('button');launch.type='button';launch.className='hj-tts-launcher';launch.textContent='🔊';launch.setAttribute('aria-label','Read Aloud settings');document.body.appendChild(launch)
  const panel=document.createElement('div');panel.className='hj-tts-panel';panel.innerHTML=`<div class="hj-tts-title">Microsoft Edge Read Aloud</div><div class="hj-tts-row"><label>Tamil</label><select data-hj-tamil-voice aria-label="Tamil voice"><option value="ta-IN-PallaviNeural">Pallavi — Female</option><option value="ta-IN-ValluvarNeural">Valluvar — Male</option></select><span></span></div><div class="hj-tts-row"><label>English</label><select data-hj-english-voice aria-label="English voice"><option value="en-IN-NeerjaNeural">Neerja — Female</option><option value="en-IN-PrabhatNeural">Prabhat — Male</option><option value="en-IN-KunalNeural">Kunal — Male</option></select><span></span></div><div class="hj-tts-row"><label>Speed</label><input data-hj-pace type="range" min="0.65" max="1.5" step="0.01"><span class="hj-tts-value" data-hj-pace-value>1.00x</span></div><div class="hj-tts-note">Online Microsoft Edge Neural TTS · No API key · Tamil + English</div>`;document.body.appendChild(panel)
  const settings=getTtsSettings(),tv=panel.querySelector('[data-hj-tamil-voice]'),ev=panel.querySelector('[data-hj-english-voice]'),pace=panel.querySelector('[data-hj-pace]'),pv=panel.querySelector('[data-hj-pace-value]');tv.value=settings.tamilVoice;ev.value=settings.englishVoice;pace.value=String(settings.pace||1);pv.textContent=Number(pace.value).toFixed(2)+'x'
  const update=()=>{const v={...getTtsSettings(),tamilVoice:tv.value,englishVoice:ev.value,pace:Number(pace.value)||1};saveTtsSettings(v);pv.textContent=v.pace.toFixed(2)+'x';window.dispatchEvent(new CustomEvent('hj-tts-speed',{detail:v.pace}))};tv.addEventListener('change',update);ev.addEventListener('change',update);pace.addEventListener('input',update)
  launch.addEventListener('click',()=>{panel.classList.toggle('open');launch.classList.toggle('active',panel.classList.contains('open'))})
+ extra.appendChild(launch)
+ if(readerBottom) readerBottom.appendChild(extra); else document.body.appendChild(extra)
 }
 
 function transitionOverlay(dir){const h=host();if(!h)return;const old=h.querySelector('.hj-page-transition');if(old)old.remove();const o=document.createElement('div');o.className=`hj-page-transition ${dir}`;h.appendChild(o);requestAnimationFrame(()=>o.classList.add('show'));setTimeout(()=>o.remove(),500)}
