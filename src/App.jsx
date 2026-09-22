@@ -882,7 +882,7 @@ export function App() {
           file_url: streamUrl,
           file_path: episode.filePath || '',
           file_id: null,
-          access_type: accessType,
+          access_type: serializeAccessType(accessType),
           available: episode.available !== false,
           ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
         }
@@ -930,7 +930,7 @@ export function App() {
           // On partially upgraded legacy tables, persist newer fields
           // individually when they exist; missing columns are safely ignored.
           const metadata = {
-            access_type: accessType,
+            access_type: serializeAccessType(accessType),
             available: episode.available !== false,
             ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
             ...(episode.filePath ? { file_path: episode.filePath } : {}),
