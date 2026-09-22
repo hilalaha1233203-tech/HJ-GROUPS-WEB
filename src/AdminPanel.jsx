@@ -177,6 +177,7 @@ function AdminPanel({
   const [bulkTitleOverrides, setBulkTitleOverrides] = useState({})
   const [bulkNumberOverrides, setBulkNumberOverrides] = useState({})
   const [bulkAccessTypes, setBulkAccessTypes] = useState({})
+  const [bulkDefaultAccessType, setBulkDefaultAccessType] = useState('free')
 
   /* =====================================================
      BOOK FORM
@@ -286,6 +287,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [videoBulkNumberOverrides, setVideoBulkNumberOverrides] = useState({})
   const [bulkVideoStoryId, setBulkVideoStoryId] = useState('')
   const [videoBulkAccessTypes, setVideoBulkAccessTypes] = useState({})
+  const [videoBulkDefaultAccessType, setVideoBulkDefaultAccessType] = useState('free')
 
   /* =====================================================
      BOOK BULK TELEGRAM IMPORT
@@ -296,6 +298,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [bookBulkTitleOverrides, setBookBulkTitleOverrides] = useState({})
   const [bookBulkTypeOverrides, setBookBulkTypeOverrides] = useState({})
   const [bookBulkAccessTypes, setBookBulkAccessTypes] = useState({})
+  const [bookBulkDefaultAccessType, setBookBulkDefaultAccessType] = useState('free')
 
   /* =====================================================
      STORY
@@ -433,7 +436,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
           src: '',
           telegram_message_id: messageId,
           available: true,
-          accessType: [bulkAccessTypes[msg.messageId] || 'free'],
+          accessType: [bulkAccessTypes[msg.messageId] || bulkDefaultAccessType],
         }
 
         try {
@@ -824,7 +827,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
           src: '',
           filePath: '',
           available: true,
-          accessType: [videoBulkAccessTypes[msg.messageId] || 'free'],
+          accessType: [videoBulkAccessTypes[msg.messageId] || videoBulkDefaultAccessType],
         })
         importedCount++
         existingIds.add(messageId)
@@ -960,7 +963,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
           file: '',
           filePath: '',
           telegram_message_id: messageId,
-          accessType: [bookBulkAccessTypes[msg.messageId] || 'free'],
+          accessType: [bookBulkAccessTypes[msg.messageId] || bookBulkDefaultAccessType],
           volumes: [],
         })
         importedCount++
@@ -1358,13 +1361,17 @@ const [bookAccessType, setBookAccessType] = useState('free')
             <section className="admin-section bulk-telegram-section">
               <h3>🎧 Bulk Telegram Import</h3>
               <div className="admin-form">
-                <select value={bulkStoryId} onChange={(e) => setBulkStoryId(e.target.value)}>
-                  <option value="">Select Story</option>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <select value={bulkStoryId} onChange={(e) => setBulkStoryId(e.target.value)}>
+                    <option value="">Select Story</option>
+
                   {adminStoryIds.length > 0 &&
                     stories
                       .filter((story) => adminStoryIds.includes(story.id))
                       .map((story) => <option key={story.id} value={story.id}>{story.title}</option>)}
-                </select>
+                  </select>
+                  <AccessTypeSelect groupName="bulk-audio-default-access" value={bulkDefaultAccessType} onChange={setBulkDefaultAccessType} />
+                </div>
 
                 <button type="button" className="admin-submit" style={{ backgroundColor: '#7C83FF' }} onClick={handleScanTelegram} disabled={bulkLoading}>
                   {bulkLoading ? '🔄 Scanning...' : '🔄 Scan Telegram Messages'}
@@ -1492,6 +1499,9 @@ const [bookAccessType, setBookAccessType] = useState('free')
             <section className="admin-section bulk-telegram-section">
               <h3>📚 Bulk Telegram Book Import</h3>
               <div className="admin-form">
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  <AccessTypeSelect groupName="bulk-book-default-access" value={bookBulkDefaultAccessType} onChange={setBookBulkDefaultAccessType} />
+                </div>
                 <button
                   type="button"
                   className="admin-submit"
@@ -1848,12 +1858,16 @@ const [bookAccessType, setBookAccessType] = useState('free')
             <section className="admin-section bulk-telegram-section">
               <h3>🎬 Bulk Telegram Video Import</h3>
               <div className="admin-form">
-                <select value={bulkVideoStoryId} onChange={(e) => setBulkVideoStoryId(e.target.value)}>
-                  <option value="">Select Video Story</option>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <select value={bulkVideoStoryId} onChange={(e) => setBulkVideoStoryId(e.target.value)}>
+                    <option value="">Select Video Story</option>
+
                   {videoStories.filter((video) => adminVideoIds.includes(video.id)).map((video) => (
                     <option key={video.id} value={video.id}>{video.title}</option>
                   ))}
-                </select>
+                  </select>
+                  <AccessTypeSelect groupName="bulk-video-default-access" value={videoBulkDefaultAccessType} onChange={setVideoBulkDefaultAccessType} />
+                </div>
 
                 <button
                   type="button"
