@@ -15,6 +15,32 @@ const STREAMING_SERVER_URL = (() => {
 })()
 
 
+function AccessTypeSelect({ groupName, value, onChange }) {
+  const options = [
+    { value: 'free', label: 'Free' },
+    { value: 'vip', label: 'VIP' },
+    { value: 'premium', label: 'Premium' },
+    { value: 'ads', label: 'Ads' },
+  ]
+
+  return (
+    <label className="bulk-access-type">
+      <span className="access-type-label">Access Type</span>
+      <select
+        name={groupName}
+        value={value || 'free'}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 function AccessTypeField({ groupName, value, onChange }) {
   const options = [
     { value: 'free', label: 'Free' },
@@ -150,6 +176,7 @@ function AdminPanel({
   const [bulkLoading, setBulkLoading] = useState(false)
   const [bulkTitleOverrides, setBulkTitleOverrides] = useState({})
   const [bulkNumberOverrides, setBulkNumberOverrides] = useState({})
+  const [bulkAccessTypes, setBulkAccessTypes] = useState({})
 
   /* =====================================================
      BOOK FORM
@@ -196,6 +223,11 @@ const [bookAccessType, setBookAccessType] = useState('free')
     const parts = raw.split('/').filter(Boolean)
     const last = parts[parts.length - 1] || ''
     return /^\d+$/.test(last) ? Number(last) : null
+  }
+
+  const extractStreamingMessageId = (value) => {
+    const match = String(value || '').match(/\/(?:audio|video|document)\/message\/(\d+)/i)
+    return match ? Number(match[1]) : null
   }
 
   const resetAddVolumeForm = () => {
@@ -253,6 +285,17 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [videoBulkTitleOverrides, setVideoBulkTitleOverrides] = useState({})
   const [videoBulkNumberOverrides, setVideoBulkNumberOverrides] = useState({})
   const [bulkVideoStoryId, setBulkVideoStoryId] = useState('')
+  const [videoBulkAccessTypes, setVideoBulkAccessTypes] = useState({})
+
+  /* =====================================================
+     BOOK BULK TELEGRAM IMPORT
+  ===================================================== */
+  const [bookBulkMessages, setBookBulkMessages] = useState([])
+  const [bookBulkSelectedIds, setBookBulkSelectedIds] = useState([])
+  const [bookBulkLoading, setBookBulkLoading] = useState(false)
+  const [bookBulkTitleOverrides, setBookBulkTitleOverrides] = useState({})
+  const [bookBulkTypeOverrides, setBookBulkTypeOverrides] = useState({})
+  const [bookBulkAccessTypes, setBookBulkAccessTypes] = useState({})
 
   /* =====================================================
      STORY
@@ -290,6 +333,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
          setBulkSelectedIds([])
          setBulkTitleOverrides({})
          setBulkNumberOverrides({})
+         setBulkAccessTypes({})
          showToast('Telegram messages loaded')
       }
     } catch (e) {
@@ -343,8 +387,8 @@ const [bookAccessType, setBookAccessType] = useState('free')
 
     const existingMsgIds = new Set(
       (story.episodes || [])
-        .map((episode) => episode.telegram_message_id)
-        .filter(Boolean)
+        .map((episode) => episode.telegram_message_id || extractStreamingMessageId(episode.src))
+        .filter((id) => Number.isFinite(Number(id)))
         .map(Number)
     )
 
@@ -389,7 +433,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
           src: '',
           telegram_message_id: messageId,
           available: true,
-          accessType: ['free'],
+          accessType: [bulkAccessTypes[msg.messageId] || 'free'],
         }
 
         try {
@@ -690,6 +734,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
       setVideoBulkSelectedIds([])
       setVideoBulkTitleOverrides({})
       setVideoBulkNumberOverrides({})
+      setVideoBulkAccessTypes({})
       showToast(Array.isArray(msgs) && msgs.length ? 'Telegram videos loaded' : 'No Telegram videos found')
     } catch (error) {
       console.error(error)
@@ -737,59 +782,203 @@ const [bookAccessType, setBookAccessType] = useState('free')
       return
     }
 
-    const existingIds = new Set((story.episodes || []).map((ep) => ep.telegram_message_id).filter(Boolean))
+    const existingIds = new Set(
+      (story.episodes || [])
+        .map((ep) => ep.telegram_message_id || extractStreamingMessageId(ep.src))
+        .filter((id) => Number.isFinite(Number(id)))
+        .map(Number)
+    )
     let maxNumber = Math.max(0, ...(story.episodes || []).map((ep) => Number(ep.number) || 0))
-    const selected = videoBulkSelectedIds
-      .map((id) => videoBulkMessages.find((msg) => msg.messageId === id))
-      .filter(Boolean)
-      .filter((msg) => !existingIds.has(msg.messageId))
+    let importedCount = 0
+    let skippedCount = 0
+    let failedCount = 0
 
-    if (!selected.length) {
-      showToast('All selected videos are already imported')
+    const selected = videoBulkSelectedIds
+      .map((id) => videoBulkMessages.find((msg) => String(msg.messageId) === String(id)))
+      .filter(Boolean)
+
+    for (const msg of selected) {
+      const messageId = Number(msg.messageId)
+      if (!Number.isFinite(messageId) || existingIds.has(messageId)) {
+        skippedCount++
+        continue
+      }
+
+      const overrideNumber = Number(videoBulkNumberOverrides[msg.messageId])
+      const number = Number.isFinite(overrideNumber) && overrideNumber > 0
+        ? overrideNumber
+        : maxNumber + 1
+      const title = String(
+        videoBulkTitleOverrides[msg.messageId] ??
+        msg.caption ??
+        msg.fileName ??
+        `Episode ${String(number).padStart(2, '0')}`
+      ).trim() || `Episode ${String(number).padStart(2, '0')}`
+
+      try {
+        await onAddVideoEpisode(Number(bulkVideoStoryId), {
+          number,
+          title,
+          type: 'video',
+          telegram_message_id: messageId,
+          src: '',
+          filePath: '',
+          available: true,
+          accessType: [videoBulkAccessTypes[msg.messageId] || 'free'],
+        })
+        importedCount++
+        existingIds.add(messageId)
+        maxNumber = Math.max(maxNumber, number)
+      } catch (error) {
+        failedCount++
+        console.error('Video bulk import error:', {
+          videoStoryId: bulkVideoStoryId,
+          messageId,
+          error,
+        })
+      }
+    }
+
+    setVideoBulkSelectedIds([])
+
+    if (failedCount) {
+      showToast(`${importedCount} imported, ${failedCount} failed, ${skippedCount} duplicates skipped. Check the console.`, 'error')
+    } else if (skippedCount) {
+      showToast(`${importedCount} videos imported successfully. ${skippedCount} duplicates skipped.`)
+    } else {
+      showToast(`${importedCount} videos imported successfully`)
+    }
+  }
+
+
+  const handleScanBookTelegram = async () => {
+    setBookBulkLoading(true)
+    showToast('Scanning Telegram documents...')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        showToast('Not authenticated', 'error')
+        return
+      }
+
+      const res = await fetch(`${STREAMING_SERVER_URL}/telegram/messages?type=document`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      })
+      if (!res.ok) {
+        showToast('Unable to load Telegram documents', 'error')
+        return
+      }
+
+      const msgs = await res.json()
+      const documents = Array.isArray(msgs) ? msgs.filter((msg) => {
+        const name = String(msg.fileName || '').toLowerCase()
+        const mime = String(msg.mimeType || '').toLowerCase()
+        return name.endsWith('.pdf') || name.endsWith('.epub') ||
+          mime === 'application/pdf' || mime === 'application/epub+zip'
+      }) : []
+
+      setBookBulkMessages(documents)
+      setBookBulkSelectedIds([])
+      setBookBulkTitleOverrides({})
+      setBookBulkTypeOverrides({})
+      setBookBulkAccessTypes({})
+      showToast(documents.length ? 'Telegram books loaded' : 'No PDF/EPUB Telegram documents found')
+    } catch (error) {
+      console.error(error)
+      showToast('Unable to connect to Telegram server', 'error')
+    } finally {
+      setBookBulkLoading(false)
+    }
+  }
+
+  const handleBookBulkToggle = (messageId) => {
+    setBookBulkSelectedIds((prev) =>
+      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId]
+    )
+  }
+
+  const handleBookBulkToggleAll = () => {
+    if (bookBulkSelectedIds.length === bookBulkMessages.length) {
+      setBookBulkSelectedIds([])
+    } else {
+      setBookBulkSelectedIds(bookBulkMessages.map((msg) => msg.messageId))
+    }
+  }
+
+  const handleBookBulkTitleChange = (messageId, title) => {
+    setBookBulkTitleOverrides((prev) => ({ ...prev, [messageId]: title }))
+  }
+
+  const handleBookBulkTypeChange = (messageId, type) => {
+    setBookBulkTypeOverrides((prev) => ({ ...prev, [messageId]: type }))
+  }
+
+  const handleBookBulkImport = async () => {
+    if (!bookBulkSelectedIds.length) {
+      showToast('Select at least one Telegram book', 'error')
       return
     }
 
-    const rows = selected.map((msg, index) => {
-      maxNumber += 1
-      const number = Number(videoBulkNumberOverrides[msg.messageId] || maxNumber)
-      return {
-        number,
-        title: String(videoBulkTitleOverrides[msg.messageId] || msg.caption || msg.fileName || `Episode ${String(number).padStart(2, '0')}`).trim(),
-        type: 'video',
-        telegram_message_id: Number(msg.messageId),
-        src: '',
-        filePath: '',
-        available: true,
-        accessType: ['free'],
-      }
-    })
+    const selected = bookBulkSelectedIds
+      .map((id) => bookBulkMessages.find((msg) => String(msg.messageId) === String(id)))
+      .filter(Boolean)
 
-    try {
-      if (String(bulkVideoStoryId).startsWith('tg-video-')) {
-        const videoId = Number(String(bulkVideoStoryId).slice('tg-video-'.length))
-        const dbRows = rows.map((row) => ({
-          video_story_id: videoId,
-          number: row.number,
-          title: row.title,
-          telegram_message_id: row.telegram_message_id,
-          file_url: null,
-          file_path: '',
-          access_type: 'free',
-          available: true,
-        }))
-        const { error } = await supabase.from('video_episodes').insert(dbRows)
-        if (error) throw error
-      } else {
-        for (const row of rows) {
-          await onAddVideoEpisode(Number(bulkVideoStoryId), row)
-        }
+    const importedTitles = new Set(
+      books.map((book) => String(book.title || '').trim().toLowerCase()).filter(Boolean)
+    )
+    let importedCount = 0
+    let skippedCount = 0
+    let failedCount = 0
+
+    for (const msg of selected) {
+      const title = String(
+        bookBulkTitleOverrides[msg.messageId] ?? msg.caption ?? msg.fileName ?? 'Untitled Book'
+      ).trim() || 'Untitled Book'
+
+      const key = title.toLowerCase()
+      if (importedTitles.has(key)) {
+        skippedCount++
+        continue
       }
 
-      showToast(`${rows.length} videos imported successfully`)
-      setVideoBulkSelectedIds([])
-    } catch (error) {
-      console.error('Video bulk import error:', error)
-      showToast(`Video import failed: ${error?.message || error}`, 'error')
+      const fileName = String(msg.fileName || '').toLowerCase()
+      const mime = String(msg.mimeType || '').toLowerCase()
+      const inferredType = (fileName.endsWith('.epub') || mime === 'application/epub+zip') ? 'epub' : 'pdf'
+      const type = bookBulkTypeOverrides[msg.messageId] || inferredType
+      const messageId = Number(msg.messageId)
+
+      try {
+        await onAddBook({
+          id: Date.now() + messageId,
+          title,
+          author: '',
+          description: '',
+          type,
+          category: 'Tamil Stories',
+          cover: '',
+          coverPath: '',
+          file: '',
+          filePath: '',
+          telegram_message_id: messageId,
+          accessType: [bookBulkAccessTypes[msg.messageId] || 'free'],
+          volumes: [],
+        })
+        importedCount++
+        importedTitles.add(key)
+      } catch (error) {
+        failedCount++
+        console.error('Telegram book import failed:', { messageId, error })
+      }
+    }
+
+    setBookBulkSelectedIds([])
+
+    if (failedCount) {
+      showToast(`${importedCount} imported, ${failedCount} failed, ${skippedCount} duplicates skipped. Check the console.`, 'error')
+    } else if (skippedCount) {
+      showToast(`${importedCount} books imported successfully. ${skippedCount} duplicates skipped.`)
+    } else {
+      showToast(`${importedCount} books imported successfully`)
     }
   }
 
@@ -1229,6 +1418,11 @@ const [bookAccessType, setBookAccessType] = useState('free')
                                   onChange={(e) => handleBulkNumberChange(msg.messageId, e.target.value)}
                                   style={{ width: '80px', padding: '5px', borderRadius: '5px', border: '1px solid #333', background: '#222', color: '#fff' }}
                                 />
+                                <AccessTypeSelect
+                                  groupName={`bulk-audio-access-${msg.messageId}`}
+                                  value={bulkAccessTypes[msg.messageId] || 'free'}
+                                  onChange={(value) => setBulkAccessTypes((prev) => ({ ...prev, [msg.messageId]: value }))}
+                                />
                               </div>
                             </div>
                           </div>
@@ -1295,6 +1489,95 @@ const [bookAccessType, setBookAccessType] = useState('free')
 
         {tab === 'books' && (
           <>
+            <section className="admin-section bulk-telegram-section">
+              <h3>📚 Bulk Telegram Book Import</h3>
+              <div className="admin-form">
+                <button
+                  type="button"
+                  className="admin-submit"
+                  style={{ backgroundColor: '#7C83FF' }}
+                  onClick={handleScanBookTelegram}
+                  disabled={bookBulkLoading}
+                >
+                  {bookBulkLoading ? '🔄 Scanning Documents...' : '🔄 Scan Telegram Books (PDF / EPUB)'}
+                </button>
+
+                {bookBulkMessages.length > 0 && (
+                  <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', alignItems: 'center' }}>
+                      <strong style={{ color: '#fff' }}>Selected: {bookBulkSelectedIds.length}</strong>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button type="button" className="primary-btn" style={{ padding: '5px 10px', fontSize: '14px' }} onClick={handleBookBulkToggleAll}>Toggle All</button>
+                        <button type="button" className="admin-cancel" style={{ padding: '5px 10px', fontSize: '14px' }} onClick={() => setBookBulkSelectedIds([])}>Clear</button>
+                      </div>
+                    </div>
+
+                    <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {bookBulkMessages.map((msg) => {
+                        const isSelected = bookBulkSelectedIds.includes(msg.messageId)
+                        const defaultTitle = msg.caption || msg.fileName || 'Untitled Book'
+                        const inferredType = String(msg.fileName || '').toLowerCase().endsWith('.epub') || String(msg.mimeType || '').toLowerCase() === 'application/epub+zip'
+                          ? 'epub'
+                          : 'pdf'
+                        return (
+                          <div key={msg.messageId} style={{
+                            background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px',
+                            borderLeft: isSelected ? '4px solid #7C83FF' : '4px solid transparent',
+                            display: 'flex', gap: '15px', alignItems: 'flex-start'
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleBookBulkToggle(msg.messageId)}
+                              style={{ width: '20px', height: '20px', marginTop: '10px' }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '12px', color: '#999', marginBottom: '5px' }}>
+                                ID: {msg.messageId} · {new Date(msg.date * 1000).toLocaleString()} · {Math.round(msg.size / 1024 / 1024 * 100) / 100} MB
+                              </div>
+                              <input
+                                type="text"
+                                placeholder={defaultTitle}
+                                value={bookBulkTitleOverrides[msg.messageId] !== undefined ? bookBulkTitleOverrides[msg.messageId] : defaultTitle}
+                                onChange={(e) => handleBookBulkTitleChange(msg.messageId, e.target.value)}
+                                style={{ width: '100%', padding: '8px', marginBottom: '8px', borderRadius: '5px', border: '1px solid #333', background: '#222', color: '#fff' }}
+                              />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <label style={{ fontSize: '12px', color: '#ccc' }}>Type:</label>
+                                <select
+                                  value={bookBulkTypeOverrides[msg.messageId] || inferredType}
+                                  onChange={(e) => handleBookBulkTypeChange(msg.messageId, e.target.value)}
+                                  style={{ padding: '5px', borderRadius: '5px', border: '1px solid #333', background: '#222', color: '#fff' }}
+                                >
+                                  <option value="pdf">PDF</option>
+                                  <option value="epub">EPUB</option>
+                                </select>
+                                <AccessTypeSelect
+                                  groupName={`bulk-book-access-${msg.messageId}`}
+                                  value={bookBulkAccessTypes[msg.messageId] || 'free'}
+                                  onChange={(value) => setBookBulkAccessTypes((prev) => ({ ...prev, [msg.messageId]: value }))}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="admin-submit"
+                      style={{ marginTop: '20px' }}
+                      onClick={handleBookBulkImport}
+                      disabled={bookBulkSelectedIds.length === 0}
+                    >
+                      ⬆️ Import Selected Books
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+
             <section className="admin-section">
               <h3>📚 Add Volume to Existing Book</h3>
               <form onSubmit={submitVolumeToExistingBook} className="admin-form">
@@ -1629,6 +1912,11 @@ const [bookAccessType, setBookAccessType] = useState('free')
                                   value={videoBulkNumberOverrides[msg.messageId] || ''}
                                   onChange={(e) => handleVideoBulkNumberChange(msg.messageId, e.target.value)}
                                   style={{ width: '80px', padding: '5px', borderRadius: '5px', border: '1px solid #333', background: '#222', color: '#fff' }}
+                                />
+                                <AccessTypeSelect
+                                  groupName={`bulk-video-access-${msg.messageId}`}
+                                  value={videoBulkAccessTypes[msg.messageId] || 'free'}
+                                  onChange={(value) => setVideoBulkAccessTypes((prev) => ({ ...prev, [msg.messageId]: value }))}
                                 />
                               </div>
                             </div>
