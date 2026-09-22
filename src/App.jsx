@@ -1219,7 +1219,11 @@ export function App() {
         access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
       }).eq('id', supabaseId)
       if (error) throw error
-      await refreshTelegramContent()
+      try {
+        await refreshTelegramContent()
+      } catch {
+        // The database write already succeeded; Realtime or the next reload will refresh the UI.
+      }
       return
     }
 
