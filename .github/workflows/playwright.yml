@@ -31,10 +31,11 @@ jobs:
 
       - name: Run public website health scan
         env:
-          PLAYWRIGHT_BASE_URL: https://hj-groups-web.vercel.app
+          PLAYWRIGHT_BASE_URL: https://hj-groups-website.getvoroa.com
           STRICT_QA: 'true'
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          PLAYWRIGHT_STREAMING_URL: ${{ secrets.PLAYWRIGHT_STREAMING_URL }}
         run: npm run test:e2e
 
       - name: Upload Playwright report
