@@ -3385,16 +3385,13 @@ export function App() {
     () => {
       stopReadAloud()
 
-      try {
-        epubRenditionRef.current?.destroy()
-      } catch { }
-
+      const epubRendition = epubRenditionRef.current
       const epubBook = epubBookRef.current
       const locationPromise = epubLocationsPromiseRef.current
 
       const destroyEpub = () => {
         try {
-          epubRenditionRef.current?.destroy()
+          epubRendition?.destroy()
         } catch { }
         try {
           epubBook?.destroy()
