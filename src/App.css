@@ -2045,11 +2045,15 @@ body:has(.reader-overlay:not(.reader-minimized)),
   display: grid;
 
   grid-template-columns:
-    minmax(240px, auto)
-    auto
-    minmax(350px, 1fr);
+    minmax(0, 1fr)
+    minmax(0, auto);
 
-  gap: 10px;
+  grid-template-areas:
+    "navigation zoom"
+    "player player"
+    "extra extra";
+
+  gap: 8px;
 
   align-items: center;
 
@@ -2064,11 +2068,27 @@ body:has(.reader-overlay:not(.reader-minimized)),
 }
 
 .reader-navigation {
+  grid-area: navigation;
   display: flex;
 
   align-items: center;
 
   gap: 7px;
+  min-width: 0;
+}
+
+.reader-zoom {
+  grid-area: zoom;
+  min-width: 0;
+}
+
+.reader-player {
+  grid-area: player;
+}
+
+.hj-reader-extra-controls {
+  grid-area: extra;
+  min-width: 0;
 }
 
 .reader-navigation button,
@@ -2165,11 +2185,50 @@ body:has(.reader-overlay:not(.reader-minimized)),
 .reader-progress-label{color:#777c96;font-size:10px;white-space:nowrap}
 .reader-read-status{position:absolute;right:14px;bottom:2px;color:#7c83ff;font-size:9px}
 @media(max-width:700px){
- .reader-player{grid-template-columns:38px 38px 38px 1fr auto;gap:6px;padding:8px}
- .reader-player .reader-progress{grid-column:1/-1}
- .reader-player .reader-progress-label{grid-column:auto}
+ .reader-bottom{
+   grid-template-columns:minmax(0,1fr);
+   grid-template-areas:
+     "navigation"
+     "zoom"
+     "player"
+     "extra";
+   gap:8px;
+   padding:8px;
+ }
+ .reader-navigation{
+   width:100%;
+   display:grid;
+   grid-template-columns:auto minmax(0,1fr) auto;
+   gap:6px;
+   align-items:center;
+ }
+ .reader-navigation > button{
+   min-width:0;
+   white-space:nowrap;
+   padding:7px 8px;
+ }
+ .reader-page-jump{
+   min-width:0;
+   justify-content:center;
+   overflow:hidden;
+ }
+ .reader-page-jump input{width:52px;flex-shrink:0}
+ .reader-page-jump span{white-space:nowrap}
+ .reader-zoom{
+   width:100%;
+   justify-content:center;
+ }
+ .reader-player{
+   grid-template-columns:38px 38px 38px minmax(0,1fr) auto minmax(52px,76px) minmax(68px,86px);
+   gap:6px;
+   padding:8px;
+   overflow:hidden;
+ }
+ .reader-player > button{width:38px;height:38px}
+ .reader-player .reader-progress{min-width:0}
+ .reader-player .reader-progress-label{min-width:28px}
  .reader-player select{max-width:86px;min-width:0}
- .reader-player input[type="range"]{min-width:55px}
+ .reader-player input[type="range"]{min-width:45px;width:100%}
 }
 .reader-player select {
   flex-shrink: 0;
