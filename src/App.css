@@ -2051,7 +2051,8 @@ body:has(.reader-overlay:not(.reader-minimized)),
   grid-template-areas:
     "navigation zoom"
     "player player"
-    "extra extra";
+    "extra extra"
+    "status status";
 
   gap: 8px;
 
@@ -2191,7 +2192,8 @@ body:has(.reader-overlay:not(.reader-minimized)),
      "navigation"
      "zoom"
      "player"
-     "extra";
+     "extra"
+     "status";
    gap:8px;
    padding:8px;
  }
@@ -2278,15 +2280,19 @@ body:has(.reader-overlay:not(.reader-minimized)),
 }
 
 .reader-read-status {
-  position: absolute;
+  grid-area: status;
+  position: static;
 
-  right: 14px;
-
-  bottom: 2px;
+  width: 100%;
+  text-align: center;
 
   color: #7c83ff;
 
   font-size: 8px;
+}
+
+.reader-word-indicator {
+  grid-column: 1 / -1;
 }
 
 /* =========================================================
