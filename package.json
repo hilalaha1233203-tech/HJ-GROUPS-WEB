@@ -19,7 +19,8 @@
     "epubjs": "^0.3.93",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-pdf": "^10.5.0"
+    "react-pdf": "^10.5.0",
+    "@bestcodes/edge-tts": "^3.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
