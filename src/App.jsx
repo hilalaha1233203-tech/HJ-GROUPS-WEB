@@ -424,6 +424,7 @@ const installEdgeTtsSpeechBridge = () => {
     window.__hjEdgeTtsAudioElement = null
     window.__hjEdgeTtsPaused = false
     window.__hjEdgeTtsPending = false
+    window.__hjNativeSpeaking = false
   }
 
   synthesis.speak = (utterance) => {
