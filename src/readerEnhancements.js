@@ -1,5 +1,7 @@
 const STYLE_ID='hj-reader-runtime-enhancements-v4'
 const TTS_KEY='hj_tts_settings_v3'
+const PAPER_KEY='hj_reader_paper_v4'
+const PAPER_FORMATS={auto:{label:'Auto',ratio:null},a4:{label:'A4',ratio:210/297},a3:{label:'A3',ratio:297/420},letter:{label:'Letter',ratio:8.5/11},legal:{label:'Legal',ratio:8.5/14},b5:{label:'B5',ratio:176/250}}
 const DEFAULT_TTS_SETTINGS={tamilVoice:'ta-IN-PallaviNeural',englishVoice:'en-IN-NeerjaNeural',pace:1}
 const getTtsSettings=()=>{try{return {...DEFAULT_TTS_SETTINGS,...JSON.parse(localStorage.getItem(TTS_KEY)||'{}')}}catch{return {...DEFAULT_TTS_SETTINGS}}}
 const saveTtsSettings=v=>{try{localStorage.setItem(TTS_KEY,JSON.stringify(v));window.dispatchEvent(new CustomEvent('hj-tts-settings',{detail:v}))}catch{}}
@@ -86,5 +88,31 @@ function fixFrames(){document.querySelectorAll('.epub-reader iframe').forEach(f=
 function fixInputs(){document.querySelectorAll('.reader-page-input').forEach(i=>{if(i.__hjInputFix)return;i.__hjInputFix=true;i.addEventListener('focus',()=>{try{i.select()}catch{}})})}
 function fixSpeechState(){const s=window.speechSynthesis;if(!s||s.__hjStateFixed)return;s.__hjStateFixed=true;try{Object.defineProperties(s,{speaking:{configurable:true,get(){return Boolean(window.__hjEdgeTtsActiveAudio)||Boolean(this.__hjNativeSpeaking)}},pending:{configurable:true,get(){return Boolean(window.__hjEdgeTtsPending)}},paused:{configurable:true,get(){return Boolean(window.__hjEdgeTtsPaused)}}})}catch{}}
 function injectRevealKeyframes(){if(document.getElementById('hj-reader-keyframes-v4'))return;const s=document.createElement('style');s.id='hj-reader-keyframes-v4';s.textContent=`@keyframes hjReaderRevealNext{from{opacity:.82;transform:translate3d(20px,0,0) rotateZ(.35deg);filter:drop-shadow(-9px 8px 16px rgba(0,0,0,.14))}to{opacity:1;transform:none;filter:none}}@keyframes hjReaderRevealPrev{from{opacity:.82;transform:translate3d(-20px,0,0) rotateZ(-.35deg);filter:drop-shadow(9px 8px 16px rgba(0,0,0,.14))}to{opacity:1;transform:none;filter:none}}`;document.head.appendChild(s)}
-function init(){injectReaderStyles();injectRevealKeyframes();mountControls();applyPaperFormat();fixFrames();fixInputs();attachNav();fixSpeechState();new MutationObserver(()=>{fixFrames();fixInputs();attachNav();mountControls();applyPaperFormat();fixSpeechState()}).observe(document.body,{childList:true,subtree:true})}
+function init(){
+ if(document.__hjReaderEnhancementsInitialized)return
+ document.__hjReaderEnhancementsInitialized=true
+ injectReaderStyles()
+ injectRevealKeyframes()
+ const sync=()=>{mountControls();applyPaperFormat();fixFrames();fixInputs();attachNav();fixSpeechState()}
+ sync()
+ let queued=false
+ const queueSync=()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;sync()})}
+ const isRelevantNode=(node)=>{
+  if(node?.nodeType!==1)return false
+  const el=node
+  if(el.matches?.('.reader-body-full,.reader-modal,.epub-reader,.react-pdf__Page,.reader-navigation,.reader-page-input,iframe'))return true
+  if(el.closest?.('.reader-navigation,.reader-body-full,.reader-modal')&&el.matches?.('button,input,iframe'))return true
+  return !!el.querySelector?.('.reader-body-full,.reader-modal,.epub-reader,.react-pdf__Page,.reader-navigation,.reader-page-input,iframe')
+ }
+ const observer=new MutationObserver(mutations=>{
+  for(const mutation of mutations){
+   if(mutation.type!=='childList')continue
+   for(const node of mutation.addedNodes){
+    if(isRelevantNode(node)){queueSync();return}
+   }
+  }
+ })
+ observer.observe(document.body,{childList:true,subtree:true})
+ document.__hjReaderEnhancementsObserver=observer
+}
 if(typeof window!=='undefined'&&typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init()}
