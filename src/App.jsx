@@ -770,6 +770,12 @@ export function App() {
     saveList('hj_admin_stories', list)
   }
 
+  const serializeAccessType = (value) => {
+    const values = Array.isArray(value) ? value : [value || 'free']
+    const valid = [...new Set(values.filter((type) => ['free', 'vip', 'premium', 'ads'].includes(type)))]
+    return JSON.stringify(valid.length ? valid : ['free'])
+  }
+
   const getSupabaseStoryId = (storyId) => {
     if (typeof storyId === 'number' && Number.isFinite(storyId)) return storyId
     const text = String(storyId || '')
@@ -843,7 +849,7 @@ export function App() {
         type: episode.type || 'audio',
         file_path: episode.filePath || '',
         file_id: null,
-        access_type: accessType,
+        access_type: serializeAccessType(accessType),
         available: episode.available !== false,
         ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
       }
@@ -970,22 +976,60 @@ export function App() {
   const updateEpisode = async (storyId, episodeNumber, updates) => {
     const supabaseId = getSupabaseStoryId(storyId)
     if (supabaseId !== null) {
-      const row = {
-        number: Number(updates.number),
+      const number = Number(updates.number ?? episodeNumber)
+      const modernRow = {
+        number,
         title: updates.title,
         type: updates.type || 'audio',
         file_url: updates.src || null,
         file_path: updates.filePath || '',
         file_id: null,
-        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+        access_type: serializeAccessType(updates.accessType),
         available: updates.available !== false,
       }
-      if (updates.telegram_message_id) row.telegram_message_id = updates.telegram_message_id
-      const { error } = await supabase.from('episodes').update(row)
+      if (updates.telegram_message_id) modernRow.telegram_message_id = Number(updates.telegram_message_id)
+
+      let result = await supabase.from('episodes').update(modernRow)
         .eq('story_id', supabaseId).eq('number', Number(episodeNumber))
-      if (error) throw error
+
+      if (result.error) {
+        const message = String(result.error.message || '')
+        const schemaMismatch = /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
+        if (!schemaMismatch) throw result.error
+
+        const legacyRow = {
+          episode_number: number,
+          title: updates.title,
+          audio_url: updates.src || null,
+        }
+        result = await supabase.from('episodes').update(legacyRow)
+          .eq('story_id', supabaseId).eq('episode_number', Number(episodeNumber))
+
+        if (result.error) throw result.error
+
+        const metadata = {
+          access_type: serializeAccessType(updates.accessType),
+          available: updates.available !== false,
+          ...(updates.telegram_message_id ? { telegram_message_id: Number(updates.telegram_message_id) } : {}),
+          ...(updates.filePath ? { file_path: updates.filePath } : {}),
+          file_url: updates.src || null,
+        }
+
+        for (const [column, value] of Object.entries(metadata)) {
+          const { error: metadataError } = await supabase.from('episodes')
+            .update({ [column]: value })
+            .eq('story_id', supabaseId)
+            .eq('episode_number', Number(episodeNumber))
+          if (metadataError && !/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(String(metadataError.message || ''))) {
+            throw metadataError
+          }
+        }
+      }
+
+      await refreshTelegramContent().catch(() => {})
       return
     }
+
     persistStories(adminStories.map((story) =>
       story.id === storyId
         ? { ...story, episodes: (story.episodes || []).map((ep) => ep.number === episodeNumber ? { ...ep, ...updates } : ep) }
@@ -1071,7 +1115,7 @@ export function App() {
       file_url: book.file || null,
       file_path: book.filePath || '',
       telegram_message_id: Number.isFinite(messageId) ? messageId : null,
-      access_type: Array.isArray(book.accessType) ? (book.accessType[0] || 'free') : (book.accessType || 'free'),
+      access_type: serializeAccessType(book.accessType),
       volumes: Array.isArray(book.volumes) ? book.volumes : [],
     }
 
@@ -1101,7 +1145,7 @@ export function App() {
         category: book.category || 'Other',
         cover_file_id: null,
         file_id: `tg-document:${messageId}`,
-        access_type: Array.isArray(book.accessType) ? (book.accessType[0] || 'free') : (book.accessType || 'free'),
+        access_type: serializeAccessType(book.accessType),
       }
 
       result = await supabase.from('books').insert(legacyRow).select('*').single()
@@ -1140,7 +1184,7 @@ export function App() {
         file_url: updates.file || null,
         file_path: updates.filePath || '',
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
-        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+        access_type: serializeAccessType(updates.accessType),
         volumes: Array.isArray(updates.volumes) ? updates.volumes : [],
       }).eq('id', supabaseId)
       if (error) throw error
@@ -1178,7 +1222,7 @@ export function App() {
         cover_url: video.cover || null,
         cover_path: video.coverPath || '',
         telegram_message_id: video.telegram_message_id ? Number(video.telegram_message_id) : null,
-        access_type: Array.isArray(video.accessType) ? (video.accessType[0] || 'free') : (video.accessType || 'free'),
+        access_type: serializeAccessType(video.accessType),
       })
       .select('*')
       .single()
@@ -1197,7 +1241,7 @@ export function App() {
         file_url: episode.src || null,
         file_path: episode.filePath || '',
         telegram_message_id: episode.telegram_message_id ? Number(episode.telegram_message_id) : null,
-        access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
+        access_type: serializeAccessType(episode.accessType),
         available: episode.available !== false,
       }))
       const { error: episodeError } = await supabase.from('video_episodes').insert(rows)
@@ -1220,7 +1264,7 @@ export function App() {
         cover_url: updates.cover || null,
         cover_path: updates.coverPath || '',
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
-        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+        access_type: serializeAccessType(updates.accessType),
       }).eq('id', supabaseId)
       if (error) throw error
       try {
@@ -1252,7 +1296,7 @@ export function App() {
         file_url: streamUrl,
         file_path: episode.filePath || '',
         telegram_message_id: Number.isFinite(messageId) ? messageId : null,
-        access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
+        access_type: serializeAccessType(episode.accessType),
         available: episode.available !== false,
       }
 
@@ -1279,7 +1323,7 @@ export function App() {
           number: Number(episode.number),
           title: episode.title,
           file_id: `tg-video:${messageId}`,
-          access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
+          access_type: serializeAccessType(episode.accessType),
           available: episode.available !== false,
         }
 
@@ -1321,7 +1365,7 @@ export function App() {
         file_url: updates.src || null,
         file_path: updates.filePath || '',
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
-        access_type: Array.isArray(updates.accessType) ? (updates.accessType[0] || 'free') : (updates.accessType || 'free'),
+        access_type: serializeAccessType(updates.accessType),
         available: updates.available !== false,
       }).eq('video_story_id', supabaseId).eq('number', Number(episodeNumber))
       if (error) throw error
