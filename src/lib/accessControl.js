@@ -3,6 +3,28 @@ export const ACCESS_TYPES = ['free', 'vip', 'premium', 'ads']
 export function resolveAccessType(item) {
   if (!item) return ['free']
 
+  const rawAccessType = item.accessType
+  if (Array.isArray(rawAccessType)) {
+    const valid = rawAccessType.filter((t) => ACCESS_TYPES.includes(t))
+    return valid.length > 0 ? valid : ['free']
+  }
+
+  // Production currently stores access_type as text. Accept JSON arrays so
+  // one episode/book/video can retain multiple access modes without requiring
+  // a database type migration.
+  if (typeof rawAccessType === 'string') {
+    const text = rawAccessType.trim()
+    if (text.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(text)
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter((t) => ACCESS_TYPES.includes(t))
+          return valid.length > 0 ? valid : ['free']
+        }
+      } catch {}
+    }
+  }
+
   if (Array.isArray(item.accessType)) {
     const valid = item.accessType.filter((t) => ACCESS_TYPES.includes(t))
     return valid.length > 0 ? valid : ['free']
