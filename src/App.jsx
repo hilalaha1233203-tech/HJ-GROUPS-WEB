@@ -4574,14 +4574,17 @@ export function App() {
     const book =
       epubBookRef.current
 
+    let locations = null
     let total = 0
     try {
-      total = Number(book.locations?.length) || 0
+      locations = book?.locations || null
+      total = Number(locations?.length) || 0
     } catch {
+      locations = null
       total = 0
     }
 
-    if (!total) {
+    if (!locations || !total) {
       alert(
         'EPUB page locations are still being prepared. Please try again in a moment.'
       )
@@ -4601,7 +4604,7 @@ export function App() {
 
     try {
       const cfi =
-        book.locations.cfiFromLocation(
+        locations.cfiFromLocation(
           locationIndex
         )
 
