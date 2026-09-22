@@ -96,14 +96,14 @@ const baseHeaders = {
   'Accept-Language': 'en-US,en;q=0.9',
 }
 
-const wsHeaders = {
+const makeWsHeaders = () => ({
   ...baseHeaders,
   Pragma: 'no-cache',
   'Cache-Control': 'no-cache',
   Origin: 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
   'Sec-WebSocket-Version': '13',
   Cookie: 'muid=' + generateMuid() + ';',
-}
+})
 
 const parseTextFrame = (buffer) => {
   const separator = buffer.indexOf('\\r\\n\\r\\n')
@@ -147,17 +147,37 @@ const buildSsml = (voice, rate, pitch, text) => {
 }
 
 const splitText = (text, maxBytes = 4096) => {
+  const words = String(text).split(/\s+/u).filter(Boolean)
   const chunks = []
-  let remaining = String(text)
-  while (Buffer.byteLength(remaining, 'utf8') > maxBytes) {
-    const bytes = Buffer.from(remaining, 'utf8').subarray(0, maxBytes)
-    let cut = bytes.lastIndexOf(Buffer.from(' '))
-    if (cut <= 0) cut = maxBytes
-    while (cut > 0 && bytes.subarray(0, cut).toString('utf8').includes('�')) cut -= 1
-    chunks.push(bytes.subarray(0, cut).toString('utf8').trim())
-    remaining = remaining.slice(Buffer.byteLength(bytes.subarray(0, cut).toString('utf8'), 'utf8')).trim()
+  let current = ''
+
+  for (const word of words) {
+    const candidate = current ? current + ' ' + word : word
+    if (Buffer.byteLength(candidate, 'utf8') <= maxBytes) {
+      current = candidate
+      continue
+    }
+
+    if (current) chunks.push(current)
+    if (Buffer.byteLength(word, 'utf8') <= maxBytes) {
+      current = word
+      continue
+    }
+
+    let fragment = ''
+    for (const char of word) {
+      const next = fragment + char
+      if (Buffer.byteLength(next, 'utf8') > maxBytes) {
+        if (fragment) chunks.push(fragment)
+        fragment = char
+      } else {
+        fragment = next
+      }
+    }
+    current = fragment
   }
-  if (remaining.trim()) chunks.push(remaining.trim())
+
+  if (current) chunks.push(current)
   return chunks
 }
 
@@ -171,7 +191,7 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
       '&Sec-MS-GEC-Version=' + SEC_MS_GEC_VERSION
 
     const socket = new WebSocket(url, {
-      headers: wsHeaders,
+      headers: makeWsHeaders(),
       perMessageDeflate: false,
       handshakeTimeout: 15000,
     })
