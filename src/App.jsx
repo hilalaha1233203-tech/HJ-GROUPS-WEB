@@ -821,69 +821,68 @@ export function App() {
     const supabaseId = getSupabaseStoryId(storyId)
 
     if (supabaseId !== null) {
-      const messageId = episode.telegram_message_id ? Number(episode.telegram_message_id) : null
-      const streamUrl = Number.isFinite(messageId)
-        ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
-        : (episode.src || null)
+      const messageId = episode.telegram_message_id
+        ? Number(episode.telegram_message_id)
+        : null
 
-      const legacyRow = {
+      const modernRow = {
         story_id: supabaseId,
-        episode_number: Number(episode.number),
+        number: Number(episode.number),
         title: String(episode.title || 'Untitled Episode'),
-        audio_url: streamUrl,
+        type: episode.type || 'audio',
+        file_url: episode.src || null,
+        file_path: episode.filePath || '',
+        file_id: null,
+        access_type: Array.isArray(episode.accessType)
+          ? (episode.accessType[0] || 'free')
+          : (episode.accessType || 'free'),
+        available: episode.available !== false,
+        ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
       }
 
-      let result = await supabase.from('episodes').insert(legacyRow)
+      let result = await supabase.from('episodes').insert(modernRow)
 
+      // Some production databases still use the original schema:
+      // episode_number + audio_url. Retry only when the first insert is
+      // rejected because a column/schema is missing.
       if (result.error) {
         const message = String(result.error.message || '')
         const isSchemaMismatch =
           /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
 
         if (!isSchemaMismatch) {
-          console.error('Supabase episode insert error:', {
-            code: result.error.code,
-            status: result.error.status,
-            message: result.error.message,
-            details: result.error.details,
-            hint: result.error.hint,
-          })
+          console.error('Supabase episode insert error:', result.error)
           throw result.error
         }
 
-        const modernRow = {
+        const legacyAudioUrl = Number.isFinite(messageId)
+          ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
+          : (episode.src || null)
+
+        const legacyRow = {
           story_id: supabaseId,
-          number: Number(episode.number),
+          episode_number: Number(episode.number),
           title: String(episode.title || 'Untitled Episode'),
-          type: episode.type || 'audio',
-          file_url: streamUrl,
-          file_path: episode.filePath || '',
-          file_id: null,
-          access_type: Array.isArray(episode.accessType)
-            ? (episode.accessType[0] || 'free')
-            : (episode.accessType || 'free'),
-          available: episode.available !== false,
-          ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
+          audio_url: legacyAudioUrl,
         }
 
-        result = await supabase.from('episodes').insert(modernRow)
+        result = await supabase.from('episodes').insert(legacyRow)
+
         if (result.error) {
-          console.error('Supabase modern episode insert error:', {
-            code: result.error.code,
-            status: result.error.status,
-            message: result.error.message,
-            details: result.error.details,
-            hint: result.error.hint,
-          })
+          console.error('Supabase legacy episode insert error:', result.error)
           throw result.error
         }
       }
 
+      // The database insert is the success condition. Realtime normally
+      // refreshes the catalogue; this extra refresh must never turn a
+      // successful import into a reported failure.
       try {
         await refreshTelegramContent()
       } catch (refreshError) {
         console.warn('Episode imported, but catalogue refresh failed:', refreshError)
       }
+
       return
     }
 
@@ -893,7 +892,6 @@ export function App() {
         : story
     ))
   }
-
 
   const updateEpisode = async (storyId, episodeNumber, updates) => {
     const supabaseId = getSupabaseStoryId(storyId)
