@@ -331,7 +331,8 @@ const installSarvamTamilSpeechBridge = () => {
     const key = text.trim()
     if (cache.has(key)) return cache.get(key)
     const s = settings()
-    const promise = fetch('/api/sarvam-tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:key,language_code:'ta-IN',model:'bulbul:v3',speaker:String(s.speaker||'ishita').toLowerCase(),pace:Number(s.pace)||0.92,temperature:Number(s.temperature)||0.72})}).then(async response=>{if(!response.ok)throw new Error(`Sarvam TTS ${response.status}`);return response.blob()})
+    const endpoint = String(import.meta.env.VITE_TTS_API_URL || '/api/sarvam-tts')
+    const promise = fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:key,language_code:'ta-IN',model:'bulbul:v3',speaker:String(s.speaker||'ishita').toLowerCase(),pace:Number(s.pace)||0.92,temperature:Number(s.temperature)||0.72})}).then(async response=>{if(!response.ok)throw new Error(`Sarvam TTS ${response.status}`);return response.blob()})
     cache.set(key,promise)
     try{return await promise}catch(error){cache.delete(key);throw error}
   }
@@ -7867,11 +7868,9 @@ export function App() {
                       }
                       inputMode="numeric"
                       className="reader-page-input"
-                      onFocus={(event) => {
+                      onFocus={() => {
                         setPdfPageInputFocused(true)
                         setPdfInputPage(String(pdfPage))
-                        const input = event.currentTarget
-                        requestAnimationFrame(() => input?.select())
                       }}
                       onBlur={() => {
                         setPdfPageInputFocused(false)
@@ -7944,11 +7943,9 @@ export function App() {
                       }
                       inputMode="numeric"
                       className="reader-page-input"
-                      onFocus={(event) => {
+                      onFocus={() => {
                         setEpubPageInputFocused(true)
                         setEpubInputPage(String(epubPage))
-                        const input = event.currentTarget
-                        requestAnimationFrame(() => input?.select())
                       }}
                       onBlur={() => {
                         setEpubPageInputFocused(false)
