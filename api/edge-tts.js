@@ -8,7 +8,7 @@ import {
 
 const requestCounts = globalThis.__HJ_EDGE_TTS_REQUESTS || (globalThis.__HJ_EDGE_TTS_REQUESTS = new Map())
 const WINDOW_MS = 10 * 60 * 1000
-const MAX_REQUESTS_PER_WINDOW = 120
+const MAX_REQUESTS_PER_WINDOW = 600
 
 function sendJson(res, status, body) {
   res.status(status).json(body)
@@ -21,6 +21,11 @@ function clientKey(req) {
 
 function allowed(req) {
   const now = Date.now()
+
+  for (const [key, value] of requestCounts) {
+    if (now - value.startedAt >= WINDOW_MS) requestCounts.delete(key)
+  }
+
   const key = clientKey(req)
   const previous = requestCounts.get(key)
 
