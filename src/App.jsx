@@ -362,21 +362,39 @@ const installEdgeTtsSpeechBridge = () => {
 
     if (cache.has(key)) return cache.get(key)
 
-    const promise = fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice, rate, pitch }),
-    }).then(async (response) => {
-      if (!response.ok) {
-        let detail = ''
+    const requestAudio = async () => {
+      let lastError = null
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
-          const payload = await response.json()
-          detail = payload?.detail || payload?.error || ''
-        } catch {}
-        throw new Error(detail || ('Edge TTS ' + response.status))
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, voice, rate, pitch }),
+          })
+
+          if (!response.ok) {
+            let detail = ''
+            try {
+              const payload = await response.json()
+              detail = payload?.detail || payload?.error || ''
+            } catch {}
+            throw new Error(detail || ('Edge TTS ' + response.status))
+          }
+
+          return await response.blob()
+        } catch (error) {
+          lastError = error
+          if (attempt === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 700))
+          }
+        }
       }
-      return response.blob()
-    })
+
+      throw lastError || new Error('Microsoft Edge Neural TTS request failed')
+    }
+
+    const promise = requestAudio()
 
     cache.set(key, promise)
 
@@ -486,9 +504,30 @@ const installEdgeTtsSpeechBridge = () => {
       })
     }).catch((error) => {
       if (token !== run) return
+
+      // A temporary Microsoft TTS outage must not stop the reader.
+      // Fall back to the device/browser speech engine so continuous
+      // page reading can continue instead of ending on tts-failed.
       window.__hjEdgeTtsAudioElement = null
       window.__hjEdgeTtsActiveAudio = false
       window.__hjEdgeTtsPending = false
+
+      try {
+        window.__hjNativeSpeaking = true
+        const originalEnd = utterance.onend
+        const originalError = utterance.onerror
+        utterance.onend = (event) => {
+          window.__hjNativeSpeaking = false
+          try { originalEnd?.(event) } catch {}
+        }
+        utterance.onerror = (event) => {
+          window.__hjNativeSpeaking = false
+          try { originalError?.(event) } catch {}
+        }
+        originalSpeak(utterance)
+        return
+      } catch {}
+
       try {
         utterance.onerror?.({
           type: 'error',
