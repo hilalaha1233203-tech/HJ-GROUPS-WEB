@@ -19,7 +19,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-pdf": "^10.5.0",
-    "@bestcodes/edge-tts": "^3.0.1"
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
