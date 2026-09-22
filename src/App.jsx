@@ -315,54 +315,225 @@ const chunkTextForSpeech = (text, maxLength = 240) => {
    APP
 ========================================================= */
 
-const installSarvamTamilSpeechBridge = () => {
-  if (typeof window === 'undefined' || !window.speechSynthesis || window.__hjSarvamSpeechBridge) return () => {}
+const TTS_SETTINGS_KEY = 'hj_tts_settings_v3'
+const DEFAULT_TTS_SETTINGS = Object.freeze({
+  tamilVoice: 'ta-IN-PallaviNeural',
+  englishVoice: 'en-IN-NeerjaNeural',
+})
+
+const readTtsSettings = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TTS_SETTINGS_KEY) || '{}')
+    return {
+      ...DEFAULT_TTS_SETTINGS,
+      ...(saved && typeof saved === 'object' ? saved : {}),
+    }
+  } catch {
+    return { ...DEFAULT_TTS_SETTINGS }
+  }
+}
+
+const installEdgeTtsSpeechBridge = () => {
+  if (
+    typeof window === 'undefined' ||
+    !window.speechSynthesis ||
+    window.__hjEdgeTtsSpeechBridge
+  ) return () => {}
+
   const synthesis = window.speechSynthesis
   const originalSpeak = synthesis.speak.bind(synthesis)
   const originalCancel = synthesis.cancel.bind(synthesis)
   const originalPause = synthesis.pause?.bind(synthesis)
   const originalResume = synthesis.resume?.bind(synthesis)
+
   let activeAudio = null
   let run = 0
   const cache = new Map()
+
   const isTamil = (text) => /[\u0B80-\u0BFF]/u.test(String(text || ''))
-  const settings = () => { try { return {...{speaker:'priya',pace:0.88,temperature:0.6}, ...JSON.parse(localStorage.getItem('hj_tts_settings_v2') || '{}')} } catch { return {speaker:'priya',pace:0.88,temperature:0.6} } }
-  const getAudio = async (text) => {
-    const key = text.trim()
+
+  const getAudio = async (utterance) => {
+    const text = String(utterance?.text || '').trim()
+    if (!text) throw new Error('TTS text is empty')
+
+    const settings = readTtsSettings()
+    const voice = isTamil(text)
+      ? String(settings.tamilVoice || DEFAULT_TTS_SETTINGS.tamilVoice)
+      : String(settings.englishVoice || DEFAULT_TTS_SETTINGS.englishVoice)
+
+    const rate = Math.max(0.5, Math.min(2, Number(utterance.rate) || 1))
+    const pitch = Number(utterance.pitch) || 0
+    const endpoint = String(import.meta.env.VITE_TTS_API_URL || '/api/edge-tts')
+    const key = JSON.stringify([endpoint, text, voice, rate, pitch])
+
     if (cache.has(key)) return cache.get(key)
-    const s = settings()
-    const endpoint = String(import.meta.env.VITE_TTS_API_URL || '/api/sarvam-tts')
-    const promise = fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:key,language_code:'ta-IN',model:'bulbul:v3',speaker:String(s.speaker||'ishita').toLowerCase(),pace:Number(s.pace)||0.92,temperature:Number(s.temperature)||0.72})}).then(async response=>{if(!response.ok)throw new Error(`Sarvam TTS ${response.status}`);return response.blob()})
-    cache.set(key,promise)
-    try{return await promise}catch(error){cache.delete(key);throw error}
+
+    const promise = fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice, rate, pitch }),
+    }).then(async (response) => {
+      if (!response.ok) {
+        let detail = ''
+        try {
+          const payload = await response.json()
+          detail = payload?.detail || payload?.error || ''
+        } catch {}
+        throw new Error(detail || ('Edge TTS ' + response.status))
+      }
+      return response.blob()
+    })
+
+    cache.set(key, promise)
+
+    if (cache.size > 24) {
+      const oldestKey = cache.keys().next().value
+      if (oldestKey && oldestKey !== key) cache.delete(oldestKey)
+    }
+
+    try {
+      return await promise
+    } catch (error) {
+      cache.delete(key)
+      throw error
+    }
   }
-  const fallbackToBrowser = utterance => { try{originalSpeak(utterance)}catch{try{utterance.onerror?.(new Event('error'))}catch{}} }
+
   const stopAudio = () => {
     run += 1
-    if(activeAudio){try{activeAudio.pause()}catch{};try{activeAudio.currentTime=0}catch{};try{activeAudio.removeAttribute('src')}catch{};activeAudio=null}
-    window.__hjSarvamActiveAudio=false;window.__hjSarvamPaused=false;window.__hjSarvamPending=false
+    if (activeAudio) {
+      try { activeAudio.pause() } catch {}
+      try { activeAudio.currentTime = 0 } catch {}
+      try { activeAudio.removeAttribute('src') } catch {}
+      try { activeAudio.load() } catch {}
+      activeAudio = null
+    }
+    window.__hjEdgeTtsActiveAudio = false
+    window.__hjEdgeTtsPaused = false
+    window.__hjEdgeTtsPending = false
   }
-  synthesis.speak = utterance => {
-    const text=String(utterance?.text||'').trim()
-    if(!text||!isTamil(text)){originalSpeak(utterance);return}
-    const token=++run;window.__hjSarvamPending=true;window.__hjSarvamPaused=false
-    getAudio(text).then(blob=>{
-      if(token!==run)return
-      const url=URL.createObjectURL(blob),audio=new Audio(url);activeAudio=audio;window.__hjSarvamPending=false;window.__hjSarvamActiveAudio=true
-      audio.volume=Number.isFinite(utterance.volume)?utterance.volume:1
-      audio.playbackRate=Math.max(.65,Math.min(1.25,Number(utterance.rate)||1))
-      try{utterance.onstart?.(new Event('start'))}catch{}
-      audio.onended=()=>{if(token!==run)return;activeAudio=null;window.__hjSarvamActiveAudio=false;window.__hjSarvamPending=false;URL.revokeObjectURL(url);try{utterance.onend?.(new Event('end'))}catch{}}
-      audio.onerror=()=>{if(token!==run)return;activeAudio=null;window.__hjSarvamActiveAudio=false;window.__hjSarvamPending=false;URL.revokeObjectURL(url);fallbackToBrowser(utterance)}
-      return audio.play().catch(()=>{throw new Error('Sarvam audio playback failed')})
-    }).catch(()=>{if(token!==run)return;window.__hjSarvamActiveAudio=false;window.__hjSarvamPending=false;fallbackToBrowser(utterance)})
+
+  synthesis.speak = (utterance) => {
+    const text = String(utterance?.text || '').trim()
+    if (!text) return
+
+    const token = ++run
+    window.__hjEdgeTtsPending = true
+    window.__hjEdgeTtsPaused = false
+
+    getAudio(utterance).then((blob) => {
+      if (token !== run) return
+
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      activeAudio = audio
+      window.__hjEdgeTtsPending = false
+      window.__hjEdgeTtsActiveAudio = true
+
+      audio.volume = Number.isFinite(utterance.volume) ? utterance.volume : 1
+      audio.playbackRate = Math.max(0.65, Math.min(1.5, Number(utterance.rate) || 1))
+
+      try { utterance.onstart?.(new Event('start')) } catch {}
+
+      let lastBoundaryAt = 0
+      audio.ontimeupdate = () => {
+        if (token !== run) return
+        const now = performance.now()
+        if (now - lastBoundaryAt < 90) return
+        lastBoundaryAt = now
+
+        const duration = Number(audio.duration)
+        const current = Number(audio.currentTime)
+        if (Number.isFinite(duration) && duration > 0 && Number.isFinite(current)) {
+          const ratio = Math.max(0, Math.min(1, current / duration))
+          const charIndex = Math.floor(ratio * String(utterance.text || '').length)
+          try {
+            utterance.onboundary?.({
+              type: 'boundary',
+              name: 'word',
+              charIndex,
+              elapsedTime: current * 1000,
+            })
+          } catch {}
+        }
+      }
+
+      audio.onended = () => {
+        if (token !== run) return
+        activeAudio = null
+        window.__hjEdgeTtsActiveAudio = false
+        window.__hjEdgeTtsPending = false
+        URL.revokeObjectURL(url)
+        try { utterance.onend?.(new Event('end')) } catch {}
+      }
+
+      audio.onerror = () => {
+        if (token !== run) return
+        activeAudio = null
+        window.__hjEdgeTtsActiveAudio = false
+        window.__hjEdgeTtsPending = false
+        URL.revokeObjectURL(url)
+        try {
+          utterance.onerror?.({
+            type: 'error',
+            error: 'audio-failed',
+            message: 'Microsoft Edge Neural TTS audio playback failed',
+          })
+        } catch {}
+      }
+
+      audio.play().catch(() => {
+        if (token !== run) return
+        audio.onerror?.()
+      })
+    }).catch((error) => {
+      if (token !== run) return
+      window.__hjEdgeTtsActiveAudio = false
+      window.__hjEdgeTtsPending = false
+      try {
+        utterance.onerror?.({
+          type: 'error',
+          error: 'tts-failed',
+          message: error?.message || 'Microsoft Edge Neural TTS request failed',
+        })
+      } catch {}
+    })
   }
-  synthesis.cancel=()=>{stopAudio();try{originalCancel()}catch{}}
-  synthesis.pause=()=>{if(activeAudio){try{activeAudio.pause()}catch{};window.__hjSarvamPaused=true}try{originalPause?.()}catch{}}
-  synthesis.resume=()=>{if(activeAudio){try{activeAudio.play()}catch{};window.__hjSarvamPaused=false}try{originalResume?.()}catch{}}
-  window.__hjSarvamSpeechBridge=true
-  return ()=>{stopAudio();synthesis.speak=originalSpeak;synthesis.cancel=originalCancel;if(originalPause)synthesis.pause=originalPause;if(originalResume)synthesis.resume=originalResume;cache.clear();delete window.__hjSarvamSpeechBridge}
+
+  synthesis.cancel = () => {
+    stopAudio()
+    try { originalCancel() } catch {}
+  }
+
+  synthesis.pause = () => {
+    if (activeAudio) {
+      try { activeAudio.pause() } catch {}
+      window.__hjEdgeTtsPaused = true
+    }
+    try { originalPause?.() } catch {}
+  }
+
+  synthesis.resume = () => {
+    if (activeAudio) {
+      try { activeAudio.play() } catch {}
+      window.__hjEdgeTtsPaused = false
+    }
+    try { originalResume?.() } catch {}
+  }
+
+  window.__hjEdgeTtsSpeechBridge = true
+
+  return () => {
+    stopAudio()
+    try { synthesis.speak = originalSpeak } catch {}
+    try { synthesis.cancel = originalCancel } catch {}
+    try { if (originalPause) synthesis.pause = originalPause } catch {}
+    try { if (originalResume) synthesis.resume = originalResume } catch {}
+    cache.clear()
+    delete window.__hjEdgeTtsSpeechBridge
+  }
 }
+
 export function App() {
   /* =======================================================
      MEDIA
@@ -430,7 +601,7 @@ export function App() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
-    return installSarvamTamilSpeechBridge()
+    return installEdgeTtsSpeechBridge()
   }, [])
 
   useEffect(() => {
@@ -2498,8 +2669,7 @@ export function App() {
       }
 
       /*
-        SpeechSynthesis applies
-        the rate to the next utterance.
+        Edge TTS receives the selected rate for the next chunk.
       */
     }
 
