@@ -90,8 +90,8 @@ const generateSecMsGec = () => {
 const baseHeaders = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-    '(KHTML, like Gecko) Chrome/' + CHROMIUM_MAJOR_VERSION +
-    '.0.0.0 Safari/537.36 Edg/' + CHROMIUM_MAJOR_VERSION + '.0.0.0',
+    '(KHTML, like Gecko) Chrome/' + CHROMIUM_FULL_VERSION +
+    ' Safari/537.36 Edg/' + CHROMIUM_FULL_VERSION,
   'Accept-Encoding': 'gzip, deflate, br, zstd',
   'Accept-Language': 'en-US,en;q=0.9',
 }
@@ -192,7 +192,8 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
 
     const socket = new WebSocket(url, {
       headers: makeWsHeaders(),
-      handshakeTimeout: 30000,
+      handshakeTimeout: 12000,
+      perMessageDeflate: true,
     })
 
     const audio = []
@@ -211,33 +212,37 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
     }
 
     socket.on('open', () => {
-      socket.send(
-        'X-Timestamp:' + dateToString() + '\\r\\n' +
-        'Content-Type:application/json; charset=utf-8\\r\\n' +
-        'Path:speech.config\\r\\n\\r\\n' +
-        JSON.stringify({
-          context: {
-            synthesis: {
-              audio: {
-                metadataoptions: {
-                  sentenceBoundaryEnabled: 'false',
-                  wordBoundaryEnabled: 'true',
+      try {
+        socket.send(
+          'X-Timestamp:' + dateToString() + '\\r\\n' +
+          'Content-Type:application/json; charset=utf-8\\r\\n' +
+          'Path:speech.config\\r\\n\\r\\n' +
+          JSON.stringify({
+            context: {
+              synthesis: {
+                audio: {
+                  metadataoptions: {
+                    sentenceBoundaryEnabled: 'false',
+                    wordBoundaryEnabled: 'true',
+                  },
+                  outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
                 },
-                outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
               },
             },
-          },
-        })
-      )
+          })
+        )
 
-      const requestId = connectId()
-      socket.send(
-        'X-RequestId:' + requestId + '\\r\\n' +
-        'Content-Type:application/ssml+xml\\r\\n' +
-        'X-Timestamp:' + dateToString() + 'Z\\r\\n' +
-        'Path:ssml\\r\\n\\r\\n' +
-        buildSsml(voice, rate, pitch, text)
-      )
+        const requestId = connectId()
+        socket.send(
+          'X-RequestId:' + requestId + '\\r\\n' +
+          'Content-Type:application/ssml+xml\\r\\n' +
+          'X-Timestamp:' + dateToString() + 'Z\\r\\n' +
+          'Path:ssml\\r\\n\\r\\n' +
+          buildSsml(voice, rate, pitch, text)
+        )
+      } catch (error) {
+        finish(error)
+      }
     })
 
     socket.on('message', (raw, isBinary) => {
@@ -276,12 +281,17 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
     })
 
     socket.on('close', () => {
-      if (!settled && audio.length) finish(null, audio)
+      if (settled) return
+      if (audio.length) {
+        finish(null, audio)
+      } else {
+        finish(new Error('Microsoft Edge TTS socket closed before audio'))
+      }
     })
 
     timer = setTimeout(() => {
       finish(new Error('Microsoft Edge TTS connection timed out'))
-    }, 30000)
+    }, 18000)
   })
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
