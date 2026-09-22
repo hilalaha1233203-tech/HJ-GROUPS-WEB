@@ -72,7 +72,9 @@ function normalizeBooks(bookRows) {
     coverPath: book.cover_path || '',
     file: book.file_url || (book.telegram_message_id && STREAMING_SERVER_URL
       ? `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(book.telegram_message_id)}`
-      : fileUrlFromId(book.file_id, 'document')),
+      : (String(book.file_id || '').startsWith('tg-document:')
+        ? `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(String(book.file_id).slice('tg-document:'.length))}`
+        : fileUrlFromId(book.file_id, 'document'))),
     filePath: book.file_path || '',
     telegram_message_id: book.telegram_message_id || null,
     volumes: Array.isArray(book.volumes) ? book.volumes : [],
@@ -89,7 +91,9 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
 
     const src = messageId && STREAMING_SERVER_URL
       ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(messageId)}`
-      : fileUrlFromId(ep.file_id, 'video')
+      : (String(ep.file_id || '').startsWith('tg-video:')
+        ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(String(ep.file_id).slice('tg-video:'.length))}`
+        : fileUrlFromId(ep.file_id, 'video'))
 
     list.push({
       number: ep.number,
