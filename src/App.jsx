@@ -380,6 +380,7 @@ export function App() {
   const epubContainerRef = useRef(null)
   const epubBookRef = useRef(null)
   const epubRenditionRef = useRef(null)
+  const epubLocationsPromiseRef = useRef(null)
 
   const readerObjectUrlRef = useRef(null)
 
@@ -3388,15 +3389,29 @@ export function App() {
         epubRenditionRef.current?.destroy()
       } catch { }
 
-      try {
-        epubBookRef.current?.destroy()
-      } catch { }
+      const epubBook = epubBookRef.current
+      const locationPromise = epubLocationsPromiseRef.current
 
-      epubRenditionRef.current =
-        null
+      const destroyEpub = () => {
+        try {
+          epubRenditionRef.current?.destroy()
+        } catch { }
+        try {
+          epubBook?.destroy()
+        } catch { }
+      }
 
-      epubBookRef.current =
-        null
+      // epub.js Locations.destroy() clears its internal _locations array.
+      // Never destroy a book while locations.generate() is still running.
+      if (locationPromise && epubBook) {
+        locationPromise.catch(() => {}).finally(destroyEpub)
+      } else {
+        destroyEpub()
+      }
+
+      epubLocationsPromiseRef.current = null
+      epubRenditionRef.current = null
+      epubBookRef.current = null
 
       pdfDocumentRef.current =
         null
@@ -4261,8 +4276,10 @@ export function App() {
           }
 
           if (locations?.generate) {
-            locations
-              .generate(1600)
+            const generationPromise = Promise.resolve().then(() => locations.generate(1600))
+            epubLocationsPromiseRef.current = generationPromise
+
+            generationPromise
               .then(() => {
                 if (cancelled || epubBookRef.current !== book) return
 
@@ -4303,6 +4320,11 @@ export function App() {
               .catch(() => {
                 // Location generation is optional; chapter-relative pagination still works.
               })
+              .finally(() => {
+                if (epubLocationsPromiseRef.current === generationPromise) {
+                  epubLocationsPromiseRef.current = null
+                }
+              })
           }
         } catch (error) {
           if (cancelled)
@@ -4331,28 +4353,33 @@ export function App() {
     return () => {
       cancelled = true
 
-      try {
-        rendition?.destroy()
-      } catch { }
+      const locationPromise = epubLocationsPromiseRef.current
+      const destroyEpub = () => {
+        try {
+          rendition?.destroy()
+        } catch { }
 
-      try {
-        book?.destroy()
-      } catch { }
+        try {
+          book?.destroy()
+        } catch { }
 
-      if (
-        epubRenditionRef.current ===
-        rendition
-      ) {
-        epubRenditionRef.current =
-          null
+        if (epubRenditionRef.current === rendition) {
+          epubRenditionRef.current = null
+        }
+
+        if (epubBookRef.current === book) {
+          epubBookRef.current = null
+        }
       }
 
-      if (
-        epubBookRef.current ===
-        book
-      ) {
-        epubBookRef.current =
-          null
+      if (locationPromise && book) {
+        locationPromise.catch(() => {}).finally(destroyEpub)
+      } else {
+        destroyEpub()
+      }
+
+      if (epubLocationsPromiseRef.current === locationPromise) {
+        epubLocationsPromiseRef.current = null
       }
     }
 
