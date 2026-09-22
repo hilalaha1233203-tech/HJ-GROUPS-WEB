@@ -67,7 +67,7 @@ export async function synthesizeEdgeTts({ text, voice, rate = 1, pitch = 0 }) {
   const key = JSON.stringify([normalizedText, normalizedVoice, normalizedRate, normalizedPitch])
 
   return cacheGetOrCreate(key, async () => {
-    const { generateSpeech } = await import('@bestcodes/edge-tts')
+    const { generateSpeech } = await import('@bestcodes/edge-tts/dist/index.mjs')
     const audio = await generateSpeech({
       text: normalizedText,
       voice: normalizedVoice,
