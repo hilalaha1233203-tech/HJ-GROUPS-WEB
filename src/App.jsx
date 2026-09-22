@@ -3297,8 +3297,6 @@ export function App() {
       const total =
         chunks.length
 
-      speechChunkRetryRef.current = 0
-
       setReadAloudLabel(
         `Reading ${index + 1
         } / ${total}`
@@ -3396,6 +3394,8 @@ export function App() {
 
           speechChunkIndexRef.current +=
             1
+
+          speechChunkRetryRef.current = 0
 
           speakNextChunk(
             runId
