@@ -6,7 +6,6 @@ import { supabase } from './supabase'
 import Auth from './Auth'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
-import { Analytics } from '@vercel/analytics/react'
 
 import {
   resolveAccessType,
@@ -822,68 +821,69 @@ export function App() {
     const supabaseId = getSupabaseStoryId(storyId)
 
     if (supabaseId !== null) {
-      const messageId = episode.telegram_message_id
-        ? Number(episode.telegram_message_id)
-        : null
+      const messageId = episode.telegram_message_id ? Number(episode.telegram_message_id) : null
+      const streamUrl = Number.isFinite(messageId)
+        ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
+        : (episode.src || null)
 
-      const modernRow = {
+      const legacyRow = {
         story_id: supabaseId,
-        number: Number(episode.number),
+        episode_number: Number(episode.number),
         title: String(episode.title || 'Untitled Episode'),
-        type: episode.type || 'audio',
-        file_url: episode.src || null,
-        file_path: episode.filePath || '',
-        file_id: null,
-        access_type: Array.isArray(episode.accessType)
-          ? (episode.accessType[0] || 'free')
-          : (episode.accessType || 'free'),
-        available: episode.available !== false,
-        ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
+        audio_url: streamUrl,
       }
 
-      let result = await supabase.from('episodes').insert(modernRow)
+      let result = await supabase.from('episodes').insert(legacyRow)
 
-      // Some production databases still use the original schema:
-      // episode_number + audio_url. Retry only when the first insert is
-      // rejected because a column/schema is missing.
       if (result.error) {
         const message = String(result.error.message || '')
         const isSchemaMismatch =
           /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
 
         if (!isSchemaMismatch) {
-          console.error('Supabase episode insert error:', result.error)
+          console.error('Supabase episode insert error:', {
+            code: result.error.code,
+            status: result.error.status,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+          })
           throw result.error
         }
 
-        const legacyAudioUrl = Number.isFinite(messageId)
-          ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
-          : (episode.src || null)
-
-        const legacyRow = {
+        const modernRow = {
           story_id: supabaseId,
-          episode_number: Number(episode.number),
+          number: Number(episode.number),
           title: String(episode.title || 'Untitled Episode'),
-          audio_url: legacyAudioUrl,
+          type: episode.type || 'audio',
+          file_url: streamUrl,
+          file_path: episode.filePath || '',
+          file_id: null,
+          access_type: Array.isArray(episode.accessType)
+            ? (episode.accessType[0] || 'free')
+            : (episode.accessType || 'free'),
+          available: episode.available !== false,
+          ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
         }
 
-        result = await supabase.from('episodes').insert(legacyRow)
-
+        result = await supabase.from('episodes').insert(modernRow)
         if (result.error) {
-          console.error('Supabase legacy episode insert error:', result.error)
+          console.error('Supabase modern episode insert error:', {
+            code: result.error.code,
+            status: result.error.status,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+          })
           throw result.error
         }
       }
 
-      // The database insert is the success condition. Realtime normally
-      // refreshes the catalogue; this extra refresh must never turn a
-      // successful import into a reported failure.
       try {
         await refreshTelegramContent()
       } catch (refreshError) {
         console.warn('Episode imported, but catalogue refresh failed:', refreshError)
       }
-
       return
     }
 
@@ -893,6 +893,7 @@ export function App() {
         : story
     ))
   }
+
 
   const updateEpisode = async (storyId, episodeNumber, updates) => {
     const supabaseId = getSupabaseStoryId(storyId)
@@ -986,6 +987,7 @@ export function App() {
   }
 
   const addBook = async (book) => {
+    const messageId = book.telegram_message_id ? Number(book.telegram_message_id) : null
     const row = {
       title: book.title,
       author: book.author || '',
@@ -996,25 +998,57 @@ export function App() {
       cover_path: book.coverPath || '',
       file_url: book.file || null,
       file_path: book.filePath || '',
-      telegram_message_id: book.telegram_message_id ? Number(book.telegram_message_id) : null,
+      telegram_message_id: Number.isFinite(messageId) ? messageId : null,
       access_type: Array.isArray(book.accessType) ? (book.accessType[0] || 'free') : (book.accessType || 'free'),
       volumes: Array.isArray(book.volumes) ? book.volumes : [],
     }
 
-    const { data, error } = await supabase
-      .from('books')
-      .insert(row)
-      .select('*')
-      .single()
+    let result = await supabase.from('books').insert(row).select('*').single()
 
-    if (error) {
-      console.error('Supabase book insert error:', error)
-      throw error
+    if (result.error) {
+      const message = String(result.error.message || '')
+      const isSchemaMismatch =
+        /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
+
+      if (!isSchemaMismatch || !Number.isFinite(messageId)) {
+        console.error('Supabase book insert error:', {
+          code: result.error.code,
+          status: result.error.status,
+          message: result.error.message,
+          details: result.error.details,
+          hint: result.error.hint,
+        })
+        throw result.error
+      }
+
+      const legacyRow = {
+        title: book.title,
+        author: book.author || '',
+        description: book.description || '',
+        type: book.type || 'pdf',
+        category: book.category || 'Other',
+        cover_file_id: null,
+        file_id: `tg-document:${messageId}`,
+        access_type: Array.isArray(book.accessType) ? (book.accessType[0] || 'free') : (book.accessType || 'free'),
+      }
+
+      result = await supabase.from('books').insert(legacyRow).select('*').single()
+      if (result.error) {
+        console.error('Supabase legacy book insert error:', {
+          code: result.error.code,
+          status: result.error.status,
+          message: result.error.message,
+          details: result.error.details,
+          hint: result.error.hint,
+        })
+        throw result.error
+      }
     }
 
     await refreshTelegramContent()
-    return data
+    return result.data
   }
+
 
   const updateBook = async (bookId, updates) => {
     const supabaseId = getSupabaseBookId(bookId)
@@ -1125,17 +1159,63 @@ export function App() {
   const addVideoEpisode = async (videoId, episode) => {
     const supabaseId = getSupabaseVideoId(videoId)
     if (supabaseId !== null) {
-      const { error } = await supabase.from('video_episodes').insert({
+      const messageId = episode.telegram_message_id ? Number(episode.telegram_message_id) : null
+      const streamUrl = Number.isFinite(messageId)
+        ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(messageId)}`
+        : (episode.src || null)
+
+      const row = {
         video_story_id: supabaseId,
         number: Number(episode.number),
         title: episode.title,
-        file_url: episode.src || null,
+        type: 'video',
+        file_url: streamUrl,
         file_path: episode.filePath || '',
-        telegram_message_id: episode.telegram_message_id ? Number(episode.telegram_message_id) : null,
+        telegram_message_id: Number.isFinite(messageId) ? messageId : null,
         access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
         available: episode.available !== false,
-      })
-      if (error) throw error
+      }
+
+      let result = await supabase.from('video_episodes').insert(row)
+
+      if (result.error) {
+        const message = String(result.error.message || '')
+        const isSchemaMismatch =
+          /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
+
+        if (!isSchemaMismatch || !Number.isFinite(messageId)) {
+          console.error('Supabase video episode insert error:', {
+            code: result.error.code,
+            status: result.error.status,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+          })
+          throw result.error
+        }
+
+        const legacyRow = {
+          video_story_id: supabaseId,
+          number: Number(episode.number),
+          title: episode.title,
+          file_id: `tg-video:${messageId}`,
+          access_type: Array.isArray(episode.accessType) ? (episode.accessType[0] || 'free') : (episode.accessType || 'free'),
+          available: episode.available !== false,
+        }
+
+        result = await supabase.from('video_episodes').insert(legacyRow)
+        if (result.error) {
+          console.error('Supabase legacy video episode insert error:', {
+            code: result.error.code,
+            status: result.error.status,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+          })
+          throw result.error
+        }
+      }
+
       await refreshTelegramContent()
       return
     }
@@ -1146,6 +1226,7 @@ export function App() {
         : video
     ))
   }
+
 
   const updateVideoEpisode = async (videoId, episodeNumber, updates) => {
     const supabaseId = getSupabaseVideoId(videoId)
@@ -8003,7 +8084,6 @@ export function App() {
           </button>
         )}
       </nav>
-      <Analytics />
     </div>
   )
 }
