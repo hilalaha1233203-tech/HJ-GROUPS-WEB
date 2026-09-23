@@ -143,12 +143,35 @@ test.describe('HJ GROUPS admin health', () => {
       await expect(page.getByText('Recommended recovery setup:', { exact: false })).toBeVisible()
     }
 
-    const readAloudButton = page.getByRole('button', { name: /Read Aloud/i }).first()
-    await expect(readAloudButton).toBeVisible()
-    const zoomButtons = page.locator('.reader-zoom button')
-    if (await zoomButtons.count()) {
-      await expect(zoomButtons.first()).toBeVisible()
-      await expect(zoomButtons.last()).toBeVisible()
+    const booksNav = page.locator('.bottom-nav button').filter({ hasText: /^Books$/i }).first()
+    if (await booksNav.count()) {
+      await booksNav.click()
+      await page.waitForTimeout(600)
+
+      const firstBookCard = page.locator('.media-catalog-card').first()
+      if (await firstBookCard.count()) {
+        await firstBookCard.click()
+        await expect(page.getByRole('button', { name: /Read Aloud/i }).first()).toBeVisible()
+        await expect(page.getByRole('button', { name: /\\bRead\\b/i }).first()).toBeVisible()
+
+        await page.getByRole('button', { name: /Read Aloud/i }).first().click()
+        await page.waitForTimeout(900)
+
+        const readerOverlay = page.locator('.reader-overlay').first()
+        await expect(readerOverlay).toBeVisible()
+
+        const readAloudButton = readerOverlay.getByRole('button', { name: /Read Aloud/i }).first()
+        await expect(readAloudButton).toBeVisible()
+
+        const zoomButtons = readerOverlay.locator('.reader-zoom button')
+        await expect(zoomButtons.first()).toBeVisible()
+        await expect(zoomButtons.last()).toBeVisible()
+
+        const paperButton = readerOverlay.getByRole('button', { name: /^Paper$/i }).first()
+        if (await paperButton.count()) await expect(paperButton).toBeVisible()
+
+        await page.keyboard.press('Escape').catch(() => {})
+      }
     }
 
     await test.info().attach('admin-health.json', {
