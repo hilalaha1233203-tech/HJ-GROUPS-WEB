@@ -5127,3 +5127,44 @@ body:has(.reader-overlay:not(.reader-minimized)),
     min-width: 0;
   }
 }
+
+/* Compact read-aloud mode: keep the page readable on phones */
+@media (max-width: 700px) {
+  .reader-overlay.reader-reading .reader-bottom {
+    grid-template-areas: "player";
+    gap: 4px;
+    padding: 5px 6px calc(5px + env(safe-area-inset-bottom));
+  }
+  .reader-overlay.reader-reading .reader-navigation,
+  .reader-overlay.reader-reading .reader-zoom,
+  .reader-overlay.reader-reading .hj-reader-extra-controls {
+    display: none !important;
+  }
+  .reader-overlay.reader-reading .reader-player {
+    grid-template-columns: 34px 34px 34px minmax(0, 1fr) auto;
+    gap: 5px;
+    padding: 5px 6px;
+    border-radius: 12px;
+  }
+  .reader-overlay.reader-reading .reader-player > button {
+    width: 34px;
+    height: 34px;
+  }
+  .reader-overlay.reader-reading .reader-player-volume,
+  .reader-overlay.reader-reading .reader-player-sleep {
+    display: none !important;
+  }
+  .reader-overlay.reader-reading .reader-word-indicator {
+    display: none !important;
+  }
+}
+@media (max-width: 700px) {
+  .hj-tts-panel {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+    width: auto !important;
+    max-height: min(34vh, 210px) !important;
+    overflow-y: auto !important;
+  }
+}
