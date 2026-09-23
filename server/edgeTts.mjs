@@ -6,7 +6,7 @@ const DEFAULT_ENGLISH_VOICE = 'en-IN-NeerjaNeural'
 const MAX_CHARS = 6000
 
 const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4'
-const CHROMIUM_FULL_VERSION = '143.0.3650.75'
+const CHROMIUM_FULL_VERSION = String(process.env.EDGE_TTS_CHROMIUM_FULL_VERSION || '143.0.3650.75').trim() || '143.0.3650.75'
 const CHROMIUM_MAJOR_VERSION = CHROMIUM_FULL_VERSION.split('.')[0]
 const SEC_MS_GEC_VERSION = '1-' + CHROMIUM_FULL_VERSION
 const WSS_URL =
@@ -90,7 +90,7 @@ const generateSecMsGec = () => {
 const baseHeaders = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-    '(KHTML, like Gecko) Chrome/' + CHROMIUM_FULL_VERSION +
+    '(KHTML, like Gecko) Chrome/' + CHROMIUM_MAJOR_VERSION + '.0.0.0' +
     ' Safari/537.36 Edg/' + CHROMIUM_FULL_VERSION,
   'Accept-Encoding': 'gzip, deflate, br, zstd',
   'Accept-Language': 'en-US,en;q=0.9',
@@ -106,11 +106,12 @@ const makeWsHeaders = () => ({
 })
 
 const parseTextFrame = (buffer) => {
-  const separator = buffer.indexOf('\\r\\n\\r\\n')
+  const separator = buffer.indexOf('\r\n\r\n')
+  if (separator < 0) throw new Error('Invalid Edge TTS text frame')
   const headerText = buffer.subarray(0, separator).toString('utf8')
   const body = buffer.subarray(separator + 4)
   const headers = {}
-  for (const line of headerText.split('\\r\\n')) {
+  for (const line of headerText.split('\r\n')) {
     const index = line.indexOf(':')
     if (index <= 0) continue
     headers[line.slice(0, index)] = line.slice(index + 1).trim()
@@ -125,7 +126,7 @@ const parseBinaryFrame = (buffer) => {
   const headerText = buffer.subarray(2, headerLength + 2).toString('utf8')
   const data = buffer.subarray(headerLength + 2)
   const headers = {}
-  for (const line of headerText.split('\\r\\n')) {
+  for (const line of headerText.split('\r\n')) {
     const index = line.indexOf(':')
     if (index <= 0) continue
     headers[line.slice(0, index)] = line.slice(index + 1).trim()
@@ -192,8 +193,8 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
 
     const socket = new WebSocket(url, {
       headers: makeWsHeaders(),
-      handshakeTimeout: 12000,
-      perMessageDeflate: true,
+      handshakeTimeout: 15000,
+      perMessageDeflate: false,
     })
 
     const audio = []
@@ -214,9 +215,9 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
     socket.on('open', () => {
       try {
         socket.send(
-          'X-Timestamp:' + dateToString() + '\\r\\n' +
-          'Content-Type:application/json; charset=utf-8\\r\\n' +
-          'Path:speech.config\\r\\n\\r\\n' +
+          'X-Timestamp:' + dateToString() + '\r\n' +
+          'Content-Type:application/json; charset=utf-8\r\n' +
+          'Path:speech.config\r\n\r\n' +
           JSON.stringify({
             context: {
               synthesis: {
@@ -234,10 +235,10 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
 
         const requestId = connectId()
         socket.send(
-          'X-RequestId:' + requestId + '\\r\\n' +
-          'Content-Type:application/ssml+xml\\r\\n' +
-          'X-Timestamp:' + dateToString() + 'Z\\r\\n' +
-          'Path:ssml\\r\\n\\r\\n' +
+          'X-RequestId:' + requestId + '\r\n' +
+          'Content-Type:application/ssml+xml\r\n' +
+          'X-Timestamp:' + dateToString() + 'Z\r\n' +
+          'Path:ssml\r\n\r\n' +
           buildSsml(voice, rate, pitch, text)
         )
       } catch (error) {
@@ -291,7 +292,7 @@ const synthesizeChunk = ({ text, voice, rate, pitch }) =>
 
     timer = setTimeout(() => {
       finish(new Error('Microsoft Edge TTS connection timed out'))
-    }, 18000)
+    }, 25000)
   })
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -308,6 +309,7 @@ const synthesizeWithRetry = async (args) => {
       const message = String(error?.message || '')
       const retryable =
         status === 403 ||
+        status === 429 ||
         status >= 500 ||
         /timed out|timeout|websocket|socket/i.test(message)
 
