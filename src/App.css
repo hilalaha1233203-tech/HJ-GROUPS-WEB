@@ -3487,55 +3487,235 @@ body:has(.reader-overlay:not(.reader-minimized)),
 }
 
 
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
 
 
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
 
 
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
 
 
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
 
 
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
 
 
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
+/* =========================================================
+   ACCOUNT SETTINGS
+========================================================= */
+.account-settings-page{
+  width:min(1100px,calc(100% - 28px));
+  margin:0 auto;
+  padding:28px 0 120px;
+}
+.account-settings-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:18px;
+}
+.account-settings-header h1{margin:4px 0 8px;font-size:clamp(24px,4vw,38px)}
+.account-settings-header p{margin:0;color:#9297b5;max-width:720px;line-height:1.6}
+.account-settings-card{
+  margin-top:16px;
+  padding:20px;
+  border:1px solid rgba(124,131,255,.14);
+  border-radius:18px;
+  background:linear-gradient(145deg,rgba(18,22,37,.94),rgba(8,10,18,.96));
+  box-shadow:0 18px 55px rgba(0,0,0,.16);
+}
+.account-settings-card-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:16px;
+}
+.account-settings-card-head small{color:#7c83ff;letter-spacing:.12em}
+.account-settings-card-head h2{margin:5px 0 0;font-size:20px}
+.account-settings-icon{font-size:28px}
+.account-settings-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.account-settings-form{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:12px;
+  align-items:end;
+  margin-top:12px;
+}
+.account-settings-form label,
+.account-settings-grid label,
+.account-settings-mini label,
+.account-recovery-card form label{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  color:#9297b5;
+  font-size:12px;
+}
+.account-settings-form input,
+.account-settings-grid input,
+.account-settings-grid select,
+.account-settings-mini input,
+.account-recovery-card input{
+  width:100%;
+  box-sizing:border-box;
+  min-height:42px;
+  padding:10px 12px;
+  border-radius:10px;
+  color:#fff;
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.10);
+}
+.account-settings-grid input[type="range"]{padding:0;min-height:26px}
+.account-settings-form button{white-space:nowrap}
+.account-settings-check,
+.settings-check{
+  flex-direction:row !important;
+  align-items:center;
+  min-height:42px;
+  color:#ddd !important;
+}
+.settings-check input{width:18px !important;min-height:18px !important}
+.account-settings-note{
+  margin-top:12px;
+  padding:11px 13px;
+  border-radius:10px;
+  color:#8c92ad;
+  background:rgba(124,131,255,.06);
+  border:1px solid rgba(124,131,255,.11);
+  font-size:11px;
+  line-height:1.55;
+}
+.account-settings-recovery-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.account-settings-mini{
+  padding:15px;
+  border-radius:14px;
+  background:rgba(255,255,255,.028);
+  border:1px solid rgba(255,255,255,.075);
+}
+.account-settings-mini strong{display:block;color:#fff;margin-bottom:7px}
+.account-settings-mini p{margin:0 0 12px;color:#858ba5;font-size:11px;line-height:1.55}
+.account-settings-ok{display:block;margin-top:8px;color:#8ff0c0;font-size:11px}
+.account-settings-status,
+.account-settings-error{
+  margin:12px 0;
+  padding:11px 13px;
+  border-radius:11px;
+  font-size:12px;
+}
+.account-settings-status{
+  color:#9cf2c7;
+  background:rgba(80,220,150,.08);
+  border:1px solid rgba(80,220,150,.18);
+}
+.account-settings-error{
+  color:#ffb0b0;
+  background:rgba(255,80,80,.07);
+  border:1px solid rgba(255,80,80,.18);
+}
+.account-card-main{min-width:0;flex:1}
+.account-card-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.account-quick-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  margin-top:14px;
+}
+.account-quick-card{
+  text-align:left;
+  padding:16px;
+  border:1px solid rgba(124,131,255,.13);
+  border-radius:15px;
+  color:#fff;
+  background:rgba(17,23,40,.76);
+}
+.account-quick-card strong{display:block;margin-bottom:7px}
+.account-quick-card span{display:block;color:#7f859e;font-size:11px;line-height:1.5}
+.account-recovery-overlay{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+.account-recovery-card{
+  width:min(460px,100%);
+  max-height:min(88vh,700px);
+  overflow:auto;
+  padding:24px;
+  border-radius:20px;
+  background:linear-gradient(145deg,rgba(19,21,38,.99),rgba(8,9,16,.99));
+  border:1px solid rgba(124,131,255,.2);
+  box-shadow:0 30px 90px rgba(0,0,0,.65);
+}
+.account-recovery-card h2{margin:5px 0 8px}
+.account-recovery-card p{color:#858ba5;line-height:1.55;font-size:12px}
+.account-recovery-card form{display:grid;gap:12px;margin-top:15px}
+.account-recovery-card > .secondary-btn{margin-top:10px;width:100%}
 
+/* Reader themes: clearly change the reader shell and EPUB content surface. */
+.reader-window.reader-theme-dark{background:#080b14}
+.reader-window.reader-theme-paper{background:#e8dfd1;color:#2c281f}
+.reader-window.reader-theme-paper .reader-header,
+.reader-window.reader-theme-paper .reader-bottom{background:rgba(246,239,228,.98);color:#27231e;border-color:rgba(66,52,34,.14)}
+.reader-window.reader-theme-paper .reader-body-full{background:#f8f1e7;color:#2c281f}
+.reader-window.reader-theme-paper .reader-navigation button,
+.reader-window.reader-theme-paper .reader-zoom button,
+.reader-window.reader-theme-paper .reader-theme-picker button{color:#2c281f;background:rgba(55,42,23,.06);border-color:rgba(55,42,23,.14)}
+.reader-window.reader-theme-paper .reader-theme-picker{color:#5b503f}
+.reader-window.reader-theme-paper .reader-theme-picker button.active{background:#2c281f;color:#fff}
+.reader-window.reader-theme-sepia{background:#d9c6a8;color:#3e3021}
+.reader-window.reader-theme-sepia .reader-header,
+.reader-window.reader-theme-sepia .reader-bottom{background:rgba(239,226,201,.98);color:#3e3021;border-color:rgba(76,55,31,.14)}
+.reader-window.reader-theme-sepia .reader-body-full{background:#eee0c4;color:#3e3021}
+.reader-window.reader-theme-night{background:#071223;color:#dcecff}
+.reader-window.reader-theme-night .reader-header,
+.reader-window.reader-theme-night .reader-bottom{background:rgba(7,18,35,.98);color:#dcecff}
+.reader-theme-picker{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+  flex-wrap:wrap;
+  padding:8px 12px;
+  border-top:1px solid rgba(255,255,255,.06);
+  background:rgba(9,11,20,.92);
+  color:#8c92ad;
+  font-size:10px;
+}
+.reader-theme-picker button{
+  padding:5px 8px;
+  border-radius:8px;
+  color:#b9bdd0;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.08);
+}
+.reader-theme-picker button.active{
+  background:#7c83ff;
+  color:#070912;
+  border-color:#7c83ff;
+}
 
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
-
-
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
-
-
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
-
-
-/* Reader surface remains a quiet paper-like canvas; no neon wave effects. */
-.reader-body-full .epub-reader,
-.reader-body-full .react-pdf__Page { backface-visibility: visible; transform-style: preserve-3d; }
-
+@media(max-width:760px){
+  .account-settings-page{width:min(100% - 18px,1100px);padding-top:18px}
+  .account-settings-header{flex-direction:column}
+  .account-settings-header > .secondary-btn{width:100%}
+  .account-settings-grid,
+  .account-settings-recovery-grid,
+  .account-quick-grid{grid-template-columns:1fr}
+  .account-settings-form{grid-template-columns:1fr}
+  .account-settings-form button{width:100%}
+  .account-settings-card{padding:15px}
+  .account-card{align-items:flex-start}
+  .account-card-actions{width:100%}
+  .account-card-actions button{flex:1;min-width:0}
+  .reader-theme-picker{justify-content:center}
+}
 
 /* Multi-volume admin uploader */
 .multi-volume-box input,.multi-volume-box select{min-width:0}
