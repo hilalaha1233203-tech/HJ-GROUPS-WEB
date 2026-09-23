@@ -213,6 +213,12 @@ function AdminPanel({
   const saveAdminSettings = () => {
     try {
       localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(adminSettings))
+      setEpisodeAccessType(adminSettings.content.defaultAudioAccess)
+      setBookAccessType(adminSettings.content.defaultBookAccess)
+      setVideoAccessType(adminSettings.content.defaultVideoAccess)
+      setBulkDefaultAccessType(adminSettings.content.defaultAudioAccess)
+      setVideoBulkDefaultAccessType(adminSettings.content.defaultVideoAccess)
+      setBookBulkDefaultAccessType(adminSettings.content.defaultBookAccess)
       setSettingsDirty(false)
       showToast('Management settings saved in this browser')
     } catch (error) {
@@ -226,6 +232,12 @@ function AdminPanel({
     setAdminSettings(defaults)
     try {
       localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(defaults))
+      setEpisodeAccessType(defaults.content.defaultAudioAccess)
+      setBookAccessType(defaults.content.defaultBookAccess)
+      setVideoAccessType(defaults.content.defaultVideoAccess)
+      setBulkDefaultAccessType(defaults.content.defaultAudioAccess)
+      setVideoBulkDefaultAccessType(defaults.content.defaultVideoAccess)
+      setBookBulkDefaultAccessType(defaults.content.defaultBookAccess)
       setSettingsDirty(false)
       showToast('Management settings reset')
     } catch {
@@ -271,7 +283,7 @@ function AdminPanel({
   const [episodeTelegramUrl, setEpisodeTelegramUrl] = useState('')
   const [episodeFileUploading, setEpisodeFileUploading] = useState(false)
   const [episodeAvailable, setEpisodeAvailable] = useState(true)
-  const [episodeAccessType, setEpisodeAccessType] = useState('free')
+  const [episodeAccessType, setEpisodeAccessType] = useState(() => readAdminSettings().content.defaultAudioAccess)
 
   /* =====================================================
      BULK TELEGRAM IMPORT
@@ -283,7 +295,7 @@ function AdminPanel({
   const [bulkTitleOverrides, setBulkTitleOverrides] = useState({})
   const [bulkNumberOverrides, setBulkNumberOverrides] = useState({})
   const [bulkAccessTypes, setBulkAccessTypes] = useState({})
-  const [bulkDefaultAccessType, setBulkDefaultAccessType] = useState(['free'])
+  const [bulkDefaultAccessType, setBulkDefaultAccessType] = useState(() => readAdminSettings().content.defaultAudioAccess)
 
   /* =====================================================
      BOOK FORM
@@ -302,7 +314,7 @@ const [bookFileUploading, setBookFileUploading] = useState(false)
 
 const [bookCoverPath, setBookCoverPath] = useState('')
 
-const [bookAccessType, setBookAccessType] = useState('free')
+const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().content.defaultBookAccess)
   const [bookTelegramUrl, setBookTelegramUrl] = useState('')
 
   // Multi-volume books: one parent book can contain many PDF/EPUB volumes.
@@ -382,7 +394,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [videoCoverUploading, setVideoCoverUploading] = useState(false)
   const [videoSrc, setVideoSrc] = useState('')
   const [videoFileUploading, setVideoFileUploading] = useState(false)
-  const [videoAccessType, setVideoAccessType] = useState('free')
+  const [videoAccessType, setVideoAccessType] = useState(() => readAdminSettings().content.defaultVideoAccess)
   const [videoEpisodeTitle, setVideoEpisodeTitle] = useState('Episode 01')
   const [videoTelegramUrl, setVideoTelegramUrl] = useState('')
   
@@ -393,7 +405,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [videoBulkNumberOverrides, setVideoBulkNumberOverrides] = useState({})
   const [bulkVideoStoryId, setBulkVideoStoryId] = useState('')
   const [videoBulkAccessTypes, setVideoBulkAccessTypes] = useState({})
-  const [videoBulkDefaultAccessType, setVideoBulkDefaultAccessType] = useState(['free'])
+  const [videoBulkDefaultAccessType, setVideoBulkDefaultAccessType] = useState(() => readAdminSettings().content.defaultVideoAccess)
 
   /* =====================================================
      BOOK BULK TELEGRAM IMPORT
@@ -404,7 +416,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
   const [bookBulkTitleOverrides, setBookBulkTitleOverrides] = useState({})
   const [bookBulkTypeOverrides, setBookBulkTypeOverrides] = useState({})
   const [bookBulkAccessTypes, setBookBulkAccessTypes] = useState({})
-  const [bookBulkDefaultAccessType, setBookBulkDefaultAccessType] = useState(['free'])
+  const [bookBulkDefaultAccessType, setBookBulkDefaultAccessType] = useState(() => readAdminSettings().content.defaultBookAccess)
 
   /* =====================================================
      STORY
