@@ -55,16 +55,19 @@ test.describe('HJ GROUPS admin health', () => {
 
     await expect(page.getByText('HJ GROUPS CONTENT STUDIO', { exact: true })).toBeVisible()
 
+    const adminOverlay = page.locator('.admin-overlay')
+    await expect(adminOverlay).toBeVisible()
+
     const tabs = ['Overview', 'Audio Stories', 'Books', 'Videos']
     for (const tab of tabs) {
-      const button = page.getByRole('button', { name: new RegExp(tab, 'i') }).first()
+      const button = adminOverlay.getByRole('button', { name: new RegExp(tab, 'i') }).first()
       await expect(button).toBeVisible()
       await button.click()
       await page.waitForTimeout(500)
       await expect(page.locator('body')).toBeVisible()
     }
 
-    await page.getByRole('button', { name: /Audio Stories/i }).first().click()
+    await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
     await expect(page.getByText('Bulk Telegram Import', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Messages/i })).toBeVisible()
     const audioAccess = page.locator('select[name="bulk-audio-default-access"]')
