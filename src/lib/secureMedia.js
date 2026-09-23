@@ -6,7 +6,9 @@ const protectedTypes = new Set(['premium', 'vip'])
 
 const isProtected = (item) => {
   const types = resolveAccessType(item)
-  return !types.includes('free') && !types.includes('ads') && types.some((type) => protectedTypes.has(type))
+  // Paid types remain protected even when old rows accidentally contain a
+  // "free" flag alongside premium/vip.
+  return types.some((type) => protectedTypes.has(type))
 }
 
 const getMessageId = (item) => {
@@ -17,9 +19,14 @@ const getMessageId = (item) => {
 export async function resolveMediaSource(item) {
   if (!item) throw new Error('Content is unavailable.')
   const messageId = getMessageId(item)
+  const type = item.type === 'video' ? 'video' : 'audio'
+
+  if (isProtected(item) && (!messageId || !STREAMING_SERVER_URL)) {
+    throw new Error('Protected media is not available through a secure streaming source.')
+  }
+
   if (!messageId || !STREAMING_SERVER_URL) return String(item.src || '')
 
-  const type = item.type === 'video' ? 'video' : 'audio'
   if (!isProtected(item)) {
     return `${STREAMING_SERVER_URL}/${type}/message/${encodeURIComponent(messageId)}`
   }
@@ -45,9 +52,13 @@ export async function resolveMediaSource(item) {
 export async function resolveBookSource(book) {
   if (!book) throw new Error('Book is unavailable.')
   const messageId = getMessageId(book)
-  if (!messageId || !STREAMING_SERVER_URL) return String(book.file || '')
-
   const isProtectedBook = isProtected(book)
+
+  if (isProtectedBook && (!messageId || !STREAMING_SERVER_URL)) {
+    throw new Error('Protected books are not available through a secure streaming source.')
+  }
+
+  if (!messageId || !STREAMING_SERVER_URL) return String(book.file || '')
   if (!isProtectedBook) return `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(messageId)}`
 
   const { data: { session } = {} } = await supabase.auth.getSession()
