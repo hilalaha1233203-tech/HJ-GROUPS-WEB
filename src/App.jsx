@@ -3,6 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import ePub from 'epubjs'
 
 import { supabase } from './supabase'
+import { resolveMediaSource, resolveBookSource } from './lib/secureMedia'
 import Auth from './Auth'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
@@ -646,20 +647,6 @@ export function App() {
   }, [])
 
 
-  useEffect(() => {
-    if (!('speechSynthesis' in window)) return undefined
-
-    const chooseVoice = () => {
-      const voices = window.speechSynthesis.getVoices() || []
-      const tamilVoices = voices.filter((voice) => /^(ta)(?:[-_]|$)/i.test(String(voice.lang || '')))
-      const tamilIndia = tamilVoices.find((voice) => /^(ta)(?:[-_]IN)/i.test(String(voice.lang || '')))
-      speechVoiceRef.current = tamilIndia || tamilVoices.find((voice) => voice.localService) || tamilVoices[0] || null
-    }
-
-    chooseVoice()
-    window.speechSynthesis.addEventListener?.('voiceschanged', chooseVoice)
-    return () => window.speechSynthesis.removeEventListener?.('voiceschanged', chooseVoice)
-  }, [])
 
   /* =======================================================
      UI / WATERMARK
@@ -710,6 +697,9 @@ export function App() {
 
   const [currentEpisode, setCurrentEpisode] =
     useState(null)
+
+  const [currentMediaSrc, setCurrentMediaSrc] = useState('')
+  const mediaResolveRunRef = useRef(0)
 
   const [activePlayerKind, setActivePlayerKind] =
     useState(null)
@@ -1711,7 +1701,7 @@ export function App() {
       try {
         const { data, error } = await supabase
           .from('purchases')
-          .select('story_id')
+          .select('story_id, product_type, expires_at')
           .eq('user_id', user.id)
 
         if (error) {
@@ -1725,7 +1715,17 @@ export function App() {
         }
 
         if (mounted && data) {
-          const ids = new Set(data.map((p) => String(p.story_id)))
+          const now = Date.now()
+          const ids = new Set(
+            data
+              .filter((purchase) => {
+                if (!purchase?.expires_at) return true
+                const expiry = Date.parse(purchase.expires_at)
+                return Number.isFinite(expiry) && expiry > now
+              })
+              .filter((purchase) => purchase?.story_id !== null && purchase?.story_id !== undefined)
+              .map((purchase) => String(purchase.story_id))
+          )
           setPurchasedStoryIds(ids)
         }
       } catch (err) {
@@ -2378,157 +2378,77 @@ export function App() {
       }
     }
 
-  const loadAndPlay =
-    (episode, story = currentStory) => {
-      setTimeout(() => {
-        const media =
-          episode.type ===
-            'video'
-            ? videoRef.current
-            : audioRef.current
-
-        if (!media) {
+  const loadAndPlay = (episode, story = currentStory, mediaSrc = '') => {
+    window.setTimeout(() => {
+      const media = episode.type === 'video' ? videoRef.current : audioRef.current
+      if (!media) return setIsPlaying(false)
+      const adsKey = story ? adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', story.id, episode.number) : undefined
+      if (!canAccessContent(episode, adsKey, story && story.id)) {
+        media.pause?.()
+        return setIsPlaying(false)
+      }
+      try {
+        if (mediaSrc) media.src = mediaSrc
+        media.load()
+        media.volume = volume
+        media.playbackRate = speed
+        const playPromise = media.play()
+        playPromise?.then(() => setIsPlaying(true)).catch((error) => {
+          console.error('Media play failed:', error)
           setIsPlaying(false)
-          return
-        }
-
-        const adsKey =
-          story
-            ? adsKeyFor(
-              episode.type ===
-                'video'
-                ? 'video-episode'
-                : 'episode',
-              story.id,
-              episode.number
-            )
-            : undefined
-
-        if (
-          !canAccessContent(
-            episode,
-            adsKey,
-            selectedStory.id
-            )
-        ) {
-          setIsPlaying(false)
-          return
-        }
-
-        try {
-          media.load()
-
-          media.volume =
-            volume
-
-          media.playbackRate =
-            speed
-
-          const playPromise = media.play();
-          if (playPromise !== undefined) {
-            playPromise.then(() => {
-              console.log("LOADANDPLAY: PROMISE RESOLVED");
-              setIsPlaying(true);
-            }).catch(error => {
-              console.error("PLAY FAILED in loadAndPlay", error);
-              setIsPlaying(false);
-            });
-          }
-        } catch {
-          setIsPlaying(false)
-        }
-      }, 250)
-    }
-
-  const openPlayer = (
-    story,
-    episode
-  ) => {
-    if (!episode) return
-
-    if (readerBook) {
-      teardownReader()
-    }
-
-    const adsKey =
-      adsKeyFor(
-        episode.type ===
-          'video'
-          ? 'video-episode'
-          : 'episode',
-        story.id,
-        episode.number
-      )
-
-    requestAccess(
-      episode,
-      adsKey,
-      () => {
-        if (isReading) {
-          stopReadAloud()
-        }
-
-        setActivePlayerKind(
-          'episode'
-        )
-
-        setCurrentStory(
-          story
-        )
-
-        setCurrentEpisode(
-          episode
-        )
-
-        setPlayerOpen(true)
-        setFullPlayer(true)
-
-        setCurrentTime(0)
-        setDuration(0)
-
-        loadAndPlay(
-          episode,
-          story
-        )
-      },
-      story.id
-    )
+        })
+      } catch (error) {
+        console.error('Media load failed:', error)
+        setIsPlaying(false)
+      }
+    }, 80)
   }
 
-  const selectEpisode =
-    (episode) => {
-      if (!currentStory) return
-
-      const adsKey =
-        adsKeyFor(
-          episode.type ===
-            'video'
-            ? 'video-episode'
-            : 'episode',
-          currentStory.id,
-          episode.number
-        )
-
-      requestAccess(
-        episode,
-        adsKey,
-        () => {
-          setCurrentEpisode(
-            episode
-          )
-
-          setCurrentTime(0)
-          setDuration(0)
-
-          loadAndPlay(
-            episode,
-            currentStory
-          )
-        },
-        currentStory.id
-      )
+  const prepareEpisodePlayback = async (episode, story) => {
+    const runId = ++mediaResolveRunRef.current
+    setIsPlaying(false)
+    setCurrentMediaSrc('')
+    try {
+      const mediaSrc = await resolveMediaSource(episode)
+      if (runId !== mediaResolveRunRef.current) return
+      if (!mediaSrc) throw new Error('No playable media source was returned.')
+      setCurrentMediaSrc(mediaSrc)
+      loadAndPlay(episode, story, mediaSrc)
+    } catch (error) {
+      if (runId !== mediaResolveRunRef.current) return
+      console.error('Media access failed:', error)
+      setIsPlaying(false)
+      alert(error?.message || 'Unable to start this content. Please sign in or unlock it first.')
     }
+  }
 
+  const openPlayer = (story, episode) => {
+    if (!episode) return
+    if (readerBook) teardownReader()
+    const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', story.id, episode.number)
+    requestAccess(episode, adsKey, () => {
+      if (isReading) stopReadAloud()
+      setActivePlayerKind('episode')
+      setCurrentStory(story)
+      setCurrentEpisode(episode)
+      setPlayerOpen(true)
+      setFullPlayer(true)
+      setCurrentTime(0)
+      setDuration(0)
+      void prepareEpisodePlayback(episode, story)
+    }, story.id)
+  }
+
+  const selectEpisode = (episode) => {
+    if (!currentStory) return
+    const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', currentStory.id, episode.number)
+    requestAccess(episode, adsKey, () => {
+      setCurrentEpisode(episode)
+      setCurrentTime(0)
+      setDuration(0)
+      void prepareEpisodePlayback(episode, currentStory)
+    }, currentStory.id)
+  }
   const nextEpisode =
     () => {
       if (
@@ -2797,6 +2717,8 @@ export function App() {
       setPlayerOpen(false)
       setFullPlayer(false)
       setIsPlaying(false)
+      mediaResolveRunRef.current += 1
+      setCurrentMediaSrc('')
 
       setActivePlayerKind(
         (kind) =>
@@ -3102,34 +3024,36 @@ export function App() {
 
   const getPdfPageText =
     async () => {
-      const pdf =
-        pdfDocumentRef.current
-
+      const pdf = pdfDocumentRef.current
       if (!pdf) return ''
 
       try {
-        const page =
-          await pdf.getPage(
-            pdfPage
-          )
+        const page = await pdf.getPage(pdfPage)
+        const content = await page.getTextContent()
+        const items = (content?.items || []).filter((item) => String(item?.str || '').trim())
+        let output = ''
+        let previous = null
 
-        const content =
-          await page.getTextContent()
+        for (const item of items) {
+          const value = String(item?.str || '').replace(/\s+/g, ' ').trim()
+          if (!value) continue
+          const x = Number(item?.transform?.[4])
+          const y = Number(item?.transform?.[5])
+          const previousX = Number(previous?.transform?.[4])
+          const previousY = Number(previous?.transform?.[5])
+          const previousWidth = Number(previous?.width) || 0
+          const sameLine = Number.isFinite(y) && Number.isFinite(previousY) && Math.abs(y - previousY) < 3
+          const gap = Number.isFinite(x) && Number.isFinite(previousX) ? x - (previousX + previousWidth) : 0
+          const punctuation = /^[.,!?;:、。！？；：)\]}%…]/u.test(value)
+          if (previous?.hasEOL || (!sameLine && output)) output += '\n'
+          else if (output && sameLine && gap > 1.5 && !punctuation && !/\s$/u.test(output)) output += ' '
+          output += value
+          previous = item
+        }
 
-        return cleanSpeechText(
-          content.items
-            .map(
-              (item) =>
-                item?.str || ''
-            )
-            .join(' ')
-        )
+        return output.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
       } catch (error) {
-        console.warn(
-          'PDF text extraction failed:',
-          error
-        )
-
+        console.warn('PDF text extraction failed:', error)
         return ''
       }
     }
@@ -3780,6 +3704,12 @@ export function App() {
         closePlayer()
       }
 
+      const bookAccessKey = adsKeyFor('book', book.id)
+      if (!canAccessContent(book, bookAccessKey, book.id)) {
+        requestAccess(book, bookAccessKey, () => openReaderForBook(book, { autoRead }), book.id)
+        return
+      }
+
       setReaderBook(book)
 
       setReaderType(
@@ -3788,9 +3718,14 @@ export function App() {
           : 'pdf'
       )
 
-      setReaderFile(
-        book.file || ''
-      )
+      setReaderFile('')
+      void resolveBookSource(book).then((source) => {
+        if (source) setReaderFile(source)
+      }).catch((error) => {
+        console.error('Book media access failed:', error)
+        setReaderError(error?.message || 'Unable to open this book.')
+        setReaderLoading(false)
+      })
 
       setReaderFilePath(
         book.filePath ||
@@ -4363,6 +4298,7 @@ export function App() {
                   'paginated',
                 manager:
                   'default',
+                allowScriptedContent: false,
               }
             )
 
@@ -5331,7 +5267,8 @@ export function App() {
             'episode',
             story.id,
             episode.number
-          )
+          ),
+          story.id
         )
     )
     if (first) {
@@ -5359,7 +5296,7 @@ export function App() {
         'audio' && (
           <audio
             ref={audioRef}
-            src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}
+            src={currentMediaSrc || undefined}
             preload="metadata"
             onLoadedMetadata={
               handleLoadedMetadata
@@ -5383,7 +5320,7 @@ export function App() {
         !fullPlayer && (
           <video
             ref={videoRef}
-            src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}
+            src={currentMediaSrc || undefined}
             preload="metadata"
             onLoadedMetadata={
               handleLoadedMetadata
@@ -7125,7 +7062,7 @@ export function App() {
                         videoRef
                       }
                       className="main-video"
-                      src={currentEpisode.telegram_message_id ? `${STREAMING_SERVER_URL}/video/message/${encodeURIComponent(currentEpisode.telegram_message_id)}` : (currentEpisode.src || undefined)}
+                      src={currentMediaSrc || undefined}
                       controls
                       controlsList="nodownload noplaybackrate"
                       disablePictureInPicture
@@ -7811,7 +7748,7 @@ export function App() {
           className={`reader-overlay ${readerOpen
             ? ''
             : 'reader-minimized'
-            }`}
+            } ${isReading ? 'reader-reading' : ''}`}
         >
           <div className="reader-window">
             {/* HEADER */}
