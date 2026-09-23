@@ -101,7 +101,7 @@ async function handleTts(req, res, forcedProvider = 'auto') {
   } else if (requestedProvider === 'sarvam') {
     providers = ['sarvam']
   } else if (requestedProvider === 'auto') {
-    providers = tamil ? ['sarvam', 'edge'] : ['edge', 'sarvam']
+    providers = tamil ? ['edge', 'sarvam'] : ['edge', 'sarvam']
     if (!isSarvamConfigured()) providers = providers.filter((provider) => provider !== 'sarvam')
   } else {
     return send(res, 400, JSON.stringify({
@@ -211,7 +211,7 @@ const server = createServer(async (req, res) => {
         edge: { configured: true },
         sarvam: { configured: isSarvamConfigured() },
       },
-      ttsStrategy: 'Tamil: Sarvam → Edge fallback; other text: Edge → Sarvam fallback',
+      ttsStrategy: 'Tamil: Microsoft Edge Neural (selected Tamil voice) → Sarvam fallback; other text: Edge → Sarvam fallback',
     }), {
       'Content-Type': 'application/json; charset=utf-8',
       ...corsHeaders(req),
