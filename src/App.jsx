@@ -381,7 +381,7 @@ const installEdgeTtsSpeechBridge = () => {
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, voice, rate, pitch, provider: 'auto', speaker: 'ishita', pace: rate, language_code: isTamil(text) ? 'ta-IN' : 'en-IN', temperature: 0.6 }),
+            body: JSON.stringify({ text, voice, rate, pitch, provider: 'auto', speaker: 'ishita', pace: isTamil(text) ? Math.min(Math.max(rate * 0.92, 0.65), 1.35) : rate, language_code: isTamil(text) ? 'ta-IN' : 'en-IN', temperature: isTamil(text) ? 0.35 : 0.6 }),
           })
 
           if (!response.ok) {
@@ -3537,7 +3537,7 @@ export function App() {
       const chunks =
         chunkTextForSpeech(
           text,
-          240
+          /[\u0B80-\u0BFF]/u.test(text) ? 180 : 240
         )
 
       if (!chunks.length) {
@@ -3658,10 +3658,8 @@ export function App() {
   const closeReaderView =
     () => {
       if (isReading) {
+        stopReadAloud()
         setReaderOpen(false)
-        setPage(
-          'book-details'
-        )
         return
       }
 
@@ -3784,13 +3782,13 @@ export function App() {
 
   const openBook =
     (book) => {
+      // Remember whether the detail view came from the full Books page or
+      // the legacy Books modal. Never reopen a modal over the full catalogue.
       setPreDetailsPage(
-        page
+        booksModalOpen ? 'books-modal' : (page === 'books' ? 'books' : page)
       )
 
-      setBooksModalOpen(
-        false
-      )
+      setBooksModalOpen(false)
 
       setSelectedBook(
         book
@@ -6081,16 +6079,16 @@ export function App() {
             <button
               className="back-btn"
               onClick={() => {
-                setSelectedBook(
-                  null
-                )
+                const returnTarget = preDetailsPage
 
-                setBooksModalOpen(
-                  true
-                )
+                setSelectedBook(null)
+                setBooksModalOpen(returnTarget === 'books-modal')
+                setVideoModalOpen(false)
 
                 setPage(
-                  preDetailsPage
+                  returnTarget === 'books-modal'
+                    ? 'home'
+                    : returnTarget
                 )
               }}
             >
@@ -6206,16 +6204,16 @@ export function App() {
             <button
               className="back-btn"
               onClick={() => {
-                setSelectedVideo(
-                  null
-                )
+                const returnTarget = preDetailsPage
 
-                setVideoModalOpen(
-                  true
-                )
+                setSelectedVideo(null)
+                setVideoModalOpen(returnTarget === 'videos-modal')
+                setBooksModalOpen(false)
 
                 setPage(
-                  preDetailsPage
+                  returnTarget === 'videos-modal'
+                    ? 'home'
+                    : returnTarget
                 )
               }}
             >
@@ -6279,7 +6277,8 @@ export function App() {
                               'video-episode',
                               selectedVideo.id,
                               episode.number
-                            )
+                            ),
+                            selectedVideo.id
                           )
                       )
 
@@ -6468,8 +6467,9 @@ export function App() {
                     key={story.id}
                     className="library-card media-catalog-card"
                     onClick={() => {
-                      setPreDetailsPage('videos')
+                      setPreDetailsPage(videoModalOpen ? 'videos-modal' : 'videos')
                       setVideoModalOpen(false)
+                      setBooksModalOpen(false)
                       setSelectedVideo(story)
                       setPage('video-details')
                       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -7563,12 +7563,11 @@ export function App() {
                       className="library-card"
                       onClick={() => {
                         setPreDetailsPage(
-                          page
+                          videoModalOpen ? 'videos-modal' : (page === 'videos' ? 'videos' : page)
                         )
 
-                        setVideoModalOpen(
-                          false
-                        )
+                        setVideoModalOpen(false)
+                        setBooksModalOpen(false)
 
                         setSelectedVideo(
                           story
@@ -7748,7 +7747,7 @@ export function App() {
           className={`reader-overlay ${readerOpen
             ? ''
             : 'reader-minimized'
-            } ${isReading ? 'reader-reading' : ''}`}
+            } ${(isReading || activePlayerKind === 'readaloud') ? 'reader-reading' : ''}`}
         >
           <div className="reader-window">
             {/* HEADER */}
