@@ -5500,13 +5500,17 @@ export function App() {
         <button
           className="header-account"
           onClick={() => {
-            if (loggedIn) {
-              setPage(
-                'account'
-              )
-            } else {
+            if (!loggedIn) {
               setLoginOpen(true)
+              return
             }
+
+            if (isAdmin) {
+              setAdminOpen(true)
+              return
+            }
+
+            setPage('account')
           }}
         >
           {loggedIn
