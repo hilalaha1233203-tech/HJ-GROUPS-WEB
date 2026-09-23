@@ -43,6 +43,17 @@ jobs:
       - name: Verify Vite output exists
         run: test -f dist/index.html
 
+      - name: Auth / settings / metadata sanity check
+        run: |
+          grep -q "shouldCreateUser: false" src/Auth.jsx
+          grep -q "Email OTP Sign Up" src/Auth.jsx
+          grep -q "finishAuthRedirect" src/App.jsx
+          grep -q "Management & Settings" src/AdminPanel.jsx
+          grep -q "create table if not exists public.app_settings" supabase/production-content-repair.sql
+          grep -q "{{ .Token }}" supabase/email-templates/magic_link_otp.html
+          ! grep -q "{{ .ConfirmationURL }}" supabase/email-templates/magic_link_otp.html
+          ! grep -R -n "localhost:3000" src supabase/email-templates || true
+
       - name: Final source sanity check
         run: |
           ! grep -R -n "story?.id" src/App.jsx
