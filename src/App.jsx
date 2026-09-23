@@ -1906,14 +1906,14 @@ export function App() {
     setAccountSettingsReadyFor(user.id)
     setReaderTheme(String(next.readerTheme || 'dark'))
     setEpubFontScale(clamp(Number(next.readerFontSize) || 100, 75, 180))
-  }, [user?.id])
+  }, [user])
 
   useEffect(() => {
     if (!user || accountSettingsReadyFor !== user.id) return
     try {
       localStorage.setItem(ACCOUNT_SETTINGS_KEY + ':' + user.id, JSON.stringify(accountSettings))
     } catch {}
-  }, [accountSettings, accountSettingsReadyFor, user?.id])
+  }, [accountSettings, accountSettingsReadyFor, user])
 
   const handleAccountSettingsChange = (next) => {
     const normalized = {
@@ -5366,7 +5366,9 @@ export function App() {
   useEffect(() => {
     if (readerType !== 'epub' || !epubReady) return
     applyEpubReaderAppearance()
-  }, [readerType, epubReady, epubFontScale, readerTheme])
+    // applyEpubReaderAppearance intentionally tracks reader state above; it is
+    // recreated with the component render and is not an external subscription.
+  }, [readerType, epubReady, epubFontScale, readerTheme]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveReaderSetting = (key, value) => {
     setAccountSettings((current) => ({
