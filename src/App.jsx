@@ -4273,7 +4273,8 @@ export function App() {
                 '/script>'
 
               this.output = String(output || '')
-                .replace(new RegExp(scriptPattern, 'gi'), '')            })
+                .replace(new RegExp(scriptPattern, 'gi'), '')
+            })
           } catch (error) {
             console.warn('EPUB safety hook unavailable:', error)
           }
