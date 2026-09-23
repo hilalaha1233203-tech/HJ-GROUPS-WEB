@@ -136,6 +136,18 @@ test.describe('HJ GROUPS admin health', () => {
       await expect(page.getByText('DEVICE & DATA', { exact: true })).toBeVisible()
       await expect(page.getByText('Data Saver', { exact: true })).toBeVisible()
       await expect(page.getByText('Recovery status', { exact: true })).toBeVisible()
+      await expect(page.getByText('Backup Google account', { exact: true })).toBeVisible()
+      await expect(page.getByText('Recovery mobile', { exact: true })).toBeVisible()
+      await expect(page.getByText('SLEEP TIMER & ACCESSIBILITY', { exact: true })).toBeVisible()
+      await expect(page.getByText('Recommended recovery setup:', { exact: false })).toBeVisible()
+    }
+
+    const readAloudButton = page.getByRole('button', { name: /Read Aloud/i }).first()
+    await expect(readAloudButton).toBeVisible()
+    const zoomButtons = page.locator('.reader-zoom button')
+    if (await zoomButtons.count()) {
+      await expect(zoomButtons.first()).toBeVisible()
+      await expect(zoomButtons.last()).toBeVisible()
     }
 
     await test.info().attach('admin-health.json', {
