@@ -82,9 +82,13 @@ export function canAccess(
     types.includes('vip') ||
     types.includes('premium')
 
-  // A paid access type always takes precedence over a legacy/accidental
-  // "free" flag. Otherwise an item such as ["free","premium"] could be
-  // opened by a logged-out visitor and bypass the intended gate.
+  // Ads is an explicit alternate access path. For mixed items such as
+  // ["premium", "ads"], a valid ad unlock must grant access even when the
+  // visitor is logged out.
+  if (types.includes('ads') && adsKey && unlockedAds?.has(adsKey)) {
+    return true
+  }
+
   if (requiresPurchase) {
     if (!loggedIn) return false
     if (!purchasedStoryIds || purchasedStoryIds.size === 0) return false
@@ -105,12 +109,6 @@ export function canAccess(
       ) {
         return true
       }
-    }
-
-    // Premium/VIP can coexist with an ads access mode, but the presence of
-    // the paid type means the normal free path must never unlock it.
-    if (types.includes('ads') && adsKey && unlockedAds?.has(adsKey)) {
-      return true
     }
 
     return false
