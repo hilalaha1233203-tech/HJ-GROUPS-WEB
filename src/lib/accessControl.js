@@ -71,7 +71,7 @@ export function adsKeyFor(kind, ...ids) {
 
 export function canAccess(
   item,
-  { isAdmin, unlockedAds, adsKey, purchasedStoryIds, storyId } = {}
+  { isAdmin, loggedIn = false, unlockedAds, adsKey, purchasedStoryIds, storyId } = {}
 ) {
   if (!item) return false
   if (isAdmin) return true
@@ -86,6 +86,7 @@ export function canAccess(
   // "free" flag. Otherwise an item such as ["free","premium"] could be
   // opened by a logged-out visitor and bypass the intended gate.
   if (requiresPurchase) {
+    if (!loggedIn) return false
     if (!purchasedStoryIds || purchasedStoryIds.size === 0) return false
 
     const candidates = [
