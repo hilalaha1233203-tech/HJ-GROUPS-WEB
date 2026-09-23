@@ -3043,6 +3043,12 @@ export function App() {
       } catch { }
 
       setTtsSettings(next)
+      if (key === 'tamilVoice' || key === 'englishVoice') {
+        setAccountSettings((current) => ({
+          ...current,
+          [key]: value,
+        }))
+      }
     }
 
   const changeSpeed =
@@ -3656,8 +3662,32 @@ export function App() {
 
       const hasTamil = /[\u0B80-\u0BFF]/u.test(chunk)
       const voices = window.speechSynthesis.getVoices?.() || []
-      const tamilVoice = voices.find((item) => /^(ta)(?:[-_]|$)/i.test(String(item.lang || '')))
-      const indianEnglish = voices.find((item) => /^en[-_]IN(?:[-_]|$)/i.test(String(item.lang || '')))
+
+      const preferredTamil = String(ttsSettings.tamilVoice || accountSettings.tamilVoice || '')
+        .replace(/Neural$/i, '')
+        .split('-')
+        .filter(Boolean)
+        .pop() || 'Pallavi'
+      const preferredEnglish = String(ttsSettings.englishVoice || accountSettings.englishVoice || '')
+        .replace(/Neural$/i, '')
+        .split('-')
+        .filter(Boolean)
+        .pop() || 'Neerja'
+
+      const tamilVoice =
+        voices.find((item) =>
+          /^(ta)(?:[-_]|$)/i.test(String(item.lang || '')) &&
+          String(item.name || '').toLowerCase().includes(preferredTamil.toLowerCase())
+        ) ||
+        voices.find((item) => /^(ta)(?:[-_]|$)/i.test(String(item.lang || '')))
+
+      const indianEnglish =
+        voices.find((item) =>
+          /^en[-_]IN(?:[-_]|$)/i.test(String(item.lang || '')) &&
+          String(item.name || '').toLowerCase().includes(preferredEnglish.toLowerCase())
+        ) ||
+        voices.find((item) => /^en[-_]IN(?:[-_]|$)/i.test(String(item.lang || '')))
+
       utterance.lang = hasTamil ? 'ta-IN' : 'en-IN'
       utterance.voice = hasTamil ? (tamilVoice || speechVoiceRef.current || null) : (indianEnglish || speechVoiceRef.current || null)
       const configuredTtsSpeed = Number(accountSettings.ttsSpeed)
