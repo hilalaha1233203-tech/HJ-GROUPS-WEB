@@ -144,7 +144,9 @@ test.describe('HJ GROUPS TTS health', () => {
       timeout: 80_000,
     })
 
-    expect(response.status(), await response.text()).toBe(200)
+    const status = response.status()
+    const errorBody = status === 200 ? '' : await response.text()
+    expect(status, errorBody).toBe(200)
     const contentType = String(response.headers()['content-type'] || '')
     expect(contentType).toMatch(/^audio\/mpeg(?:;|$)/i)
 
