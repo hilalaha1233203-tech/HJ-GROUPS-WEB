@@ -17,6 +17,7 @@ const DEFAULTS = Object.freeze({
   englishVoice: 'en-IN-NeerjaNeural',
   readerTheme: 'dark',
   readerFontSize: 100,
+  readerPdfScale: 1,
   readerRememberPosition: true,
   reducedMotion: false,
 })
@@ -273,6 +274,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
       ...mergedSettings,
       readerTheme: 'dark',
       readerFontSize: 100,
+      readerPdfScale: 1,
       readerRememberPosition: true,
     }
     onSettingsChange?.(next)
@@ -416,6 +418,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
         <div className="account-settings-grid">
           <label><span>Reader theme</span><select value={mergedSettings.readerTheme} onChange={(event) => setSetting('readerTheme', event.target.value)}><option value="dark">Dark</option><option value="paper">Paper</option><option value="sepia">Sepia</option><option value="night">Night Blue</option></select></label>
           <label><span>Reader font size: {mergedSettings.readerFontSize}%</span><input type="range" min="75" max="180" step="5" value={mergedSettings.readerFontSize} onChange={(event) => setSetting('readerFontSize', Number(event.target.value))} /></label>
+          <label><span>Default PDF zoom: {Math.round(mergedSettings.readerPdfScale * 100)}%</span><input type="range" min="0.5" max="2.5" step="0.05" value={mergedSettings.readerPdfScale} onChange={(event) => setSetting('readerPdfScale', Number(event.target.value))} /></label>
           <label className="settings-check"><input type="checkbox" checked={!!mergedSettings.readerRememberPosition} onChange={(event) => setSetting('readerRememberPosition', event.target.checked)} /><span>Remember last reader position</span></label>
         </div>
 
