@@ -3336,21 +3336,39 @@ body:has(.reader-overlay:not(.reader-minimized)),
     padding: 0;
   }
 
-  .reader-tools button:first-child::before {
+  .reader-tools button:nth-child(1)::before {
     content:
-      "☰";
+      "🔊";
     font-size: 15px;
   }
 
   .reader-tools button:nth-child(2)::before {
     content:
-      "⛶";
+      "⚙";
     font-size: 15px;
   }
 
   .reader-tools button:nth-child(3)::before {
     content:
-      "🔊";
+      "☰";
+    font-size: 15px;
+  }
+
+  .reader-tools button:nth-child(4)::before {
+    content:
+      "⛶";
+    font-size: 15px;
+  }
+
+  .reader-tools button:nth-child(5)::before {
+    content:
+      "▾";
+    font-size: 15px;
+  }
+
+  .reader-tools button:nth-child(6)::before {
+    content:
+      "🔒";
     font-size: 15px;
   }
 
