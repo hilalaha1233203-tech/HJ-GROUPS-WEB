@@ -238,6 +238,36 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     }
   }
 
+  const clearPlaybackPositions = () => {
+    let removed = 0
+    try {
+      for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+        const key = localStorage.key(index)
+        if (String(key || '').startsWith('hj_media_position_v2:')) {
+          localStorage.removeItem(key)
+          removed += 1
+        }
+      }
+    } catch (clearError) {
+      setError(clearError?.message || 'Unable to clear playback positions.')
+      return
+    }
+    setStatus(removed ? 'Saved playback positions cleared from this browser.' : 'No saved playback positions were found.')
+  }
+
+  const signOutAllDevices = async () => {
+    setStatus('')
+    setError('')
+    setBusy(true)
+    const { error: signOutError } = await supabase.auth.signOut({ scope: 'global' })
+    setBusy(false)
+    if (signOutError) {
+      setError(signOutError.message)
+      return
+    }
+    setStatus('Signed out from all active sessions.')
+  }
+
   const clearReaderDefaults = () => {
     const next = {
       ...mergedSettings,
@@ -395,6 +425,30 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
           ))}
         </div>
         <button className="secondary-btn" type="button" onClick={clearReaderDefaults}>Reset Reader Settings</button>
+      </section>
+
+      <section className="account-settings-card">
+        <div className="account-settings-card-head">
+          <div><small>DEVICE & SESSION CONTROLS</small><h2>Privacy & Session Safety</h2></div>
+          <span className="account-settings-icon">🔐</span>
+        </div>
+
+        <div className="account-settings-recovery-grid">
+          <div className="account-settings-mini">
+            <strong>Clear playback positions</strong>
+            <p>Removes only this browser's saved audio/video resume positions. Purchases, library content and account data are not removed.</p>
+            <button className="secondary-btn" type="button" onClick={clearPlaybackPositions} disabled={busy}>Clear Resume Data</button>
+          </div>
+          <div className="account-settings-mini">
+            <strong>Sign out all devices</strong>
+            <p>Ends active Supabase sessions across the account. Use this after changing a password or if another device is no longer trusted.</p>
+            <button className="secondary-btn" type="button" onClick={signOutAllDevices} disabled={busy}>Sign Out All Devices</button>
+          </div>
+          <div className="account-settings-mini">
+            <strong>Purchase recovery</strong>
+            <p>Your paid content should stay attached to this account's user ID. Recover access by returning to this same account with its verified recovery method.</p>
+          </div>
+        </div>
       </section>
 
       <section className="account-settings-card">
