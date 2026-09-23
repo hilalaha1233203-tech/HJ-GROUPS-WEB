@@ -272,7 +272,7 @@ function AdminPanel({
               ...normalizeContentAccessSettings(stored.content || {}),
               ...(stored.content || {}),
             },
-            ads: { ...DEFAULT_ADMIN_SETTINGS.ads, ...normalizeShortenerSettings(stored.ads || {}), ...(stored.ads || {}) },
+            ads: normalizeShortenerSettings({ ...DEFAULT_ADMIN_SETTINGS.ads, ...(stored.ads || {}) }),
             payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored.payments || {}) },
           })
           try {
