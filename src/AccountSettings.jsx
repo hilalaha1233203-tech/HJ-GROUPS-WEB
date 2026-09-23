@@ -23,15 +23,14 @@ const DEFAULTS = Object.freeze({
 })
 
 function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTimer, onApplyPlayerSettings, isAdmin = false }) {
-  const [name, setName] = useState('')
-  const [newEmail, setNewEmail] = useState('')
-  const [phone, setPhone] = useState('')
+  const [name, setName] = useState(() => String(user?.user_metadata?.full_name || ''))
+  const [newEmail, setNewEmail] = useState(() => String(user?.email || ''))
+  const [phone, setPhone] = useState(() => String(user?.phone || ''))
   const [phoneOtp, setPhoneOtp] = useState('')
   const [phonePending, setPhonePending] = useState(false)
   const [password, setPassword] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [resetSent, setResetSent] = useState(false)
-  const [backupLabel, setBackupLabel] = useState('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -40,17 +39,6 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     () => ({ ...DEFAULTS, ...(settings || {}) }),
     [settings]
   )
-
-  useEffect(() => {
-    setName(String(user?.user_metadata?.full_name || ''))
-    setNewEmail(String(user?.email || ''))
-    setPhone(String(user?.phone || ''))
-  }, [user?.id, user?.email, user?.phone, user?.user_metadata?.full_name])
-
-  useEffect(() => {
-    const connected = user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected
-    if (connected) setBackupLabel('Google backup identity connected')
-  }, [user?.id, user?.identities, user?.user_metadata?.backup_google_connected])
 
   const setSetting = (key, value) => {
     const next = { ...DEFAULTS, ...mergedSettings, [key]: value }
@@ -83,6 +71,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
       setError(updateError.message)
       return
     }
+    setName(nextName)
     setStatus('Name updated successfully.')
   }
 
@@ -211,6 +200,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
 
     setPhonePending(false)
     setPhoneOtp('')
+    setPhone(phone.trim())
     setStatus('Mobile number verified and bound to this account.')
   }
 
@@ -343,8 +333,14 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
           <div className="account-settings-mini">
             <strong>Backup Google account</strong>
             <p>Link a Google identity to this same account so the backup identity can recover access without creating a separate purchaser account.</p>
-            <button className="secondary-btn" type="button" onClick={connectGoogleBackup} disabled={busy}>Connect Google Backup</button>
-            {backupLabel && <small className="account-settings-ok">✓ {backupLabel}</small>}
+            <button className="secondary-btn" type="button" onClick={connectGoogleBackup} disabled={busy}>
+              {backupLabel || user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected
+                ? 'Google Backup Connected'
+                : 'Connect Google Backup'}
+            </button>
+            {(backupLabel || user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected) && (
+              <small className="account-settings-ok">✓ Google backup identity connected</small>
+            )}
           </div>
 
           <div className="account-settings-mini account-settings-phone">
