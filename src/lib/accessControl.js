@@ -147,7 +147,7 @@ export function adsKeyFor(kind, ...ids) {
 
 export function canAccess(
   item,
-  { isAdmin, loggedIn = false, unlockedAds, adsKey, purchasedStoryIds, storyId } = {}
+  { isAdmin, loggedIn = false, adsKey, purchasedStoryIds, storyId } = {}
 ) {
   if (!item) return false
   if (isAdmin) return true
