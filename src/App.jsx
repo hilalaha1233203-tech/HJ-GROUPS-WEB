@@ -4825,6 +4825,46 @@ export function App() {
       return result
     }
 
+  /* =======================================================
+     ZOOM
+  ======================================================= */
+
+  function applyEpubReaderAppearance() {
+    const rendition = epubRenditionRef.current
+    if (!rendition) return
+
+    try {
+      rendition.themes.fontSize(String(Math.round(epubFontScale)) + '%')
+    } catch {}
+
+    try {
+      const iframe = epubContainerRef.current?.querySelector('iframe')
+      const doc = iframe?.contentDocument
+      if (!doc) return
+
+      let style = doc.getElementById('hj-epub-reader-appearance')
+      if (!style) {
+        style = doc.createElement('style')
+        style.id = 'hj-epub-reader-appearance'
+        doc.head?.appendChild(style)
+      }
+
+      const palettes = {
+        dark: { background: '#111522', color: '#f4f5fb' },
+        paper: { background: '#fbf7ef', color: '#26231e' },
+        sepia: { background: '#f1e3c7', color: '#3d2d1f' },
+        night: { background: '#0a1730', color: '#dcecff' },
+      }
+      const palette = palettes[readerTheme] || palettes.dark
+      style.textContent =
+        'html,body{background:' + palette.background + ' !important;color:' + palette.color + ' !important;}' +
+        'body,body *{color:' + palette.color + ' !important;}' +
+        'img{max-width:100% !important;height:auto !important;}' +
+        '::selection{background:rgba(124,131,255,.35) !important;}'
+    } catch {}
+  }
+
+
   useEffect(() => {
     if (
       readerType !== 'epub' ||
@@ -5460,44 +5500,6 @@ export function App() {
       }
     }
 
-  /* =======================================================
-     ZOOM
-  ======================================================= */
-
-  function applyEpubReaderAppearance() {
-    const rendition = epubRenditionRef.current
-    if (!rendition) return
-
-    try {
-      rendition.themes.fontSize(String(Math.round(epubFontScale)) + '%')
-    } catch {}
-
-    try {
-      const iframe = epubContainerRef.current?.querySelector('iframe')
-      const doc = iframe?.contentDocument
-      if (!doc) return
-
-      let style = doc.getElementById('hj-epub-reader-appearance')
-      if (!style) {
-        style = doc.createElement('style')
-        style.id = 'hj-epub-reader-appearance'
-        doc.head?.appendChild(style)
-      }
-
-      const palettes = {
-        dark: { background: '#111522', color: '#f4f5fb' },
-        paper: { background: '#fbf7ef', color: '#26231e' },
-        sepia: { background: '#f1e3c7', color: '#3d2d1f' },
-        night: { background: '#0a1730', color: '#dcecff' },
-      }
-      const palette = palettes[readerTheme] || palettes.dark
-      style.textContent =
-        'html,body{background:' + palette.background + ' !important;color:' + palette.color + ' !important;}' +
-        'body,body *{color:' + palette.color + ' !important;}' +
-        'img{max-width:100% !important;height:auto !important;}' +
-        '::selection{background:rgba(124,131,255,.35) !important;}'
-    } catch {}
-  }
 
 
   /* =======================================================
