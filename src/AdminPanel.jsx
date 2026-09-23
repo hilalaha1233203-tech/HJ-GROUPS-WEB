@@ -263,7 +263,11 @@ function AdminPanel({
             ...DEFAULT_ADMIN_SETTINGS,
             ...stored,
             website: { ...DEFAULT_ADMIN_SETTINGS.website, ...(stored.website || {}) },
-            content: { ...DEFAULT_ADMIN_SETTINGS.content, ...(stored.content || {}) },
+            content: {
+              ...DEFAULT_ADMIN_SETTINGS.content,
+              ...normalizeContentAccessSettings(stored.content || {}),
+              ...(stored.content || {}),
+            },
             ads: { ...DEFAULT_ADMIN_SETTINGS.ads, ...(stored.ads || {}) },
             payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored.payments || {}) },
           })
