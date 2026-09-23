@@ -2074,17 +2074,19 @@ export function App() {
 
   const applyAccountPlayerSettings = (next) => {
     const media = getMediaElement()
-    if (!media) return
     const isVideo = currentEpisode?.type === 'video'
     const value = Number(isVideo ? next.videoVolume : next.audioVolume)
     const rate = Number(isVideo ? next.videoSpeed : next.audioSpeed)
-    if (Number.isFinite(value)) {
-      media.volume = clamp(value, 0, 1)
-      setVolume(clamp(value, 0, 1))
-    }
-    if (Number.isFinite(rate)) {
-      media.playbackRate = clamp(rate, 0.5, 2)
-      setSpeed(clamp(rate, 0.5, 2))
+
+    if (media) {
+      if (Number.isFinite(value)) {
+        media.volume = clamp(value, 0, 1)
+        setVolume(clamp(value, 0, 1))
+      }
+      if (Number.isFinite(rate)) {
+        media.playbackRate = clamp(rate, 0.5, 2)
+        setSpeed(clamp(rate, 0.5, 2))
+      }
     }
 
     const ttsVolume = Number(next.ttsVolume)
