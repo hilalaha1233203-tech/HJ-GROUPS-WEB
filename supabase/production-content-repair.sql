@@ -12,6 +12,7 @@ alter table public.stories add column if not exists description text default '';
 alter table public.stories add column if not exists genre text default 'Fantasy';
 alter table public.stories add column if not exists cover_path text;
 alter table public.stories add column if not exists telegram_message_id bigint;
+alter table public.stories add column if not exists language text default 'Tamil';
 
 alter table public.episodes add column if not exists number int;
 alter table public.episodes add column if not exists type text default 'audio';
@@ -68,6 +69,7 @@ alter table public.books add column if not exists file_url text;
 alter table public.books add column if not exists file_path text default '';
 alter table public.books add column if not exists telegram_message_id bigint;
 alter table public.books add column if not exists volumes jsonb not null default '[]'::jsonb;
+alter table public.books add column if not exists language text default 'Tamil';
 
 -- -----------------------------
 -- Video stories / episodes
@@ -87,6 +89,7 @@ create table if not exists public.video_stories (
 alter table public.video_stories add column if not exists cover_url text;
 alter table public.video_stories add column if not exists cover_path text default '';
 alter table public.video_stories add column if not exists telegram_message_id bigint;
+alter table public.video_stories add column if not exists language text default 'Tamil';
 
 create table if not exists public.video_episodes (
   id bigint generated always as identity primary key,
