@@ -85,6 +85,6 @@ jobs:
           grep -q "applyEpubReaderAppearance" src/App.jsx
           grep -q "reader-tools" src/App.css
           grep -q "reader-bottom-read-aloud-row" src/App.css
-          ! grep -q "reader-body .react-pdf__Page canvas.*width: auto" src/App.css
+          ! awk '/^\.reader-body \.react-pdf__Page canvas \{/{flag=1} flag{print} /^\}/{if(flag){exit}}' src/App.css | grep -Eq "width:[[:space:]]*auto|height:[[:space:]]*auto"
           grep -q "max-width: none !important" src/App.css
           grep -q "reader-theme-paper" src/App.css
