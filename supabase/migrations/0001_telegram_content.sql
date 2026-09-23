@@ -19,7 +19,8 @@ create table if not exists stories (
   title text not null,
   genre text default 'Fantasy',
   language text default 'Tamil',
-  cover_file_id text,\n  telegram_message_id bigint,
+  cover_file_id text,
+  telegram_message_id bigint,
   description text default '',
   created_at timestamptz not null default now()
 );
