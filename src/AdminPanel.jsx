@@ -1,6 +1,7 @@
 import FileUploadField from './components/FileUploadField'
 import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
+import { normalizeShortenerSettings } from './lib/shortenerProviders'
 import { supabase } from './supabase'
 import React, { useEffect, useState } from 'react'
 
@@ -40,6 +41,9 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     rewardedAdUnitId: '',
     interstitialAdUnitId: '',
     unlockDurationMinutes: 120,
+    shortenerEnabled: false,
+    primaryShortener: 'earn4link',
+    fallbackShortener: 'shrinkme',
   },
   payments: {
     enabled: false,
@@ -268,7 +272,7 @@ function AdminPanel({
               ...normalizeContentAccessSettings(stored.content || {}),
               ...(stored.content || {}),
             },
-            ads: { ...DEFAULT_ADMIN_SETTINGS.ads, ...(stored.ads || {}) },
+            ads: { ...DEFAULT_ADMIN_SETTINGS.ads, ...normalizeShortenerSettings(stored.ads || {}), ...(stored.ads || {}) },
             payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored.payments || {}) },
           })
           try {
@@ -1567,6 +1571,38 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <label>Rewarded Ad Unit ID<input value={adminSettings.ads.rewardedAdUnitId} onChange={(e) => updateAdminSetting('ads', 'rewardedAdUnitId', e.target.value)} placeholder="Rewarded placement ID" /></label>
                   <label>Interstitial Ad Unit ID<input value={adminSettings.ads.interstitialAdUnitId} onChange={(e) => updateAdminSetting('ads', 'interstitialAdUnitId', e.target.value)} placeholder="Optional interstitial ID" /></label>
                   <label>Unlock duration (minutes)<input type="number" min="1" max="1440" value={adminSettings.ads.unlockDurationMinutes} onChange={(e) => updateAdminSetting('ads', 'unlockDurationMinutes', Number(e.target.value) || 120)} /></label>
+                  <label className="admin-settings-toggle">
+                    <input
+                      type="checkbox"
+                      checked={adminSettings.ads.shortenerEnabled === true}
+                      onChange={(e) => updateAdminSetting('ads', 'shortenerEnabled', e.target.checked)}
+                    />
+                    <span>Enable shortener routing</span>
+                  </label>
+                  <label>Primary shortener
+                    <select
+                      value={adminSettings.ads.primaryShortener || 'earn4link'}
+                      onChange={(e) => updateAdminSetting('ads', 'primaryShortener', e.target.value)}
+                    >
+                      <option value="earn4link">Earn4Link</option>
+                      <option value="shrinkme">ShrinkMe</option>
+                    </select>
+                  </label>
+                  <label>Fallback shortener
+                    <select
+                      value={adminSettings.ads.fallbackShortener || ''}
+                      onChange={(e) => updateAdminSetting('ads', 'fallbackShortener', e.target.value)}
+                    >
+                      <option value="">None</option>
+                      <option value="earn4link">Earn4Link</option>
+                      <option value="shrinkme">ShrinkMe</option>
+                    </select>
+                  </label>
+                  <small className="admin-settings-note">
+                    Primary: <strong>{adminSettings.ads.primaryShortener === 'earn4link' ? 'Earn4Link' : 'ShrinkMe'}</strong>
+                    {adminSettings.ads.fallbackShortener ? <> → <strong>{adminSettings.ads.fallbackShortener === 'earn4link' ? 'Earn4Link' : 'ShrinkMe'}</strong></> : null}.
+                    Routing is disabled by default. Use only for provider-approved link flows; a shortener redirect is not ad-completion proof.
+                  </small>
                 </div>
                 <small className="admin-settings-note">Provider secret/API credentials should stay in Vercel/Supabase server environment variables, not browser storage.</small>
               </div>
