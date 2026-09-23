@@ -6185,8 +6185,6 @@ body:has(.reader-overlay:not(.reader-minimized)),
 }
 .reader-body .react-pdf__Page canvas {
   max-width: none !important;
-  width: auto !important;
-  height: auto !important;
 }
 
 /* Make every reader appearance actually change the shell, not only a small accent. */
@@ -6228,6 +6226,35 @@ body:has(.reader-overlay:not(.reader-minimized)),
 .reader-overlay:not(.reader-minimized).reader-theme-night .epub-reader,
 .reader-overlay:not(.reader-minimized).reader-theme-night .epub-reader iframe {
   background: #0e2344 !important;
+}
+.reader-overlay.reader-theme-paper .reader-window .reader-bottom,
+.reader-overlay.reader-theme-paper .reader-window .reader-navigation,
+.reader-overlay.reader-theme-paper .reader-window .reader-zoom,
+.reader-overlay.reader-theme-paper .reader-window .reader-player {
+  color: #2c281f;
+}
+.reader-overlay.reader-theme-paper .reader-window .reader-player {
+  background: rgba(255,250,242,.96);
+  border-color: rgba(55,42,23,.15);
+}
+.reader-overlay.reader-theme-paper .reader-window .reader-player > button,
+.reader-overlay.reader-theme-paper .reader-window .reader-player select,
+.reader-overlay.reader-theme-paper .reader-window .reader-player input[type="range"] {
+  color: #2c281f;
+}
+.reader-overlay.reader-theme-paper .reader-window .reader-zoom span,
+.reader-overlay.reader-theme-paper .reader-window .reader-page-jump {
+  color: #5b503f;
+}
+.reader-overlay.reader-theme-sepia .reader-window .reader-player {
+  background: rgba(246,233,207,.96);
+  border-color: rgba(76,55,31,.15);
+  color: #3e3021;
+}
+.reader-overlay.reader-theme-night .reader-window .reader-player {
+  background: rgba(7,18,35,.96);
+  border-color: rgba(124,183,255,.18);
+  color: #dcecff;
 }
 
 /* Mobile: give the Read Aloud control its own visible row instead of letting the tool strip overflow. */
@@ -6273,6 +6300,21 @@ body:has(.reader-overlay:not(.reader-minimized)),
 .account-recovery-status-list span{font-size:10px}
 .account-recovery-status-list .is-ok{color:#91efc3}
 .account-recovery-status-list .is-warn{color:#d0a4a4}
+.account-settings-recovery-flow strong{color:#fff}
+.reader-bottom-read-aloud-row{display:flex;justify-content:center;grid-area:status;min-width:0}
+.reader-read-aloud-bottom{
+  width:min(520px,100%);
+  min-height:38px;
+  padding:8px 14px;
+  border:1px solid rgba(124,131,255,.42);
+  border-radius:10px;
+  background:rgba(124,131,255,.11);
+  color:#f5f6ff;
+  font-size:11px;
+  font-weight:800;
+}
+.reader-read-aloud-bottom:hover{background:rgba(124,131,255,.18)}
+.reader-read-aloud-bottom:disabled{opacity:.45;cursor:not-allowed}
 .reader-read-aloud-main{font-weight:800 !important;color:#fff !important;border-color:rgba(124,131,255,.55) !important;background:rgba(124,131,255,.16) !important}
 
 
