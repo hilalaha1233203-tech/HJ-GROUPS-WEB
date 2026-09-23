@@ -424,25 +424,7 @@ function Auth({ onBack }) {
         {mode === 'signup' && (
           <>
             {!loginMethod && (
-              <>
-                <button
-                  type="button"
-                  className="login-method-card login-method-card-google"
-                  onClick={startGoogleBackupLogin}
-                  disabled={loading}
-                >
-                  <span className="method-icon">🛡️</span>
-                  <span className="method-text">
-                    <strong className="method-title">Google Backup Login</strong>
-                    <small className="method-description">Use only a Google account previously connected in Account → Settings</small>
-                  </span>
-                </button>
-
-                <div className="auth-recovery-note">
-                  Use this only with a Google identity you already linked to the same HJ GROUPS account. A new/unlinked Google account can be treated as a separate identity depending on your Supabase Auth provider settings.
-                </div>
-
-                <div className="login-method-selection">
+              <div className="login-method-selection">
                 <button type="button" className="login-method-card" onClick={() => selectMethod('password')}>
                   <span className="method-icon">🔐</span>
                   <span className="method-text">
@@ -543,7 +525,25 @@ function Auth({ onBack }) {
         {mode === 'login' && (
           <>
             {!loginMethod && (
-              <div className="login-method-selection">
+              <>
+                <button
+                  type="button"
+                  className="login-method-card login-method-card-google"
+                  onClick={startGoogleBackupLogin}
+                  disabled={loading}
+                >
+                  <span className="method-icon">🛡️</span>
+                  <span className="method-text">
+                    <strong className="method-title">Google Backup Login</strong>
+                    <small className="method-description">Use only a Google account previously connected in Account → Settings</small>
+                  </span>
+                </button>
+
+                <div className="auth-recovery-note">
+                  Use this only with a Google identity you already linked to the same HJ GROUPS account. A new/unlinked Google account can be treated as a separate identity depending on your Supabase Auth provider settings.
+                </div>
+
+                <div className="login-method-selection">
                 <button type="button" className="login-method-card" onClick={() => selectMethod('password')}>
                   <span className="method-icon">🔐</span>
                   <span className="method-text">
