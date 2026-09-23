@@ -340,6 +340,16 @@ const installEdgeTtsSpeechBridge = () => {
   const originalPause = synthesis.pause?.bind(synthesis)
   const originalResume = synthesis.resume?.bind(synthesis)
 
+  const onTtsSpeed = (event) => {
+    const value = Number(event?.detail)
+    if (!Number.isFinite(value) || !activeAudio) return
+    try {
+      activeAudio.playbackRate = Math.max(0.65, Math.min(1.5, value))
+    } catch {}
+  }
+
+  window.addEventListener('hj-tts-speed', onTtsSpeed)
+
   let activeAudio = null
   let run = 0
   const cache = new Map()
@@ -559,6 +569,7 @@ const installEdgeTtsSpeechBridge = () => {
     try { if (originalPause) synthesis.pause = originalPause } catch {}
     try { if (originalResume) synthesis.resume = originalResume } catch {}
     cache.clear()
+    window.removeEventListener('hj-tts-speed', onTtsSpeed)
     delete window.__hjEdgeTtsSpeechBridge
   }
 }
@@ -634,18 +645,6 @@ export function App() {
     return installEdgeTtsSpeechBridge()
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined
-
-    const onTtsSpeed = (event) => {
-      const value = Number(event?.detail)
-      if (!Number.isFinite(value)) return
-      setSpeed(Math.max(0.5, Math.min(2, value)))
-    }
-
-    window.addEventListener('hj-tts-speed', onTtsSpeed)
-    return () => window.removeEventListener('hj-tts-speed', onTtsSpeed)
-  }, [])
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) return undefined
@@ -735,6 +734,19 @@ export function App() {
 
   const [speed, setSpeed] =
     useState(1)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const onTtsSpeed = (event) => {
+      const value = Number(event?.detail)
+      if (!Number.isFinite(value)) return
+      setSpeed(Math.max(0.5, Math.min(2, value)))
+    }
+
+    window.addEventListener('hj-tts-speed', onTtsSpeed)
+    return () => window.removeEventListener('hj-tts-speed', onTtsSpeed)
+  }, [])
 
   const [sleepMinutes, setSleepMinutes] =
     useState(0)
@@ -2720,12 +2732,6 @@ export function App() {
           value
       }
 
-      if (window.__hjEdgeTtsAudioElement) {
-        try {
-          window.__hjEdgeTtsAudioElement.playbackRate = value
-        } catch { }
-      }
-
       window.dispatchEvent?.(
         new CustomEvent('hj-tts-speed', {
           detail: value,
@@ -4385,19 +4391,21 @@ export function App() {
               */
               const book = epubBookRef.current
 
-              let locations = null
-              try {
-                locations = book?.locations || null
-              } catch {
-                locations = null
-              }
+              const locations = (() => {
+                try {
+                  return book?.locations || null
+                } catch {
+                  return null
+                }
+              })()
 
-              let locationCount = 0
-              try {
-                locationCount = Number(locations?.length) || 0
-              } catch {
-                locationCount = 0
-              }
+              const locationCount = (() => {
+                try {
+                  return Number(locations?.length) || 0
+                } catch {
+                  return 0
+                }
+              })()
 
               const hasLocations =
                 locationCount > 0
@@ -4543,12 +4551,13 @@ export function App() {
               .then(() => {
                 if (cancelled || epubBookRef.current !== book) return
 
-                let locationCount = 0
-                try {
-                  locationCount = Number(locations.length) || 0
-                } catch {
-                  locationCount = 0
-                }
+                const locationCount = (() => {
+                  try {
+                    return Number(locations.length) || 0
+                  } catch {
+                    return 0
+                  }
+                })()
 
                 setEpubLocationsReady(locationCount > 0)
                 setEpubPages(locationCount)
@@ -4861,15 +4870,21 @@ export function App() {
     const book =
       epubBookRef.current
 
-    let locations = null
-    let total = 0
-    try {
-      locations = book?.locations || null
-      total = Number(locations?.length) || 0
-    } catch {
-      locations = null
-      total = 0
-    }
+    const locations = (() => {
+      try {
+        return book?.locations || null
+      } catch {
+        return null
+      }
+    })()
+
+    const total = (() => {
+      try {
+        return Number(locations?.length) || 0
+      } catch {
+        return 0
+      }
+    })()
 
     if (!locations || !total) {
       alert(
