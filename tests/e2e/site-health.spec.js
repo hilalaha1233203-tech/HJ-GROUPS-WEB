@@ -116,6 +116,32 @@ test.describe('HJ GROUPS public website health', () => {
 })
 
 
+test.describe('HJ GROUPS authentication UI health', () => {
+  test('login and signup expose both password and email OTP methods', async ({ page }) => {
+    const health = await collectHealth(page, async () => {
+      const login = page.getByRole('button', { name: /login/i }).first()
+      await expect(login).toBeVisible()
+      await login.click()
+
+      await expect(page.getByText('Password Login', { exact: true })).toBeVisible()
+      await expect(page.getByText('Email OTP Login', { exact: true })).toBeVisible()
+
+      await page.getByRole('button', { name: /sign up/i }).last().click()
+      await expect(page.getByText('Password Sign Up', { exact: true })).toBeVisible()
+      await expect(page.getByText('Email OTP Sign Up', { exact: true })).toBeVisible()
+    })
+
+    const merged = mergeHealth([health])
+    if (process.env.STRICT_QA === 'true') {
+      expect(merged.pageErrors, 'unexpected page errors').toEqual([])
+      expect(merged.consoleErrors, 'unexpected console errors').toEqual([])
+      expect(merged.failedRequests, 'failed network requests').toEqual([])
+      expect(merged.badResponses, 'HTTP 4xx/5xx responses').toEqual([])
+    }
+  })
+})
+
+
 test.describe('HJ GROUPS TTS health', () => {
   test('production TTS endpoint returns playable audio', async ({ request }) => {
     test.skip(
