@@ -54,7 +54,7 @@ jobs:
           grep -q "PASSWORD_RECOVERY" src/App.jsx
           grep -q "AccountSettings" src/App.jsx
           grep -q "account-settings" src/App.jsx
-          grep -q "reader-theme-paper" src/App.jsx
+          grep -q "reader-theme-paper" src/App.css
           grep -q "applyEpubReaderAppearance" src/App.jsx
           grep -q "Read Aloud" src/App.jsx
           grep -q "Management & Settings" src/AdminPanel.jsx
