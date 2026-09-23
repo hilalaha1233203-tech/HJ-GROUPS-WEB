@@ -9,6 +9,66 @@ const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL ||
   .replace(/\/+$/, '')
 
 
+const ADMIN_SETTINGS_KEY = 'hj_admin_settings_v1'
+
+const DEFAULT_ADMIN_SETTINGS = Object.freeze({
+  website: {
+    siteName: 'HJ GROUPS',
+    tagline: 'Stories, Books & Videos',
+    supportEmail: '',
+    logoUrl: '',
+    maintenanceMode: false,
+    allowNewSignup: true,
+    allowOtpSignup: true,
+  },
+  content: {
+    defaultAudioAccess: ['free'],
+    defaultBookAccess: ['free'],
+    defaultVideoAccess: ['free'],
+    firstEpisodesFree: 10,
+    freeBookPages: 50,
+    listenOnlyMode: true,
+  },
+  ads: {
+    enabled: false,
+    provider: '',
+    publisherId: '',
+    rewardedAdUnitId: '',
+    interstitialAdUnitId: '',
+    unlockDurationMinutes: 120,
+  },
+  payments: {
+    enabled: false,
+    provider: '',
+    currency: 'INR',
+    merchantId: '',
+    publishableKey: '',
+    checkoutUrl: '',
+    premiumMonthly: '',
+    storyLifetime: '',
+    allStories1Month: '',
+    allStories2Month: '',
+    allStoriesLifetime: '',
+    secretConfigured: false,
+  },
+})
+
+const readAdminSettings = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(ADMIN_SETTINGS_KEY) || '{}')
+    return {
+      ...DEFAULT_ADMIN_SETTINGS,
+      ...stored,
+      website: { ...DEFAULT_ADMIN_SETTINGS.website, ...(stored?.website || {}) },
+      content: { ...DEFAULT_ADMIN_SETTINGS.content, ...(stored?.content || {}) },
+      ads: { ...DEFAULT_ADMIN_SETTINGS.ads, ...(stored?.ads || {}) },
+      payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored?.payments || {}) },
+    }
+  } catch {
+    return JSON.parse(JSON.stringify(DEFAULT_ADMIN_SETTINGS))
+  }
+}
+
 function AccessTypeSelect({ groupName, value, onChange }) {
   const options = [
     { value: 'free', label: 'Free' },
@@ -135,6 +195,44 @@ function AdminPanel({
   }
 
   const [tab, setTab] = useState('overview')
+
+  const [adminSettings, setAdminSettings] = useState(() => readAdminSettings())
+  const [settingsDirty, setSettingsDirty] = useState(false)
+
+  const updateAdminSetting = (section, key, value) => {
+    setAdminSettings((current) => ({
+      ...current,
+      [section]: {
+        ...current[section],
+        [key]: value,
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
+  const saveAdminSettings = () => {
+    try {
+      localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(adminSettings))
+      setSettingsDirty(false)
+      showToast('Management settings saved in this browser')
+    } catch (error) {
+      console.error('Admin settings save error:', error)
+      showToast('Could not save management settings', 'error')
+    }
+  }
+
+  const resetAdminSettings = () => {
+    const defaults = JSON.parse(JSON.stringify(DEFAULT_ADMIN_SETTINGS))
+    setAdminSettings(defaults)
+    try {
+      localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(defaults))
+      setSettingsDirty(false)
+      showToast('Management settings reset')
+    } catch {
+      setSettingsDirty(true)
+      showToast('Settings reset in memory only', 'error')
+    }
+  }
 
   const totalEpisodes = stories.reduce(
     (sum, story) => sum + (story?.episodes?.length || 0),
@@ -1156,6 +1254,7 @@ const [bookAccessType, setBookAccessType] = useState('free')
         <button className={tab === 'stories' ? 'active' : ''} onClick={() => setTab('stories')}>🎧 Audio Stories</button>
         <button className={tab === 'books' ? 'active' : ''} onClick={() => setTab('books')}>📚 Books</button>
         <button className={tab === 'videos' ? 'active' : ''} onClick={() => setTab('videos')}>🎬 Videos</button>
+        <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>⚙ Management & Settings</button>
       </div>
 
       <div className="admin-body">
@@ -1246,6 +1345,166 @@ const [bookAccessType, setBookAccessType] = useState('free')
               </div>
             </div>
           </section>
+        )}
+
+        {/* ================= MANAGEMENT & SETTINGS ================= */}
+
+        {tab === 'settings' && (
+          <>
+            <section className="admin-section admin-settings-intro">
+              <div className="admin-settings-intro-copy">
+                <div className="admin-eyebrow">HJ GROUPS CONTROL CENTER</div>
+                <h2>Management & Settings</h2>
+                <p>Manage content shortcuts, advertising configuration, payment plan details, and website access rules from one place.</p>
+              </div>
+              <div className={`admin-settings-save-status ${settingsDirty ? 'dirty' : 'saved'}`}>
+                {settingsDirty ? '● Unsaved changes' : '✓ Saved'}
+              </div>
+            </section>
+
+            <section className="admin-settings-grid">
+              <div className="admin-settings-card admin-settings-wide">
+                <div className="admin-settings-card-head">
+                  <div><small>CONTENT MANAGEMENT</small><h3>Edit Audio, Books & Videos</h3></div>
+                  <span>✏️</span>
+                </div>
+
+                <div className="admin-settings-content-grid">
+                  <div className="admin-settings-content-block">
+                    <div className="admin-settings-content-title"><span>🎧</span><div><strong>Audio Stories</strong><small>{stories.length} stories · {totalEpisodes} episodes</small></div></div>
+                    <button type="button" className="admin-submit" onClick={() => setTab('stories')}>Open Audio Manager</button>
+                    <div className="admin-settings-item-list">
+                      {stories.slice(0, 5).map((story) => (
+                        <div key={story.id} className="admin-settings-item">
+                          <span>{story.title}</span>
+                          <button type="button" onClick={() => { setTab('stories'); startEditStory(story) }}>✏️ Edit</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="admin-settings-content-block">
+                    <div className="admin-settings-content-title"><span>📚</span><div><strong>Books</strong><small>{books.length} books</small></div></div>
+                    <button type="button" className="admin-submit" onClick={() => setTab('books')}>Open Books Manager</button>
+                    <div className="admin-settings-item-list">
+                      {books.slice(0, 5).map((book) => (
+                        <div key={book.id} className="admin-settings-item">
+                          <span>{book.title}</span>
+                          <button type="button" onClick={() => { setTab('books'); startEditBook(book) }}>✏️ Edit</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="admin-settings-content-block">
+                    <div className="admin-settings-content-title"><span>🎬</span><div><strong>Videos</strong><small>{videoStories.length} video stories</small></div></div>
+                    <button type="button" className="admin-submit" onClick={() => setTab('videos')}>Open Video Manager</button>
+                    <div className="admin-settings-item-list">
+                      {videoStories.slice(0, 5).map((video) => (
+                        <div key={video.id} className="admin-settings-item">
+                          <span>{video.title}</span>
+                          <button type="button" onClick={() => { setTab('videos'); startEditVideo(video) }}>✏️ Edit</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-settings-card">
+                <div className="admin-settings-card-head"><div><small>ADS PROVIDER</small><h3>Rewarded Ads</h3></div><span>📺</span></div>
+
+                <label className="admin-settings-toggle">
+                  <input type="checkbox" checked={adminSettings.ads.enabled} onChange={(e) => updateAdminSetting('ads', 'enabled', e.target.checked)} />
+                  <span>Enable Ads configuration</span>
+                </label>
+
+                <div className="admin-settings-form-grid">
+                  <label>Provider
+                    <select value={adminSettings.ads.provider} onChange={(e) => updateAdminSetting('ads', 'provider', e.target.value)}>
+                      <option value="">Select provider</option><option value="google">Google Ad Manager / AdSense</option><option value="admob">Google AdMob</option><option value="unity">Unity Ads</option><option value="applovin">AppLovin</option><option value="custom">Custom provider</option>
+                    </select>
+                  </label>
+                  <label>Publisher / App ID<input value={adminSettings.ads.publisherId} onChange={(e) => updateAdminSetting('ads', 'publisherId', e.target.value)} placeholder="Publisher / App ID" /></label>
+                  <label>Rewarded Ad Unit ID<input value={adminSettings.ads.rewardedAdUnitId} onChange={(e) => updateAdminSetting('ads', 'rewardedAdUnitId', e.target.value)} placeholder="Rewarded placement ID" /></label>
+                  <label>Interstitial Ad Unit ID<input value={adminSettings.ads.interstitialAdUnitId} onChange={(e) => updateAdminSetting('ads', 'interstitialAdUnitId', e.target.value)} placeholder="Optional interstitial ID" /></label>
+                  <label>Unlock duration (minutes)<input type="number" min="1" max="1440" value={adminSettings.ads.unlockDurationMinutes} onChange={(e) => updateAdminSetting('ads', 'unlockDurationMinutes', Number(e.target.value) || 120)} /></label>
+                </div>
+                <small className="admin-settings-note">Provider secret/API credentials should stay in Vercel/Supabase server environment variables, not browser storage.</small>
+              </div>
+
+              <div className="admin-settings-card">
+                <div className="admin-settings-card-head"><div><small>PAYMENTS</small><h3>Checkout & Plans</h3></div><span>💳</span></div>
+
+                <label className="admin-settings-toggle">
+                  <input type="checkbox" checked={adminSettings.payments.enabled} onChange={(e) => updateAdminSetting('payments', 'enabled', e.target.checked)} />
+                  <span>Enable payment configuration</span>
+                </label>
+
+                <div className="admin-settings-form-grid">
+                  <label>Provider
+                    <select value={adminSettings.payments.provider} onChange={(e) => updateAdminSetting('payments', 'provider', e.target.value)}>
+                      <option value="">Select provider</option><option value="razorpay">Razorpay</option><option value="stripe">Stripe</option><option value="paypal">PayPal</option><option value="custom">Custom checkout</option>
+                    </select>
+                  </label>
+                  <label>Currency
+                    <select value={adminSettings.payments.currency} onChange={(e) => updateAdminSetting('payments', 'currency', e.target.value)}>
+                      <option value="INR">INR ₹</option><option value="USD">USD $</option><option value="EUR">EUR €</option>
+                    </select>
+                  </label>
+                  <label>Merchant / Account ID<input value={adminSettings.payments.merchantId} onChange={(e) => updateAdminSetting('payments', 'merchantId', e.target.value)} /></label>
+                  <label>Publishable / Public Key<input value={adminSettings.payments.publishableKey} onChange={(e) => updateAdminSetting('payments', 'publishableKey', e.target.value)} /></label>
+                  <label className="admin-settings-span-2">Checkout URL<input type="url" value={adminSettings.payments.checkoutUrl} onChange={(e) => updateAdminSetting('payments', 'checkoutUrl', e.target.value)} placeholder="https://..." /></label>
+                  <label>Premium 1 Month<input inputMode="decimal" value={adminSettings.payments.premiumMonthly} onChange={(e) => updateAdminSetting('payments', 'premiumMonthly', e.target.value)} placeholder="e.g. 99" /></label>
+                  <label>Story Lifetime<input inputMode="decimal" value={adminSettings.payments.storyLifetime} onChange={(e) => updateAdminSetting('payments', 'storyLifetime', e.target.value)} placeholder="e.g. 149" /></label>
+                  <label>All Stories 1 Month<input inputMode="decimal" value={adminSettings.payments.allStories1Month} onChange={(e) => updateAdminSetting('payments', 'allStories1Month', e.target.value)} /></label>
+                  <label>All Stories 2 Months<input inputMode="decimal" value={adminSettings.payments.allStories2Month} onChange={(e) => updateAdminSetting('payments', 'allStories2Month', e.target.value)} /></label>
+                  <label>All Stories Lifetime<input inputMode="decimal" value={adminSettings.payments.allStoriesLifetime} onChange={(e) => updateAdminSetting('payments', 'allStoriesLifetime', e.target.value)} /></label>
+                </div>
+
+                <label className="admin-settings-toggle">
+                  <input type="checkbox" checked={adminSettings.payments.secretConfigured} onChange={(e) => updateAdminSetting('payments', 'secretConfigured', e.target.checked)} />
+                  <span>Payment secret is configured in server environment</span>
+                </label>
+                <small className="admin-settings-note">Private payment keys are intentionally never stored in the browser; mark them configured after adding them to the server environment.</small>
+              </div>
+
+              <div className="admin-settings-card">
+                <div className="admin-settings-card-head"><div><small>WEBSITE SETTINGS</small><h3>Site Identity & Access</h3></div><span>🌐</span></div>
+                <div className="admin-settings-form-grid">
+                  <label>Website name<input value={adminSettings.website.siteName} onChange={(e) => updateAdminSetting('website', 'siteName', e.target.value)} /></label>
+                  <label>Support email<input type="email" value={adminSettings.website.supportEmail} onChange={(e) => updateAdminSetting('website', 'supportEmail', e.target.value)} /></label>
+                  <label className="admin-settings-span-2">Tagline<input value={adminSettings.website.tagline} onChange={(e) => updateAdminSetting('website', 'tagline', e.target.value)} /></label>
+                  <label className="admin-settings-span-2">Logo URL<input value={adminSettings.website.logoUrl} onChange={(e) => updateAdminSetting('website', 'logoUrl', e.target.value)} placeholder="Optional override" /></label>
+                </div>
+                <div className="admin-settings-toggle-list">
+                  <label className="admin-settings-toggle"><input type="checkbox" checked={adminSettings.website.allowNewSignup} onChange={(e) => updateAdminSetting('website', 'allowNewSignup', e.target.checked)} /><span>Allow new account signups</span></label>
+                  <label className="admin-settings-toggle"><input type="checkbox" checked={adminSettings.website.allowOtpSignup} onChange={(e) => updateAdminSetting('website', 'allowOtpSignup', e.target.checked)} /><span>Allow email OTP signup</span></label>
+                  <label className="admin-settings-toggle"><input type="checkbox" checked={adminSettings.website.maintenanceMode} onChange={(e) => updateAdminSetting('website', 'maintenanceMode', e.target.checked)} /><span>Maintenance mode</span></label>
+                </div>
+              </div>
+
+              <div className="admin-settings-card">
+                <div className="admin-settings-card-head"><div><small>CONTENT ACCESS</small><h3>Default Access Rules</h3></div><span>🔐</span></div>
+                <div className="admin-settings-access-grid">
+                  <AccessTypeField groupName="settings-default-audio" value={adminSettings.content.defaultAudioAccess} onChange={(value) => updateAdminSetting('content', 'defaultAudioAccess', value)} />
+                  <AccessTypeField groupName="settings-default-books" value={adminSettings.content.defaultBookAccess} onChange={(value) => updateAdminSetting('content', 'defaultBookAccess', value)} />
+                  <AccessTypeField groupName="settings-default-videos" value={adminSettings.content.defaultVideoAccess} onChange={(value) => updateAdminSetting('content', 'defaultVideoAccess', value)} />
+                </div>
+                <div className="admin-settings-form-grid">
+                  <label>Free audio episodes<input type="number" min="0" max="100" value={adminSettings.content.firstEpisodesFree} onChange={(e) => updateAdminSetting('content', 'firstEpisodesFree', Number(e.target.value) || 0)} /></label>
+                  <label>Free book pages<input type="number" min="0" max="500" value={adminSettings.content.freeBookPages} onChange={(e) => updateAdminSetting('content', 'freeBookPages', Number(e.target.value) || 0)} /></label>
+                </div>
+                <label className="admin-settings-toggle"><input type="checkbox" checked={adminSettings.content.listenOnlyMode} onChange={(e) => updateAdminSetting('content', 'listenOnlyMode', e.target.checked)} /><span>Listen / read inside website only (recommended)</span></label>
+              </div>
+            </section>
+
+            <div className="admin-settings-actions">
+              <button type="button" className="admin-submit" onClick={saveAdminSettings}>✓ Save All Settings</button>
+              <button type="button" className="admin-cancel" onClick={resetAdminSettings}>Reset Defaults</button>
+              <span className="admin-settings-save-hint">{settingsDirty ? 'Changes are not saved yet.' : 'Saved locally for this browser.'}</span>
+            </div>
+          </>
         )}
 
         {/* ================= STORIES ================= */}
