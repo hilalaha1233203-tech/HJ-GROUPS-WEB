@@ -2296,9 +2296,6 @@ export function App() {
             movement > 0.3
 
           for (const particle of particles) {
-            let targetX =
-              particle.homeX
-
             // Scroll gently animates the particle field around its
             // centered home position without moving the logo away.
             const scrollWobbleX =
