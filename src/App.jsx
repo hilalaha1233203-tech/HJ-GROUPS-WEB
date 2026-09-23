@@ -1443,7 +1443,7 @@ export function App() {
   const updateBook = async (bookId, updates) => {
     const supabaseId = getSupabaseBookId(bookId)
     if (supabaseId !== null) {
-      const { error } = await supabase.from('books').update({
+      const next = {
         title: updates.title,
         author: updates.author || '',
         description: updates.description || '',
@@ -1457,8 +1457,19 @@ export function App() {
         language: updates.language || 'Tamil',
         access_type: serializeAccessType(updates.accessType),
         volumes: Array.isArray(updates.volumes) ? updates.volumes : [],
-      }).eq('id', supabaseId)
-      if (error) throw error
+      }
+
+      let result = await supabase.from('books').update(next).eq('id', supabaseId)
+      if (result.error) {
+        const message = String(result.error.message || '')
+        if (!/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(message)) {
+          throw result.error
+        }
+        const legacy = { ...next }
+        delete legacy.language
+        result = await supabase.from('books').update(legacy).eq('id', supabaseId)
+      }
+      if (result.error) throw result.error
       await refreshTelegramContent()
       return
     }
@@ -1530,7 +1541,7 @@ export function App() {
   const updateVideoStory = async (videoId, updates) => {
     const supabaseId = getSupabaseVideoId(videoId)
     if (supabaseId !== null) {
-      const { error } = await supabase.from('video_stories').update({
+      const next = {
         title: updates.title,
         category: updates.category || 'Action',
         cover_url: updates.cover || null,
@@ -1538,8 +1549,19 @@ export function App() {
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
         language: updates.language || 'Tamil',
         access_type: serializeAccessType(updates.accessType),
-      }).eq('id', supabaseId)
-      if (error) throw error
+      }
+
+      let result = await supabase.from('video_stories').update(next).eq('id', supabaseId)
+      if (result.error) {
+        const message = String(result.error.message || '')
+        if (!/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(message)) {
+          throw result.error
+        }
+        const legacy = { ...next }
+        delete legacy.language
+        result = await supabase.from('video_stories').update(legacy).eq('id', supabaseId)
+      }
+      if (result.error) throw result.error
       try {
         await refreshTelegramContent()
       } catch {
