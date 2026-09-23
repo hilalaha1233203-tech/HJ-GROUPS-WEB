@@ -800,6 +800,7 @@ export function App() {
   const [accountSettings, setAccountSettings] = useState(DEFAULT_ACCOUNT_SETTINGS)
   const [accountSettingsReadyFor, setAccountSettingsReadyFor] = useState('')
   const accountSettingsSaveTimerRef = useRef(null)
+  const accountSettingsSaveTimerRef = useRef(null)
   const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false)
   const [recoveryPassword, setRecoveryPassword] = useState('')
   const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('')
