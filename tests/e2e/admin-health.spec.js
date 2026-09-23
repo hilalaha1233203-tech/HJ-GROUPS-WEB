@@ -118,6 +118,23 @@ test.describe('HJ GROUPS admin health', () => {
     await settingsSave.click()
     await expect(page.getByText('Management settings saved in this browser', { exact: true })).toBeVisible()
 
+    const adminClose = adminOverlay.getByRole('button', { name: /close|×|✕/i }).first()
+    if (await adminClose.count()) await adminClose.click().catch(() => {})
+
+    const accountButton = page.locator('.bottom-nav button').filter({ hasText: /^Account$/i }).first()
+    if (await accountButton.count()) {
+      await accountButton.click()
+      await expect(page.getByRole('button', { name: /Settings/i }).first()).toBeVisible()
+      await page.getByRole('button', { name: /Settings/i }).first().click()
+      await expect(page.getByText('Personalize & Protect Your Account', { exact: true })).toBeVisible()
+      await expect(page.getByText('RECOVERY & SECURITY', { exact: true })).toBeVisible()
+      await expect(page.getByText('AUDIO PLAYER', { exact: true })).toBeVisible()
+      await expect(page.getByText('VIDEO PLAYER', { exact: true })).toBeVisible()
+      await expect(page.getByText('TTS & READ ALOUD', { exact: true })).toBeVisible()
+      await expect(page.getByText('BOOK READER', { exact: true })).toBeVisible()
+      await expect(page.getByText('DEVICE & SESSION CONTROLS', { exact: true })).toBeVisible()
+    }
+
     await test.info().attach('admin-health.json', {
       body: JSON.stringify(
         { consoleErrors, pageErrors, failedRequests, badResponses },
