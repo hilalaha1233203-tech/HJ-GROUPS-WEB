@@ -126,7 +126,7 @@ alter table public.app_settings enable row level security;
 
 grant select, insert, update, delete on public.app_settings to authenticated;
 
-do $
+do $$
 begin
   if not exists (select 1 from pg_policies where schemaname='public' and tablename='app_settings' and policyname='Admin read app settings') then
     create policy "Admin read app settings" on public.app_settings for select to authenticated
@@ -148,7 +148,7 @@ begin
     create policy "Admin delete app settings" on public.app_settings for delete to authenticated
       using ((select auth.jwt()->>'email')='hilalaha1233203@gmail.com');
   end if;
-end $;
+end $$;
 
 -- -----------------------------
 -- Purchases (required by current app read path)
