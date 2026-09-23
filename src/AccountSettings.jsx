@@ -20,6 +20,7 @@ const DEFAULTS = Object.freeze({
   readerPdfScale: 1,
   readerRememberPosition: true,
   reducedMotion: false,
+  dataSaver: false,
 })
 
 function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTimer, onApplyPlayerSettings, isAdmin = false }) {
@@ -29,7 +30,6 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
   const [phoneOtp, setPhoneOtp] = useState('')
   const [phonePending, setPhonePending] = useState(false)
   const [password, setPassword] = useState('')
-  const [currentPassword, setCurrentPassword] = useState('')
   const [resetSent, setResetSent] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -111,8 +111,10 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     }
 
     setBusy(true)
+    const configured = String(import.meta.env.VITE_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '')
+    const redirectTo = configured ? configured + '/' : window.location.origin + '/'
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/',
+      redirectTo,
     })
     setBusy(false)
 
@@ -136,10 +138,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     }
 
     setBusy(true)
-    const attributes = { password }
-    if (currentPassword.trim()) attributes.currentPassword = currentPassword
-
-    const { error: updateError } = await supabase.auth.updateUser(attributes)
+    const { error: updateError } = await supabase.auth.updateUser({ password })
     setBusy(false)
 
     if (updateError) {
@@ -148,7 +147,6 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     }
 
     setPassword('')
-    setCurrentPassword('')
     setStatus('Password updated. Keep your recovery email/phone connected.')
   }
 
@@ -210,9 +208,11 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     setBusy(true)
 
     try {
+      const configured = String(import.meta.env.VITE_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '')
+      const redirectTo = configured ? configured + '/' : window.location.origin + '/'
       const { data, error: linkError } = await supabase.auth.linkIdentity({
         provider: 'google',
-        options: { redirectTo: window.location.origin + '/' },
+        options: { redirectTo },
       })
 
       if (linkError) {
@@ -360,7 +360,6 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
         </div>
 
         <form className="account-settings-form" onSubmit={savePassword}>
-          <label><span>Current password (optional)</span><input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Only needed when required" /></label>
           <label><span>New password</span><input type="password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" /></label>
           <button className="primary-btn" type="submit" disabled={busy}>Change Password</button>
         </form>
@@ -428,7 +427,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
 
       <section className="account-settings-card">
         <div className="account-settings-card-head">
-          <div><small>DEVICE & SESSION CONTROLS</small><h2>Privacy & Session Safety</h2></div>
+          <div><small>DEVICE & DATA</small><h2>Privacy, Data Saver & Session Safety</h2></div>
           <span className="account-settings-icon">🔐</span>
         </div>
 
@@ -439,13 +438,23 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
             <button className="secondary-btn" type="button" onClick={clearPlaybackPositions} disabled={busy}>Clear Resume Data</button>
           </div>
           <div className="account-settings-mini">
+            <strong>Data Saver</strong>
+            <p>Reduce background media loading and bandwidth usage. Playback still uses the normal player when you start an item.</p>
+            <label className="settings-check"><input type="checkbox" checked={!!mergedSettings.dataSaver} onChange={(event) => setSetting('dataSaver', event.target.checked)} /><span>Use lower-bandwidth media loading</span></label>
+          </div>
+          <div className="account-settings-mini">
             <strong>Sign out all devices</strong>
             <p>Ends active Supabase sessions across the account. Use this after changing a password or if another device is no longer trusted.</p>
             <button className="secondary-btn" type="button" onClick={signOutAllDevices} disabled={busy}>Sign Out All Devices</button>
           </div>
           <div className="account-settings-mini">
-            <strong>Purchase recovery</strong>
-            <p>Your paid content should stay attached to this account's user ID. Recover access by returning to this same account with its verified recovery method.</p>
+            <strong>Recovery status</strong>
+            <p>Keep more than one verified recovery path so a device or login method can be replaced without creating a new purchaser account.</p>
+            <div className="account-recovery-status-list">
+              <span className={user?.email_confirmed_at || user?.confirmed_at ? 'is-ok' : 'is-warn'}>{user?.email_confirmed_at || user?.confirmed_at ? '✓ Email verified' : '• Email verification pending'}</span>
+              <span className={user?.identities?.some((identity) => identity?.provider === 'google') ? 'is-ok' : 'is-warn'}>{user?.identities?.some((identity) => identity?.provider === 'google') ? '✓ Google backup linked' : '• Google backup not linked'}</span>
+              <span className={user?.phone ? 'is-ok' : 'is-warn'}>{user?.phone ? '✓ Recovery mobile bound' : '• Recovery mobile not bound'}</span>
+            </div>
           </div>
         </div>
       </section>
