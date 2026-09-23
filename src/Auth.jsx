@@ -223,15 +223,12 @@ function Auth({ onBack }) {
     setLoading(true)
 
     /*
-      Intentionally no `emailRedirectTo` here.
-      This is the "type in a 6-digit code" login
-      path, not a magic-link path — we don't want
-      Supabase treating this as a link-based flow.
-      The rest of the fix (making the email actually
-      CONTAIN a code instead of only a clickable
-      link) has to happen in the Supabase Dashboard
-      email template — see the instructions that
-      came with this file.
+      Login OTP is intentionally restricted to existing
+      accounts. Signup has its own OTP flow below, so an
+      unknown email cannot silently create an account.
+      The Supabase email template must render `{{ .Token }}`
+      when a numeric OTP email is required instead of only
+      rendering a magic-link button.
     */
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
