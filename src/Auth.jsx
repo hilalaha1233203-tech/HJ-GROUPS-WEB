@@ -542,6 +542,9 @@ function Auth({ onBack }) {
                 <button type="button" className="method-back" onClick={sendPasswordReset} disabled={loading}>
                   Forgot Password? Send Reset Email
                 </button>
+                <button type="button" className="method-back" onClick={() => selectMethod('phone')} disabled={loading}>
+                  📱 Recover with Mobile OTP
+                </button>
 
                 <button type="button" className="method-back" onClick={() => selectMethod(null)}>
                   ← Choose another method
