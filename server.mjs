@@ -3,7 +3,8 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { MAX_CHARS, synthesizeEdgeTts } from './server/edgeTts.mjs'
+import { isTamilText, MAX_CHARS, synthesizeEdgeTts } from './server/edgeTts.mjs'
+import { isSarvamConfigured, synthesizeSarvamTts } from './server/sarvamTts.mjs'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(ROOT, 'dist')
@@ -41,64 +42,116 @@ async function readJson(req) {
   return JSON.parse(body || '{}')
 }
 
-async function handleEdgeTts(req, res) {
+function corsHeaders(req) {
+  return {
+    'Access-Control-Allow-Origin': req.headers.origin || '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  }
+}
+
+const jsonHeaders = (req) => ({
+  'Content-Type': 'application/json; charset=utf-8',
+  ...corsHeaders(req),
+})
+
+async function handleTts(req, res, forcedProvider = 'auto') {
   if (req.method === 'OPTIONS') {
-    return send(res, 204, '', {
-      'Access-Control-Allow-Origin': req.headers.origin || '*',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    })
+    return send(res, 204, '', corsHeaders(req))
   }
 
   if (req.method !== 'POST') {
     return send(res, 405, JSON.stringify({ error: 'Method not allowed' }), {
+      ...jsonHeaders(req),
       Allow: 'POST, OPTIONS',
-      'Content-Type': 'application/json; charset=utf-8',
     })
   }
 
+  let body
   try {
-    const body = await readJson(req)
-    const text = String(body.text || '').replace(/\s+/g, ' ').trim()
-
-    if (!text) {
-      return send(res, 400, JSON.stringify({ error: 'text is required' }), {
-        'Content-Type': 'application/json; charset=utf-8',
-      })
-    }
-
-    if (text.length > MAX_CHARS) {
-      return send(res, 413, JSON.stringify({
-        error: 'text exceeds ' + MAX_CHARS + ' characters',
-      }), {
-        'Content-Type': 'application/json; charset=utf-8',
-      })
-    }
-
-    const audio = await synthesizeEdgeTts({
-      text,
-      voice: body.voice,
-      rate: body.rate,
-      pitch: body.pitch,
-    })
-
-    res.writeHead(200, {
-      'Content-Type': 'audio/mpeg',
-      'Content-Length': String(audio.length),
-      'Cache-Control': 'private, max-age=3600',
-      'X-TTS-Provider': 'microsoft-edge-neural',
-    })
-    res.end(audio)
+    body = await readJson(req)
   } catch (error) {
-    console.error('Edge TTS error:', error)
-    const message = String(error?.message || 'Edge TTS request failed')
-    send(res, /text is required/i.test(message) ? 400 : 502, JSON.stringify({
-      error: 'Microsoft Edge Neural TTS request failed',
-      detail: message.slice(0, 300),
-    }), {
-      'Content-Type': 'application/json; charset=utf-8',
-    })
+    return send(res, 400, JSON.stringify({
+      error: 'Invalid JSON request',
+      detail: String(error?.message || 'Malformed JSON').slice(0, 200),
+    }), jsonHeaders(req))
   }
+
+  const text = String(body.text || '').replace(/\s+/g, ' ').trim()
+
+  if (!text) {
+    return send(res, 400, JSON.stringify({ error: 'text is required' }), jsonHeaders(req))
+  }
+
+  if (text.length > MAX_CHARS) {
+    return send(res, 413, JSON.stringify({
+      error: 'text exceeds ' + MAX_CHARS + ' characters',
+    }), jsonHeaders(req))
+  }
+
+  const requestedProvider = String(
+    forcedProvider === 'auto' ? body.provider || 'auto' : forcedProvider
+  ).trim().toLowerCase()
+
+  const tamil = isTamilText(text)
+  let providers
+  if (requestedProvider === 'edge') {
+    providers = ['edge']
+  } else if (requestedProvider === 'sarvam') {
+    providers = ['sarvam']
+  } else if (requestedProvider === 'auto') {
+    providers = tamil ? ['sarvam', 'edge'] : ['edge', 'sarvam']
+  } else {
+    return send(res, 400, JSON.stringify({
+      error: 'Unsupported TTS provider',
+      detail: 'provider must be auto, edge, or sarvam',
+    }), jsonHeaders(req))
+  }
+
+  const errors = []
+
+  for (const provider of providers) {
+    try {
+      const audio = provider === 'sarvam'
+        ? await synthesizeSarvamTts({
+            text,
+            languageCode: body.language_code,
+            speaker: body.speaker,
+            pace: body.pace ?? body.rate,
+            temperature: body.temperature,
+          })
+        : await synthesizeEdgeTts({
+            text,
+            voice: body.voice,
+            rate: body.rate,
+            pitch: body.pitch,
+          })
+
+      res.writeHead(200, {
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': String(audio.length),
+        'Cache-Control': 'private, max-age=3600',
+        'X-TTS-Provider': provider,
+        ...corsHeaders(req),
+      })
+      res.end(audio)
+      return
+    } catch (error) {
+      const message = String(error?.message || provider + ' TTS request failed').slice(0, 300)
+      errors.push(provider + ': ' + message)
+      console.warn('TTS provider failed:', provider, message)
+    }
+  }
+
+  const allUnconfigured = providers.every((provider) =>
+    provider !== 'sarvam' || !isSarvamConfigured()
+  )
+
+  send(res, allUnconfigured ? 503 : 502, JSON.stringify({
+    error: 'Text-to-speech service unavailable',
+    detail: errors.join(' | ').slice(0, 700),
+  }), jsonHeaders(req))
 }
 
 async function serveStatic(req, res, pathname) {
@@ -151,16 +204,22 @@ const server = createServer(async (req, res) => {
       ok: true,
       service: 'hj-groups-web',
       ttsConfigured: true,
-      ttsProvider: 'microsoft-edge-neural',
+      ttsProvider: 'auto',
       ttsRequiresApiKey: false,
+      ttsProviders: {
+        edge: { configured: true },
+        sarvam: { configured: isSarvamConfigured() },
+      },
+      ttsStrategy: 'Tamil: Sarvam → Edge fallback; other text: Edge → Sarvam fallback',
     }), {
       'Content-Type': 'application/json; charset=utf-8',
+      ...corsHeaders(req),
     })
   }
 
-  if (url.pathname === '/api/edge-tts' || url.pathname === '/api/sarvam-tts') {
-    return handleEdgeTts(req, res)
-  }
+  if (url.pathname === '/api/tts') return handleTts(req, res, 'auto')
+  if (url.pathname === '/api/edge-tts') return handleTts(req, res, 'edge')
+  if (url.pathname === '/api/sarvam-tts') return handleTts(req, res, 'sarvam')
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return send(res, 405, 'Method Not Allowed', {
