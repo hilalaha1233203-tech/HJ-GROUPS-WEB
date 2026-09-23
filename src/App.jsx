@@ -1816,7 +1816,14 @@ export function App() {
         const hashParams = new URLSearchParams(hash)
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
+        const authType = hashParams.get('type')
         const code = new URLSearchParams(window.location.search).get('code')
+
+        if (authType === 'recovery') {
+          setPasswordRecoveryOpen(true)
+          setRecoveryError('')
+          setRecoveryMessage('')
+        }
 
         if (accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
@@ -1868,7 +1875,12 @@ export function App() {
       data: listener,
     } =
       supabase.auth.onAuthStateChange(
-        (_event, session) => {
+        (event, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            setPasswordRecoveryOpen(true)
+            setRecoveryError('')
+            setRecoveryMessage('')
+          }
           setUser(
             session?.user ?? null
           )
@@ -1880,6 +1892,63 @@ export function App() {
       listener.subscription.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setAccountSettings(DEFAULT_ACCOUNT_SETTINGS)
+      setAccountSettingsReadyFor('')
+      return
+    }
+
+    const next = readAccountSettings(user.id, user)
+    setAccountSettings(next)
+    setAccountSettingsReadyFor(user.id)
+    setReaderTheme(String(next.readerTheme || 'dark'))
+    setEpubFontScale(clamp(Number(next.readerFontSize) || 100, 75, 180))
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!user || accountSettingsReadyFor !== user.id) return
+    try {
+      localStorage.setItem(ACCOUNT_SETTINGS_KEY + ':' + user.id, JSON.stringify(accountSettings))
+    } catch {}
+  }, [accountSettings, accountSettingsReadyFor, user?.id])
+
+  const handleAccountSettingsChange = (next) => {
+    const normalized = {
+      ...DEFAULT_ACCOUNT_SETTINGS,
+      ...(next && typeof next === 'object' ? next : {}),
+    }
+    setAccountSettings(normalized)
+    setReaderTheme(String(normalized.readerTheme || 'dark'))
+    setTtsSettings((current) => ({
+      ...current,
+      tamilVoice: normalized.tamilVoice || current.tamilVoice,
+      englishVoice: normalized.englishVoice || current.englishVoice,
+    }))
+    if (Number.isFinite(Number(normalized.readerFontSize))) {
+      setEpubFontScale(clamp(Number(normalized.readerFontSize), 75, 180))
+    }
+    if (Number.isFinite(Number(normalized.ttsSpeed))) {
+      window.dispatchEvent?.(new CustomEvent('hj-tts-speed', { detail: Number(normalized.ttsSpeed) }))
+    }
+  }
+
+  const applyAccountPlayerSettings = (next) => {
+    const media = getMediaElement()
+    if (!media) return
+    const isVideo = currentEpisode?.type === 'video'
+    const value = Number(isVideo ? next.videoVolume : next.audioVolume)
+    const rate = Number(isVideo ? next.videoSpeed : next.audioSpeed)
+    if (Number.isFinite(value)) {
+      media.volume = clamp(value, 0, 1)
+      setVolume(clamp(value, 0, 1))
+    }
+    if (Number.isFinite(rate)) {
+      media.playbackRate = clamp(rate, 0.5, 2)
+      setSpeed(clamp(rate, 0.5, 2))
+    }
+  }
 
   useEffect(() => {
     if (!user) {
