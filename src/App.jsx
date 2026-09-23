@@ -1053,7 +1053,11 @@ export function App() {
     if (readerType === 'pdf' && pdfPages > 0) {
       try {
         const saved = Number.parseInt(localStorage.getItem(key) || '1', 10)
-        setPdfPage(clamp(Number.isFinite(saved) ? saved : 1, 1, pdfPages))
+        const requested = clamp(Number.isFinite(saved) ? saved : 1, 1, pdfPages)
+        const target = canReadBookPage(requested)
+          ? requested
+          : Math.min(BOOK_FREE_PAGES, pdfPages)
+        setPdfPage(target)
       } catch {
         setPdfPage(1)
       }
@@ -1071,7 +1075,10 @@ export function App() {
     ) {
       try {
         const saved = Number.parseInt(localStorage.getItem(key) || '1', 10)
-        const target = clamp(Number.isFinite(saved) ? saved : 1, 1, epubPages)
+        const requested = clamp(Number.isFinite(saved) ? saved : 1, 1, epubPages)
+        const target = canReadBookPage(requested)
+          ? requested
+          : Math.min(BOOK_FREE_PAGES, epubPages)
         const locations = epubBookRef.current.locations
         const cfi = locations?.cfiFromLocation?.(target - 1)
         if (cfi) {
