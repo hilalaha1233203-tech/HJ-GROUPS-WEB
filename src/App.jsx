@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import ePub from 'epubjs'
 
@@ -954,11 +954,18 @@ export function App() {
   const getBookAccessKey = (book) =>
     book ? adsKeyFor('book', book.id) : undefined
 
-  const canReadBookPage = (pageNumber, book = readerBook) => {
+  const canReadBookPage = useCallback((pageNumber, book = readerBook) => {
     if (!book) return false
     if (Number(pageNumber) <= BOOK_FREE_PAGES) return true
-    return canAccessContent(book, getBookAccessKey(book), book.id)
-  }
+    return canAccess(book, {
+      isAdmin,
+      loggedIn,
+      unlockedAds,
+      adsKey: adsKeyFor('book', book.id),
+      purchasedStoryIds,
+      storyId: book.id,
+    })
+  }, [readerBook, isAdmin, loggedIn, unlockedAds, purchasedStoryIds])
 
   const [readerPageTurn, setReaderPageTurn] =
     useState('')
@@ -1108,6 +1115,7 @@ export function App() {
     epubLocationsReady,
     epubPages,
     accountSettings.readerRememberPosition,
+    canReadBookPage,
   ])
 
   useEffect(() => {
@@ -5536,7 +5544,7 @@ export function App() {
      ZOOM
   ======================================================= */
 
-  const applyEpubReaderAppearance = () => {
+  function applyEpubReaderAppearance() {
     const rendition = epubRenditionRef.current
     if (!rendition) return
 
