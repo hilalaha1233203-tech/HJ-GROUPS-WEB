@@ -1499,25 +1499,44 @@ export function App() {
   }
 
   const addVideoStory = async (video) => {
-    const { data, error } = await supabase
+    const row = {
+      title: video.title,
+      category: video.category || 'Action',
+      cover_url: video.cover || null,
+      cover_path: video.coverPath || '',
+      telegram_message_id: video.telegram_message_id ? Number(video.telegram_message_id) : null,
+      language: video.language || 'Tamil',
+      access_type: serializeAccessType(video.accessType),
+    }
+
+    let result = await supabase
       .from('video_stories')
-      .insert({
-        title: video.title,
-        category: video.category || 'Action',
-        cover_url: video.cover || null,
-        cover_path: video.coverPath || '',
-        telegram_message_id: video.telegram_message_id ? Number(video.telegram_message_id) : null,
-        language: video.language || 'Tamil',
-        access_type: serializeAccessType(video.accessType),
-      })
+      .insert(row)
       .select('*')
       .single()
 
-    if (error) {
-      console.error('Supabase video story insert error:', error)
-      throw error
+    if (result.error) {
+      const message = String(result.error.message || '')
+      const schemaMismatch = /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
+      if (!schemaMismatch) {
+        console.error('Supabase video story insert error:', result.error)
+        throw result.error
+      }
+      const legacyRow = { ...row }
+      delete legacyRow.language
+      result = await supabase
+        .from('video_stories')
+        .insert(legacyRow)
+        .select('*')
+        .single()
     }
 
+    if (result.error) {
+      console.error('Supabase video story insert error:', result.error)
+      throw result.error
+    }
+
+    const data = result.data
     const episodes = Array.isArray(video.episodes) ? video.episodes : []
     if (episodes.length) {
       const rows = episodes.map((episode, index) => ({
