@@ -39,7 +39,8 @@ export function normalizeShortenerSettings(value = {}) {
     ...source,
     primaryProvider,
     fallbackProvider,
-    enabled: source.enabled === true,
+    enabled: source.enabled === true || source.shortenerEnabled === true,
+    shortenerEnabled: source.shortenerEnabled === true || source.enabled === true,
   }
 }
 
