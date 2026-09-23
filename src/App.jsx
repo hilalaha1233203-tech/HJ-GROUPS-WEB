@@ -357,7 +357,7 @@ const installEdgeTtsSpeechBridge = () => {
 
     const rate = Math.max(0.5, Math.min(2, Number(utterance.rate) || 1))
     const pitch = Number(utterance.pitch) || 0
-    const endpoint = String(import.meta.env.VITE_TTS_API_URL || '/api/edge-tts')
+    const endpoint = String(import.meta.env.VITE_TTS_API_URL || '/api/tts')
     const key = JSON.stringify([endpoint, text, voice, rate, pitch])
 
     if (cache.has(key)) return cache.get(key)
@@ -370,7 +370,7 @@ const installEdgeTtsSpeechBridge = () => {
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, voice, rate, pitch }),
+            body: JSON.stringify({ text, voice, rate, pitch, provider: 'auto', speaker: 'ishita', pace: rate, language_code: isTamil(text) ? 'ta-IN' : 'en-IN', temperature: 0.6 }),
           })
 
           if (!response.ok) {
@@ -512,16 +512,20 @@ const installEdgeTtsSpeechBridge = () => {
       window.__hjEdgeTtsPending = false
       window.__hjNativeSpeaking = false
 
-      // Surface the transport failure to the reader engine. It owns the
-      // retry/skip policy so a temporary Edge TTS outage cannot terminate
-      // continuous page reading.
+      // Final local fallback: let the browser's installed Tamil/English
+      // voice finish this chunk instead of skipping it when online TTS is
+      // temporarily unavailable.
       try {
-        utterance.onerror?.({
-          type: 'error',
-          error: 'tts-failed',
-          message: error?.message || 'Microsoft Edge Neural TTS request failed',
-        })
-      } catch {}
+        originalSpeak(utterance)
+      } catch {
+        try {
+          utterance.onerror?.({
+            type: 'error',
+            error: 'tts-failed',
+            message: error?.message || 'Online TTS and native browser TTS both failed',
+          })
+        } catch {}
+      }
     })
   }
 
@@ -3424,14 +3428,16 @@ export function App() {
             return
           }
 
-          console.warn(
-            'Speech synthesis error:',
-            event
-          )
+          if (event?.error !== 'audio-failed' && event?.error !== 'tts-failed') {
+            console.warn(
+              'Speech synthesis error:',
+              event
+            )
+          }
 
-          // Keep Read Aloud alive when the online TTS transport has a
-          // transient failure. Retry the same chunk a few times instead
-          // of ending the entire reader session.
+          // Keep Read Aloud alive when the speech engine itself reports a
+          // transient failure. Online provider failures use the bridge's
+          // native-browser fallback above.
           const retryCount = speechChunkRetryRef.current
           if (retryCount < 2) {
             speechChunkRetryRef.current = retryCount + 1
@@ -3496,6 +3502,8 @@ export function App() {
         }
 
         if (
+          window.__hjEdgeTtsPending ||
+          window.__hjEdgeTtsActiveAudio ||
           window.speechSynthesis.speaking ||
           window.speechSynthesis.pending
         ) {
