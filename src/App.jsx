@@ -951,6 +951,15 @@ export function App() {
 
   const BOOK_FREE_PAGES = 50
 
+  const getBookAccessKey = (book) =>
+    book ? adsKeyFor('book', book.id) : undefined
+
+  const canReadBookPage = (pageNumber, book = readerBook) => {
+    if (!book) return false
+    if (Number(pageNumber) <= BOOK_FREE_PAGES) return true
+    return canAccessContent(book, getBookAccessKey(book), book.id)
+  }
+
   const [readerPageTurn, setReaderPageTurn] =
     useState('')
 
@@ -3541,14 +3550,7 @@ export function App() {
     }, 30)
   }
 
-  const getBookAccessKey = (book) =>
-    book ? adsKeyFor('book', book.id) : undefined
 
-  const canReadBookPage = (pageNumber, book = readerBook) => {
-    if (!book) return false
-    if (Number(pageNumber) <= BOOK_FREE_PAGES) return true
-    return canAccessContent(book, getBookAccessKey(book), book.id)
-  }
 
   const requestBookPageAccess = (pageNumber, onGranted) => {
     if (canReadBookPage(pageNumber)) {
