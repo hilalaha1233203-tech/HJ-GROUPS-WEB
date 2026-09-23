@@ -5641,3 +5641,331 @@ body:has(.reader-overlay:not(.reader-minimized)),
     max-width: calc(100vw - 16px);
   }
 }
+
+/* =========================================================
+   HJ GROUPS — ADMIN MANAGEMENT & SETTINGS
+========================================================= */
+
+.admin-settings-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px !important;
+}
+
+.admin-settings-intro-copy {
+  min-width: 0;
+}
+
+.admin-settings-intro-copy h2 {
+  margin: 5px 0 7px;
+  color: #fff;
+  font-size: clamp(24px, 3vw, 34px);
+  letter-spacing: -.03em;
+}
+
+.admin-settings-intro-copy p {
+  margin: 0;
+  max-width: 760px;
+  color: #858ca7;
+  line-height: 1.6;
+  font-size: 12px;
+}
+
+.admin-settings-save-status {
+  flex: 0 0 auto;
+  min-width: 118px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.admin-settings-save-status.saved {
+  color: #95f0c4;
+  background: rgba(90,220,155,.08);
+  border: 1px solid rgba(90,220,155,.18);
+}
+
+.admin-settings-save-status.dirty {
+  color: #ffd591;
+  background: rgba(255,190,80,.08);
+  border: 1px solid rgba(255,190,80,.18);
+}
+
+.admin-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-settings-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.065);
+  border-radius: 16px;
+  background: rgba(255,255,255,.025);
+  box-sizing: border-box;
+}
+
+.admin-settings-card.admin-settings-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-settings-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.admin-settings-card-head > div {
+  min-width: 0;
+}
+
+.admin-settings-card-head small {
+  color: #69718d;
+  font-size: 9px;
+  letter-spacing: .13em;
+}
+
+.admin-settings-card-head h3 {
+  margin: 4px 0 0;
+  color: #fff;
+  font-size: 17px;
+}
+
+.admin-settings-card-head > span {
+  flex: 0 0 auto;
+  font-size: 20px;
+}
+
+.admin-settings-content-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-settings-content-block {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: 13px;
+  background: rgba(0,0,0,.12);
+}
+
+.admin-settings-content-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+
+.admin-settings-content-title > span {
+  flex: 0 0 auto;
+  font-size: 20px;
+}
+
+.admin-settings-content-title > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.admin-settings-content-title strong {
+  color: #fff;
+  font-size: 12px;
+}
+
+.admin-settings-content-title small {
+  color: #717994;
+  font-size: 9px;
+}
+
+.admin-settings-content-block > .admin-submit {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.admin-settings-item-list {
+  display: grid;
+  gap: 5px;
+}
+
+.admin-settings-item {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.025);
+}
+
+.admin-settings-item > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #aeb4c9;
+  font-size: 9px;
+}
+
+.admin-settings-item > button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #aeb5ff;
+  font-size: 9px;
+  padding: 3px 0;
+}
+
+.admin-settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-settings-form-grid label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #8f96ae;
+  font-size: 10px;
+}
+
+.admin-settings-form-grid input,
+.admin-settings-form-grid select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 9px;
+  background: rgba(255,255,255,.035);
+  color: #fff;
+  font-size: 11px;
+}
+
+.admin-settings-form-grid input:focus,
+.admin-settings-form-grid select:focus {
+  outline: none;
+  border-color: rgba(124,131,255,.42);
+}
+
+.admin-settings-span-2 {
+  grid-column: 1 / -1;
+}
+
+.admin-settings-toggle-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.admin-settings-toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #b7bdd0 !important;
+  font-size: 10px !important;
+  cursor: pointer;
+}
+
+.admin-settings-toggle input {
+  width: 15px !important;
+  min-width: 15px !important;
+  height: 15px;
+  accent-color: #7c83ff;
+}
+
+.admin-settings-note {
+  display: block;
+  margin-top: 11px;
+  color: #68708b;
+  line-height: 1.5;
+  font-size: 9px;
+}
+
+.admin-settings-access-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-settings-access-grid .access-type-field {
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 10px;
+  background: rgba(255,255,255,.02);
+}
+
+.admin-settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+
+.admin-settings-actions .admin-submit,
+.admin-settings-actions .admin-cancel {
+  min-width: 150px;
+}
+
+.admin-settings-save-hint {
+  color: #6f7793;
+  font-size: 9px;
+}
+
+@media (max-width: 850px) {
+  .admin-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings-card.admin-settings-wide {
+    grid-column: auto;
+  }
+
+  .admin-settings-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-settings-card {
+    padding: 13px;
+    border-radius: 13px;
+  }
+
+  .admin-settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings-span-2 {
+    grid-column: auto;
+  }
+
+  .admin-settings-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings-actions .admin-submit,
+  .admin-settings-actions .admin-cancel,
+  .admin-settings-save-hint {
+    width: 100%;
+  }
+}
