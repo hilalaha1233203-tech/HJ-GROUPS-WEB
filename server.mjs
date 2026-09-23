@@ -102,6 +102,7 @@ async function handleTts(req, res, forcedProvider = 'auto') {
     providers = ['sarvam']
   } else if (requestedProvider === 'auto') {
     providers = tamil ? ['sarvam', 'edge'] : ['edge', 'sarvam']
+    if (!isSarvamConfigured()) providers = providers.filter((provider) => provider !== 'sarvam')
   } else {
     return send(res, 400, JSON.stringify({
       error: 'Unsupported TTS provider',
@@ -144,9 +145,9 @@ async function handleTts(req, res, forcedProvider = 'auto') {
     }
   }
 
-  const allUnconfigured = providers.every((provider) =>
-    provider !== 'sarvam' || !isSarvamConfigured()
-  )
+  const allUnconfigured =
+    providers.length === 0 ||
+    providers.every((provider) => provider === 'sarvam' && !isSarvamConfigured())
 
   send(res, allUnconfigured ? 503 : 502, JSON.stringify({
     error: 'Text-to-speech service unavailable',
