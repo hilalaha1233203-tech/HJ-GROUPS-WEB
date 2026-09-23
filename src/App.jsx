@@ -383,7 +383,7 @@ const installEdgeTtsSpeechBridge = () => {
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, voice, rate, pitch, provider: 'auto', speaker: 'ishita', pace: isTamil(text) ? Math.min(Math.max(rate * 0.92, 0.65), 1.35) : rate, language_code: isTamil(text) ? 'ta-IN' : 'en-IN', temperature: isTamil(text) ? 0.35 : 0.6 }),
+            body: JSON.stringify({ text, voice, rate, pitch, provider: 'auto', speaker: 'ratan', pace: isTamil(text) ? Math.min(Math.max(rate * 0.92, 0.65), 1.35) : rate, language_code: isTamil(text) ? 'ta-IN' : 'en-IN', temperature: isTamil(text) ? 0.35 : 0.6 }),
           })
 
           if (!response.ok) {
