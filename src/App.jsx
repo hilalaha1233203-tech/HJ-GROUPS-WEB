@@ -5070,23 +5070,6 @@ export function App() {
     readerResolvedFile,
   ])
 
-  useEffect(() => {
-    if (
-      readerType ===
-      'epub' &&
-      epubRenditionRef.current
-    ) {
-      try {
-        epubRenditionRef.current.themes.fontSize(
-          `${epubFontScale}%`
-        )
-      } catch { }
-    }
-  }, [
-    epubFontScale,
-    readerType,
-  ])
-
   /* =======================================================
      EPUB NEXT / PREVIOUS
   ======================================================= */
