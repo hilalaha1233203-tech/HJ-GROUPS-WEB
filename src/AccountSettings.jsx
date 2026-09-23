@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { supabase } from './supabase'
 
 const DEFAULTS = Object.freeze({
@@ -334,11 +334,11 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
             <strong>Backup Google account</strong>
             <p>Link a Google identity to this same account so the backup identity can recover access without creating a separate purchaser account.</p>
             <button className="secondary-btn" type="button" onClick={connectGoogleBackup} disabled={busy}>
-              {backupLabel || user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected
+              {user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected
                 ? 'Google Backup Connected'
                 : 'Connect Google Backup'}
             </button>
-            {(backupLabel || user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected) && (
+            {(user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected) && (
               <small className="account-settings-ok">✓ Google backup identity connected</small>
             )}
           </div>
