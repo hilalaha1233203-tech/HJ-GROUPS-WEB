@@ -46,14 +46,28 @@ jobs:
       - name: Auth / settings / metadata sanity check
         run: |
           grep -q "shouldCreateUser: false" src/Auth.jsx
+          grep -q "shouldCreateUser: true" src/Auth.jsx
           grep -q "Email OTP Sign Up" src/Auth.jsx
+          grep -q "Phone OTP Login" src/Auth.jsx
+          grep -q "Forgot Password" src/Auth.jsx
           grep -q "finishAuthRedirect" src/App.jsx
+          grep -q "PASSWORD_RECOVERY" src/App.jsx
+          grep -q "AccountSettings" src/App.jsx
+          grep -q "account-settings" src/App.jsx
+          grep -q "reader-theme-paper" src/App.jsx
+          grep -q "applyEpubReaderAppearance" src/App.jsx
+          grep -q "Read Aloud" src/App.jsx
           grep -q "Management & Settings" src/AdminPanel.jsx
           grep -q "create table if not exists public.app_settings" supabase/production-content-repair.sql
           grep -q "{{ .Token }}" supabase/email-templates/magic_link_otp.html
           ! grep -q "{{ .ConfirmationURL }}" supabase/email-templates/magic_link_otp.html
-          ! grep -R -n "localhost:3000" src supabase/email-templates || true
+          ! grep -R -n "localhost:3000" src supabase/email-templates
 
       - name: Final source sanity check
         run: |
           ! grep -R -n "story?.id" src/App.jsx
+          test -s src/AccountSettings.jsx
+          grep -q "linkIdentity" src/AccountSettings.jsx
+          grep -q "phone_change" src/AccountSettings.jsx
+          grep -q "scope: 'global'" src/AccountSettings.jsx
+          grep -q "getMediaPositionKey" src/App.jsx
