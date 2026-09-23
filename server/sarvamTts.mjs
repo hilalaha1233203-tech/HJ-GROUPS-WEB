@@ -3,6 +3,7 @@ import crypto from 'node:crypto'
 const DEFAULT_SPEAKER = 'ishita'
 const MAX_CHARS = 3500
 const ENDPOINT = 'https://api.sarvam.ai/text-to-speech/stream'
+const DICT_ID = String(process.env.SARVAM_TTS_DICT_ID || '').trim()
 
 const cache =
   globalThis.__HJ_SARVAM_TTS_CACHE ||
@@ -81,6 +82,7 @@ const requestAudio = async ({ text, languageCode, speaker, pace, temperature }) 
         temperature,
         output_audio_codec: 'mp3',
         output_audio_bitrate: '128k',
+        ...(DICT_ID ? { dict_id: DICT_ID } : {}),
       }),
       signal: controller.signal,
     })
@@ -118,7 +120,7 @@ export async function synthesizeSarvamTts({
   languageCode,
   speaker = DEFAULT_SPEAKER,
   pace = 1,
-  temperature = 0.6,
+  temperature = 0.35,
 }) {
   const normalizedText = cleanText(text)
   if (!normalizedText) throw new Error('text is required')
