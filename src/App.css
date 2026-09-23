@@ -5323,3 +5323,321 @@ body:has(.reader-overlay:not(.reader-minimized)),
     min-height: 0 !important;
   }
 }
+
+/* =========================================================
+   HJ GROUPS — TTS READER MINIMIZE / LOCK UX
+   Keep the book as the primary surface. Minimize collapses
+   only the TTS controls; lock protects the reader surface.
+========================================================= */
+
+.reader-player-shell {
+  grid-area: player;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.reader-player-shell.is-minimized {
+  width: auto;
+  justify-self: end;
+}
+
+.reader-mini-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(360px, calc(100vw - 28px));
+  min-height: 44px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(124,131,255,.24);
+  border-radius: 14px;
+  background: rgba(10,11,19,.94);
+  box-shadow: 0 12px 34px rgba(0,0,0,.32);
+  backdrop-filter: blur(14px);
+}
+
+.reader-mini-player button {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 9px;
+  background: rgba(255,255,255,.05);
+  color: #fff;
+}
+
+.reader-mini-player button:first-child {
+  border-radius: 50%;
+  background: #fff;
+  color: #050509;
+}
+
+.reader-mini-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reader-mini-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+  font-size: 11px;
+}
+
+.reader-mini-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #858ca7;
+  font-size: 9px;
+}
+
+.reader-controls-minimized .reader-bottom {
+  min-height: 0;
+}
+
+.reader-controls-minimized .reader-player-shell.is-minimized {
+  position: fixed;
+  right: 14px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 2250;
+  pointer-events: auto;
+}
+
+.reader-controls-minimized .reader-player-shell.is-minimized .reader-mini-player {
+  width: min(360px, calc(100vw - 28px));
+}
+
+.reader-controls-minimized .reader-bottom:has(.reader-player-shell.is-minimized) {
+  min-height: 0;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
+}
+
+.reader-controls-minimized .reader-bottom:has(.reader-player-shell.is-minimized) > .reader-navigation,
+.reader-controls-minimized .reader-bottom:has(.reader-player-shell.is-minimized) > .reader-zoom,
+.reader-controls-minimized .reader-bottom:has(.reader-player-shell.is-minimized) > .reader-read-status,
+.reader-controls-minimized .reader-bottom:has(.reader-player-shell.is-minimized) > .reader-word-indicator {
+  display: none !important;
+}
+
+.hj-tts-settings {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 12px;
+  z-index: 80;
+  width: min(340px, calc(100vw - 28px));
+  padding: 14px;
+  box-sizing: border-box;
+  border: 1px solid rgba(124,131,255,.24);
+  border-radius: 15px;
+  background: rgba(10,11,19,.98);
+  box-shadow: 0 20px 55px rgba(0,0,0,.44);
+  backdrop-filter: blur(16px);
+}
+
+.hj-tts-settings-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.hj-tts-settings-head > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hj-tts-settings-head strong {
+  color: #fff;
+  font-size: 13px;
+}
+
+.hj-tts-settings-head small {
+  color: #858ca7;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.hj-tts-settings-head > button {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.hj-tts-settings label {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.hj-tts-settings label span {
+  color: #9299b4;
+  font-size: 10px;
+}
+
+.hj-tts-settings select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 9px;
+  background: rgba(255,255,255,.045);
+  color: #fff;
+  font-size: 11px;
+}
+
+.reader-overlay.reader-locked .reader-header,
+.reader-overlay.reader-locked .reader-bottom {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.reader-overlay.reader-locked .reader-header {
+  visibility: hidden;
+}
+
+.reader-overlay.reader-locked .reader-bottom {
+  display: none !important;
+}
+
+.reader-lock-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: default;
+}
+
+.reader-lock-badge {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: 10px;
+  z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 1px solid rgba(124,131,255,.30);
+  border-radius: 999px;
+  background: rgba(10,11,19,.92);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,.34);
+  backdrop-filter: blur(12px);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.reader-lock-badge:active {
+  transform: scale(.98);
+}
+
+@media (max-width: 700px) {
+  .reader-header {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .reader-header::-webkit-scrollbar {
+    display: none;
+  }
+
+  .reader-header > strong {
+    flex: 1 0 120px;
+  }
+
+  .reader-tools {
+    flex: 0 0 auto;
+    width: max-content;
+  }
+
+  .reader-tools button {
+    white-space: nowrap;
+  }
+
+  .reader-bottom:not(:has(.reader-player-shell)) {
+    display: none !important;
+  }
+
+  .reader-player-shell:not(.is-minimized) {
+    width: 100%;
+  }
+
+  .reader-player-shell.is-minimized {
+    width: auto;
+  }
+
+  .reader-mini-player {
+    gap: 6px;
+    min-height: 42px;
+    padding: 5px 6px;
+    border-radius: 13px;
+  }
+
+  .reader-mini-player button {
+    flex-basis: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .reader-mini-copy strong {
+    font-size: 10px;
+  }
+
+  .reader-mini-copy small {
+    font-size: 8px;
+  }
+
+  .reader-controls-minimized .reader-player-shell.is-minimized {
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .hj-tts-settings {
+    top: calc(100% + 6px);
+    right: 8px;
+    width: min(330px, calc(100vw - 16px));
+  }
+
+  .reader-lock-badge {
+    top: max(8px, env(safe-area-inset-top));
+    right: 8px;
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 430px) {
+  .reader-mini-player {
+    width: calc(100vw - 16px);
+  }
+
+  .reader-controls-minimized .reader-player-shell.is-minimized .reader-mini-player {
+    width: calc(100vw - 16px);
+  }
+
+  .reader-lock-badge {
+    max-width: calc(100vw - 16px);
+  }
+}
