@@ -738,6 +738,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         await onAddStory({
           title: storyTitle.trim(),
           genre: storyGenre,
+          language: storyLanguage,
           cover: storyCover.trim(),
           description: storyDescription.trim(),
           episodes: [],
