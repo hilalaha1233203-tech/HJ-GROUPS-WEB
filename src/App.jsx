@@ -8428,6 +8428,34 @@ export function App() {
                   </label>
                 </div>
               )}
+
+              {!readerLocked && (
+                <div className="reader-theme-picker" aria-label="Reader appearance">
+                  <span>Appearance</span>
+                  {[
+                    ['dark', 'Dark'],
+                    ['paper', 'Paper'],
+                    ['sepia', 'Sepia'],
+                    ['night', 'Night Blue'],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={readerTheme === value ? 'active' : ''}
+                      onClick={() => {
+                        setReaderTheme(value)
+                        handleAccountSettingsChange({
+                          ...accountSettings,
+                          readerTheme: value,
+                        })
+                      }}
+                      aria-pressed={readerTheme === value}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/*
