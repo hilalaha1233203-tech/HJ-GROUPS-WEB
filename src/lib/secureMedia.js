@@ -6,9 +6,10 @@ const protectedTypes = new Set(['premium', 'vip'])
 
 const isProtected = (item) => {
   const types = resolveAccessType(item)
-  // Paid types remain protected even when old rows accidentally contain a
-  // "free" flag alongside premium/vip.
-  return types.some((type) => protectedTypes.has(type))
+  // Mixed Premium/VIP + Ads content keeps the existing ad-unlock route.
+  // Only content without an Ads fallback requires an authenticated secure
+  // media ticket.
+  return !types.includes('ads') && types.some((type) => protectedTypes.has(type))
 }
 
 const getMessageId = (item) => {
