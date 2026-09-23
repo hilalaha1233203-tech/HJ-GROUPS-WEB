@@ -3525,6 +3525,9 @@ export function App() {
       }, 900)
     }
 
+  // This function intentionally captures the current reader state;
+  // the ref-sync effect below keeps the latest implementation available.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const readAloud =
     async () => {
       if (
