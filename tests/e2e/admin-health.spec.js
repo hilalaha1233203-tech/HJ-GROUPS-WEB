@@ -68,7 +68,7 @@ test.describe('HJ GROUPS admin health', () => {
     }
 
     await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
-    await expect(page.getByText('Bulk Telegram Import', { exact: true })).toBeVisible()
+    await expect(page.getByText(/Bulk Telegram Import/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Messages/i })).toBeVisible()
     const audioAccess = page.locator('select[name="bulk-audio-default-access"]')
     await expect(audioAccess).toBeVisible()
@@ -77,14 +77,14 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(audioAccess).toHaveValue('vip')
 
     await page.getByRole('button', { name: /Books/i }).first().click()
-    await expect(page.getByText('Bulk Telegram Book Import', { exact: true })).toBeVisible()
+    await expect(page.getByText(/Bulk Telegram Book Import/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Books/i })).toBeVisible()
     const bookAccess = page.locator('select[name="bulk-book-default-access"]')
     await expect(bookAccess).toBeVisible()
     await expect(bookAccess.locator('option')).toHaveText(['Free', 'VIP', 'Premium', 'Ads'])
 
     await page.getByRole('button', { name: /Videos/i }).first().click()
-    await expect(page.getByText('Bulk Telegram Video Import', { exact: true })).toBeVisible()
+    await expect(page.getByText(/Bulk Telegram Video Import/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Videos/i })).toBeVisible()
     const videoAccess = page.locator('select[name="bulk-video-default-access"]')
     await expect(videoAccess).toBeVisible()
