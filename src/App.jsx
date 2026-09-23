@@ -100,6 +100,12 @@ const getMediaPositionKey = (episode) => {
   return 'hj_media_position_v2:' + (episode.type || 'audio') + ':' + (episode.storyId || episode.story_id || 'story') + ':' + (episode.number || episode.id || 0)
 }
 
+const getReaderPositionKey = (book) => {
+  if (!book) return ''
+  const id = book.id ?? book.filePath ?? book.file ?? book.title ?? ''
+  return 'hj_reader_position_v1:' + String(book.type || 'book') + ':' + String(id)
+}
+
 /* =========================================================
    SEED DATA
 ========================================================= */
@@ -644,6 +650,7 @@ export function App() {
 
   const readerContainerRef = useRef(null)
   const readerBodyRef = useRef(null)
+  const readerPositionRestoredRef = useRef(false)
 
   const epubContainerRef = useRef(null)
   const epubBookRef = useRef(null)
@@ -1023,6 +1030,88 @@ export function App() {
 
   const [readAloudLabel, setReadAloudLabel] =
     useState('')
+
+  /* =======================================================
+     READER POSITION PERSISTENCE
+  ======================================================= */
+
+  useEffect(() => {
+    if (!readerOpen || !readerBook) return
+    const key = getReaderPositionKey(readerBook)
+    if (!key) return
+
+    if (!accountSettings.readerRememberPosition) {
+      try {
+        localStorage.removeItem(key)
+      } catch {}
+      readerPositionRestoredRef.current = true
+      return
+    }
+
+    if (readerPositionRestoredRef.current) return
+
+    if (readerType === 'pdf' && pdfPages > 0) {
+      try {
+        const saved = Number.parseInt(localStorage.getItem(key) || '1', 10)
+        setPdfPage(clamp(Number.isFinite(saved) ? saved : 1, 1, pdfPages))
+      } catch {
+        setPdfPage(1)
+      }
+      readerPositionRestoredRef.current = true
+      return
+    }
+
+    if (
+      readerType === 'epub' &&
+      epubReady &&
+      epubLocationsReady &&
+      epubPages > 0 &&
+      epubRenditionRef.current &&
+      epubBookRef.current
+    ) {
+      try {
+        const saved = Number.parseInt(localStorage.getItem(key) || '1', 10)
+        const target = clamp(Number.isFinite(saved) ? saved : 1, 1, epubPages)
+        const locations = epubBookRef.current.locations
+        const cfi = locations?.cfiFromLocation?.(target - 1)
+        if (cfi) {
+          void epubRenditionRef.current.display(cfi)
+          setEpubPage(target)
+        }
+      } catch (error) {
+        console.warn('Reader position restore failed:', error)
+      }
+      readerPositionRestoredRef.current = true
+    }
+  }, [
+    readerOpen,
+    readerBook,
+    readerType,
+    pdfPages,
+    epubReady,
+    epubLocationsReady,
+    epubPages,
+    accountSettings.readerRememberPosition,
+  ])
+
+  useEffect(() => {
+    if (!readerOpen || !readerBook || !accountSettings.readerRememberPosition) return
+    const key = getReaderPositionKey(readerBook)
+    if (!key) return
+    const page = readerType === 'pdf' ? pdfPage : epubPage
+    if (!Number.isFinite(Number(page)) || Number(page) < 1) return
+
+    try {
+      localStorage.setItem(key, String(page))
+    } catch {}
+  }, [
+    readerOpen,
+    readerBook,
+    readerType,
+    pdfPage,
+    epubPage,
+    accountSettings.readerRememberPosition,
+  ])
 
   /* =======================================================
      CONTENT
@@ -4123,6 +4212,7 @@ export function App() {
 
       cleanupReaderObjectUrl()
 
+      readerPositionRestoredRef.current = false
       setReaderOpen(false)
 
       setReaderFile(null)
@@ -4274,6 +4364,7 @@ export function App() {
         true
       )
 
+      readerPositionRestoredRef.current = false
       setReaderOpen(true)
       setTtsPlayerMinimized(false)
       setReaderLocked(false)
@@ -5860,7 +5951,7 @@ export function App() {
   ======================================================= */
 
   return (
-    <div className="app">
+    <div className={accountSettings.reducedMotion ? 'app reduced-motion' : 'app'}>
       <canvas
         ref={
           particleCanvasRef
