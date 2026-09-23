@@ -58,7 +58,7 @@ test.describe('HJ GROUPS admin health', () => {
     const adminOverlay = page.locator('.admin-overlay')
     await expect(adminOverlay).toBeVisible()
 
-    const tabs = ['Overview', 'Audio Stories', 'Books', 'Videos']
+    const tabs = ['Overview', 'Audio Stories', 'Books', 'Videos', 'Management & Settings']
     for (const tab of tabs) {
       const button = adminOverlay.getByRole('button', { name: new RegExp(tab, 'i') }).first()
       await expect(button).toBeVisible()
@@ -70,25 +70,43 @@ test.describe('HJ GROUPS admin health', () => {
     await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Import/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Messages/i })).toBeVisible()
-    const audioAccess = page.locator('select[name="bulk-audio-default-access"]')
-    await expect(audioAccess).toBeVisible()
-    await expect(audioAccess.locator('option')).toHaveText(['Free', 'VIP', 'Premium', 'Ads'])
-    await audioAccess.selectOption('vip')
-    await expect(audioAccess).toHaveValue('vip')
+    await expect(page.getByText('Access Types', { exact: true }).first()).toBeVisible()
+    const audioVip = page.locator('input[name="bulk-audio-default-access_vip"]').first()
+    await expect(audioVip).toBeVisible()
+    await audioVip.check()
+    await expect(audioVip).toBeChecked()
 
-    await page.getByRole('button', { name: /Books/i }).first().click()
+    await adminOverlay.getByRole('button', { name: /Books/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Book Import/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Books/i })).toBeVisible()
-    const bookAccess = page.locator('select[name="bulk-book-default-access"]')
-    await expect(bookAccess).toBeVisible()
-    await expect(bookAccess.locator('option')).toHaveText(['Free', 'VIP', 'Premium', 'Ads'])
+    const bookAds = page.locator('input[name="bulk-book-default-access_ads"]').first()
+    await expect(bookAds).toBeVisible()
+    await bookAds.check()
+    await expect(bookAds).toBeChecked()
 
-    await page.getByRole('button', { name: /Videos/i }).first().click()
+    await adminOverlay.getByRole('button', { name: /Videos/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Video Import/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Videos/i })).toBeVisible()
-    const videoAccess = page.locator('select[name="bulk-video-default-access"]')
-    await expect(videoAccess).toBeVisible()
-    await expect(videoAccess.locator('option')).toHaveText(['Free', 'VIP', 'Premium', 'Ads'])
+    const videoPremium = page.locator('input[name="bulk-video-default-access_premium"]').first()
+    await expect(videoPremium).toBeVisible()
+    await videoPremium.check()
+    await expect(videoPremium).toBeChecked()
+
+    await adminOverlay.getByRole('button', { name: /Management & Settings/i }).first().click()
+    await expect(page.getByText('Management & Settings', { exact: true })).toBeVisible()
+    await expect(page.getByText('CONTENT MANAGEMENT', { exact: true })).toBeVisible()
+    await expect(page.getByText('ADS PROVIDER', { exact: true })).toBeVisible()
+    await expect(page.getByText('PAYMENTS', { exact: true })).toBeVisible()
+    await expect(page.getByText('WEBSITE SETTINGS', { exact: true })).toBeVisible()
+    await expect(page.getByText('CONTENT ACCESS', { exact: true })).toBeVisible()
+
+    const settingsSave = adminOverlay.getByRole('button', { name: /Save All Settings/i })
+    await expect(settingsSave).toBeVisible()
+
+    const siteNameInput = adminOverlay.locator('.admin-settings-card').filter({ hasText: 'WEBSITE SETTINGS' }).locator('input').first()
+    await siteNameInput.fill('HJ GROUPS')
+    await settingsSave.click()
+    await expect(page.getByText('Management settings saved in this browser', { exact: true })).toBeVisible()
 
     await test.info().attach('admin-health.json', {
       body: JSON.stringify(
