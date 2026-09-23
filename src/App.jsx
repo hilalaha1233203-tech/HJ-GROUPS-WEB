@@ -928,6 +928,18 @@ export function App() {
   const [readerFullscreen, setReaderFullscreen] =
     useState(false)
 
+  const [ttsPlayerMinimized, setTtsPlayerMinimized] =
+    useState(false)
+
+  const [readerLocked, setReaderLocked] =
+    useState(false)
+
+  const [ttsSettingsOpen, setTtsSettingsOpen] =
+    useState(false)
+
+  const [ttsSettings, setTtsSettings] =
+    useState(() => readTtsSettings())
+
   /* =======================================================
      CHAPTER MENU
   ======================================================= */
@@ -2651,6 +2663,24 @@ export function App() {
       }
     }
 
+  const updateTtsSetting =
+    (key, value) => {
+      const current = readTtsSettings()
+      const next = {
+        ...current,
+        [key]: value,
+      }
+
+      try {
+        localStorage.setItem(
+          TTS_SETTINGS_KEY,
+          JSON.stringify(next)
+        )
+      } catch { }
+
+      setTtsSettings(next)
+    }
+
   const changeSpeed =
     (value) => {
       setSpeed(value)
@@ -3668,13 +3698,36 @@ export function App() {
       )
     }
 
-  const closeReaderView =
+  const minimizeTtsPlayer =
     () => {
-      if (isReading) {
-        stopReadAloud()
-        setReaderOpen(false)
+      setTtsSettingsOpen(false)
+      setChapterPanelOpen(false)
+      setTtsPlayerMinimized(true)
+    }
+
+  const restoreTtsPlayer =
+    () => {
+      if (readerLocked) return
+      setTtsPlayerMinimized(false)
+    }
+
+  const toggleReaderLock =
+    () => {
+      if (readerLocked) {
+        setReaderLocked(false)
+        setTtsPlayerMinimized(false)
         return
       }
+
+      setTtsSettingsOpen(false)
+      setChapterPanelOpen(false)
+      setReaderLocked(true)
+      setTtsPlayerMinimized(true)
+    }
+
+  const closeReaderView =
+    () => {
+      if (readerLocked) return
 
       teardownReader()
 
@@ -3753,6 +3806,9 @@ export function App() {
       )
 
       setReaderOpen(true)
+      setTtsPlayerMinimized(false)
+      setReaderLocked(false)
+      setTtsSettingsOpen(false)
 
       setPdfPage(1)
       setPdfPages(0)
@@ -7782,24 +7838,19 @@ export function App() {
           ref={
             readerContainerRef
           }
-          className={`reader-overlay ${readerOpen
-            ? ''
-            : 'reader-minimized'
-            } ${(isReading || activePlayerKind === 'readaloud') ? 'reader-reading' : ''}`}
+          className={`reader-overlay ${ttsPlayerMinimized ? 'reader-controls-minimized' : ''} ${readerLocked ? 'reader-locked' : ''} ${(isReading || activePlayerKind === 'readaloud') ? 'reader-reading' : ''}`}
         >
           <div className="reader-window">
             {/* HEADER */}
 
             <div className="reader-header">
               <button
-                onClick={
-                  closeReaderView
-                }
+                onClick={closeReaderView}
+                disabled={readerLocked}
+                title="Close book reader"
+                aria-label="Close book reader"
               >
-                ←{' '}
-                {isReading
-                  ? 'Minimize'
-                  : 'Close'}
+                ← Close
               </button>
 
               <strong>
@@ -7810,20 +7861,44 @@ export function App() {
 
               <div className="reader-tools">
                 <button
+                  onClick={readAloud}
+                  disabled={readerLocked}
+                  title={isReading ? 'Stop Read Aloud' : 'Start Read Aloud'}
+                >
+                  {isReading
+                    ? '⏹ Stop'
+                    : '🔊 Read Aloud'}
+                </button>
+
+                <button
+                  onClick={() =>
+                    setTtsSettingsOpen(
+                      (value) => !value
+                    )
+                  }
+                  disabled={readerLocked}
+                  aria-expanded={ttsSettingsOpen}
+                  aria-controls="hj-tts-settings"
+                  title="Read Aloud settings"
+                >
+                  ⚙ TTS Settings
+                </button>
+
+                <button
                   onClick={() =>
                     setChapterPanelOpen(
                       (value) =>
                         !value
                     )
                   }
+                  disabled={readerLocked}
                 >
                   ☰ Chapters
                 </button>
 
                 <button
-                  onClick={
-                    toggleReaderFullscreen
-                  }
+                  onClick={toggleReaderFullscreen}
+                  disabled={readerLocked}
                 >
                   {readerFullscreen
                     ? '⤡ Exit Fullscreen'
@@ -7831,15 +7906,79 @@ export function App() {
                 </button>
 
                 <button
-                  onClick={
-                    readAloud
-                  }
+                  onClick={minimizeTtsPlayer}
+                  disabled={readerLocked || activePlayerKind !== 'readaloud'}
+                  title="Minimize the Read Aloud player"
+                  aria-label="Minimize the Read Aloud player"
                 >
-                  {isReading
-                    ? '⏹ Stop'
-                    : '🔊Read Aloud'}
+                  ▾ Minimize
+                </button>
+
+                <button
+                  onClick={toggleReaderLock}
+                  aria-pressed={readerLocked}
+                  title={readerLocked ? 'Unlock reading controls' : 'Lock reading screen'}
+                >
+                  {readerLocked
+                    ? '🔓 Unlock'
+                    : '🔒 Lock'}
                 </button>
               </div>
+
+              {ttsSettingsOpen && !readerLocked && (
+                <div
+                  id="hj-tts-settings"
+                  className="hj-tts-settings"
+                  role="dialog"
+                  aria-label="Read Aloud settings"
+                >
+                  <div className="hj-tts-settings-head">
+                    <div>
+                      <strong>Read Aloud Settings</strong>
+                      <small>Voice preferences apply to the next TTS chunk.</small>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTtsSettingsOpen(false)}
+                      aria-label="Close TTS settings"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <label>
+                    <span>Tamil voice</span>
+                    <select
+                      value={ttsSettings.tamilVoice}
+                      onChange={(event) =>
+                        updateTtsSetting(
+                          'tamilVoice',
+                          event.target.value
+                        )
+                      }
+                    >
+                      <option value="ta-IN-PallaviNeural">Pallavi</option>
+                      <option value="ta-IN-ValluvarNeural">Valluvar</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    <span>English (India) voice</span>
+                    <select
+                      value={ttsSettings.englishVoice}
+                      onChange={(event) =>
+                        updateTtsSetting(
+                          'englishVoice',
+                          event.target.value
+                        )
+                      }
+                    >
+                      <option value="en-IN-NeerjaNeural">Neerja</option>
+                      <option value="en-IN-PrabhatNeural">Prabhat</option>
+                    </select>
+                  </label>
+                </div>
+              )}
             </div>
 
             {/*
@@ -8084,6 +8223,23 @@ export function App() {
             </div>
             {/* end .reader-middle */}
 
+            {readerLocked && (
+              <>
+                <div
+                  className="reader-lock-shield"
+                  aria-hidden="true"
+                />
+                <button
+                  type="button"
+                  className="reader-lock-badge"
+                  onClick={toggleReaderLock}
+                  aria-label="Unlock reading screen"
+                >
+                  🔒 Locked · Tap to Unlock
+                </button>
+              </>
+            )}
+
             {/* BOTTOM READER CONTROLS */}
 
             <div className="reader-bottom">
@@ -8311,7 +8467,43 @@ export function App() {
                 </button>
               </div>
 
-              <div className="reader-player">
+              {activePlayerKind === 'readaloud' && (
+                <div className="reader-player-shell">
+                  {ttsPlayerMinimized ? (
+                    <div className="reader-mini-player">
+                      <button
+                        type="button"
+                        className="reader-mini-play"
+                        onClick={readAloud}
+                        aria-label={isReading ? 'Stop Read Aloud' : 'Start Read Aloud'}
+                      >
+                        {isReading ? '❚❚' : '▶'}
+                      </button>
+                      <span className="reader-mini-copy">
+                        <strong>Read Aloud</strong>
+                        <small>{readAloudLabel || 'Player minimized'}</small>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={restoreTtsPlayer}
+                        disabled={readerLocked}
+                        aria-label="Expand Read Aloud player"
+                        title="Expand Read Aloud player"
+                      >
+                        ⤢
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleReaderLock}
+                        aria-pressed={readerLocked}
+                        aria-label={readerLocked ? 'Unlock reading screen' : 'Lock reading screen'}
+                        title={readerLocked ? 'Unlock reading screen' : 'Lock reading screen'}
+                      >
+                        {readerLocked ? '🔓' : '🔒'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="reader-player">
                 <div className="reader-player-nav">
                   <button
                     onClick={readerPrevious}
@@ -8397,7 +8589,10 @@ export function App() {
                   <option value="30">30 min</option>
                   <option value="60">60 min</option>
                 </select>
-              </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {readAloudLabel && (
                 <div className="reader-read-status">
