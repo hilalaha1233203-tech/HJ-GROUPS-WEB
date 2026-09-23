@@ -5398,35 +5398,29 @@ export function App() {
   const zoomIn =
     () => {
       if (readerType === 'pdf') {
-        setPdfScale((value) => {
-          const next = Number(Math.min(2.5, value + 0.25).toFixed(2))
-          saveReaderSetting('readerPdfScale', next)
-          return next
-        })
+        const next = Number(Math.min(2.5, pdfScale + 0.25).toFixed(2))
+        setPdfScale(next)
+        saveReaderSetting('readerPdfScale', next)
         return
       }
-      setEpubFontScale((value) => {
-        const next = Math.min(200, value + 10)
-        saveReaderSetting('readerFontSize', next)
-        return next
-      })
+
+      const next = Math.min(200, epubFontScale + 10)
+      setEpubFontScale(next)
+      saveReaderSetting('readerFontSize', next)
     }
 
   const zoomOut =
     () => {
       if (readerType === 'pdf') {
-        setPdfScale((value) => {
-          const next = Number(Math.max(0.5, value - 0.25).toFixed(2))
-          saveReaderSetting('readerPdfScale', next)
-          return next
-        })
+        const next = Number(Math.max(0.5, pdfScale - 0.25).toFixed(2))
+        setPdfScale(next)
+        saveReaderSetting('readerPdfScale', next)
         return
       }
-      setEpubFontScale((value) => {
-        const next = Math.max(60, value - 10)
-        saveReaderSetting('readerFontSize', next)
-        return next
-      })
+
+      const next = Math.max(60, epubFontScale - 10)
+      setEpubFontScale(next)
+      saveReaderSetting('readerFontSize', next)
     }
 
   const zoomReset =
