@@ -44,14 +44,19 @@ const normalizeLanguage = (languageCode, text) => {
 }
 
 const safeJson = async (response) => {
+  let raw = ''
   try {
-    return await response.json()
+    raw = await response.text()
   } catch {
-    try {
-      return { detail: (await response.text()).slice(0, 400) }
-    } catch {
-      return {}
-    }
+    return {}
+  }
+
+  if (!raw) return {}
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return { detail: raw.slice(0, 400) }
   }
 }
 
@@ -69,7 +74,7 @@ const requestAudio = async ({ text, languageCode, speaker, pace, temperature }) 
       },
       body: JSON.stringify({
         text,
-        target_language_code: languageCode,
+        language_code: languageCode,
         model: 'bulbul:v3',
         speaker,
         pace,
@@ -117,6 +122,7 @@ export async function synthesizeSarvamTts({
 }) {
   const normalizedText = cleanText(text)
   if (!normalizedText) throw new Error('text is required')
+  if (!isSarvamConfigured()) throw new Error('Sarvam TTS is not configured')
   if (normalizedText.length > MAX_CHARS) {
     throw new Error('text exceeds ' + MAX_CHARS + ' characters for Sarvam streaming TTS')
   }
