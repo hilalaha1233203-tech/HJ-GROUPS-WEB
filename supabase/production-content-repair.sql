@@ -17,6 +17,10 @@ create table if not exists public.content_access_settings (
   updated_at timestamptz not null default now()
 );
 
+alter table public.content_access_settings
+  add column if not exists ad_unlock_duration_minutes integer not null default 360
+  check (ad_unlock_duration_minutes between 1 and 1440);
+
 alter table public.content_access_settings enable row level security;
 grant select on public.content_access_settings to anon, authenticated;
 grant insert, update, delete on public.content_access_settings to authenticated;
@@ -37,8 +41,8 @@ begin
   end if;
 end $;
 
-insert into public.content_access_settings (id, audio_free_episodes, video_free_episodes, book_free_pages)
-values ('default', 10, 10, 50)
+insert into public.content_access_settings (id, audio_free_episodes, video_free_episodes, book_free_pages, ad_unlock_duration_minutes)
+values ('default', 10, 10, 50, 360)
 on conflict (id) do nothing;
 
 
