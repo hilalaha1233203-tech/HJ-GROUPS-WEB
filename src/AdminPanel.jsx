@@ -1569,11 +1569,23 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
               <form onSubmit={submitStory} className="admin-form">
                 <input placeholder="Story title" value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} />
 
-                <select value={storyGenre} onChange={(e) => setStoryGenre(e.target.value)}>
-                  {['Fantasy', 'Action', 'Adventure', 'Romance', 'System', 'Mystery'].map((genre) => (
-                    <option key={genre} value={genre}>{genre}</option>
-                  ))}
-                </select>
+                <label>
+                  Genre
+                  <select value={storyGenre} onChange={(e) => setStoryGenre(e.target.value)}>
+                    {GENRE_OPTIONS.map((genre) => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Language
+                  <select value={storyLanguage} onChange={(e) => setStoryLanguage(e.target.value)}>
+                    {LANGUAGE_OPTIONS.map((language) => (
+                      <option key={language} value={language}>{language}</option>
+                    ))}
+                  </select>
+                </label>
 
                 <FileUploadField
                   label="Choose Cover Image"
@@ -1622,6 +1634,15 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <option value="audio">🎧 Audio</option>
                   <option value="video">🎬 Video</option>
                 </select>
+
+                <label>
+                  Language
+                  <select value={episodeLanguage} onChange={(e) => setEpisodeLanguage(e.target.value)}>
+                    {LANGUAGE_OPTIONS.map((language) => (
+                      <option key={language} value={language}>{language}</option>
+                    ))}
+                  </select>
+                </label>
 
                 {episodeType === 'audio' ? (
                   <>
@@ -1981,11 +2002,23 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <option value="epub">EPUB</option>
                 </select>
 
-                <select value={bookCategory} onChange={(e) => setBookCategory(e.target.value)}>
-                  {['Tamil Stories', 'Fantasy', 'Romance', 'Mystery', 'Other'].map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
+                <label>
+                  Genre / Category
+                  <select value={bookCategory} onChange={(e) => setBookCategory(e.target.value)}>
+                    {BOOK_GENRE_OPTIONS.map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Language
+                  <select value={bookLanguage} onChange={(e) => setBookLanguage(e.target.value)}>
+                    {LANGUAGE_OPTIONS.map((language) => (
+                      <option key={language} value={language}>{language}</option>
+                    ))}
+                  </select>
+                </label>
 
                 <FileUploadField
                   label="Choose Cover Image"
@@ -2121,11 +2154,23 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
               <form onSubmit={submitVideo} className="admin-form">
                 <input placeholder="Video story title" value={videoTitle} onChange={(e) => setVideoTitle(e.target.value)} />
 
-                <select value={videoCategory} onChange={(e) => setVideoCategory(e.target.value)}>
-                  {['Fantasy', 'Action', 'Adventure', 'Romance'].map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
+                <label>
+                  Genre / Category
+                  <select value={videoCategory} onChange={(e) => setVideoCategory(e.target.value)}>
+                    {VIDEO_GENRE_OPTIONS.map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Language
+                  <select value={videoLanguage} onChange={(e) => setVideoLanguage(e.target.value)}>
+                    {LANGUAGE_OPTIONS.map((language) => (
+                      <option key={language} value={language}>{language}</option>
+                    ))}
+                  </select>
+                </label>
 
                 <FileUploadField
                   label="Choose Thumbnail"
