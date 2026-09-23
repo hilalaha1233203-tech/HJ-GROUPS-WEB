@@ -15,7 +15,7 @@ import {
   canAccess,
   adsKeyFor,
   loadUnlockedAds,
-  saveUnlockedAds,
+  saveUnlockedAd,
 } from './lib/accessControl'
 
 import {
@@ -848,7 +848,7 @@ export function App() {
       try {
         const { data, error } = await supabase
           .from('content_access_settings')
-          .select('audio_free_episodes, video_free_episodes, book_free_pages')
+          .select('audio_free_episodes, video_free_episodes, book_free_pages, ad_unlock_duration_minutes')
           .eq('id', 'default')
           .maybeSingle()
 
@@ -862,6 +862,7 @@ export function App() {
           freeAudioEpisodes: data.audio_free_episodes,
           freeVideoEpisodes: data.video_free_episodes,
           freeBookPages: data.book_free_pages,
+          adUnlockDurationMinutes: data.ad_unlock_duration_minutes,
         })
         setContentAccessSettings(next)
         try {
@@ -2823,11 +2824,12 @@ export function App() {
               pending.adsKey
             )
 
-            saveUnlockedAds(
-              next
+            saveUnlockedAd(
+              pending.adsKey,
+              contentAccessSettings.adUnlockDurationMinutes
             )
 
-            return next
+            return loadUnlockedAds()
           }
         )
       }
