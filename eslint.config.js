@@ -29,7 +29,7 @@ export default defineConfig([
   {
     files: ['**/*.{mjs,cjs}'],
     languageOptions: {
-      globals: globals.node,
+      globals: { ...globals.node, process: 'readonly' },
     },
   },
   {
