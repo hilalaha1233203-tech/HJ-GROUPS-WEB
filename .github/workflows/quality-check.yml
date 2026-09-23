@@ -55,6 +55,9 @@ jobs:
           grep -q "AccountSettings" src/App.jsx
           grep -q "account-settings" src/App.jsx
           grep -q "reader-theme-paper" src/App.css
+          grep -q "readerPositionRestoredRef" src/App.jsx
+          grep -q "reduced-motion" src/App.jsx
+          grep -q ".app.reduced-motion" src/App.css
           grep -q "preload={accountSettings.dataSaver ? 'metadata' : 'auto'}" src/App.jsx
           grep -q "applyEpubReaderAppearance" src/App.jsx
           grep -q "Read Aloud" src/App.jsx
