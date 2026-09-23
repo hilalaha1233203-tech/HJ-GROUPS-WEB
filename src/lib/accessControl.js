@@ -52,17 +52,93 @@ export function accessLabel(item, { isAdmin } = {}) {
   return [...new Set(labels)].join(' + ')
 }
 
-export function loadUnlockedAds() {
+const AD_UNLOCKS_KEY = 'hj_ads_unlocked'
+const AD_UNLOCK_EXPIRIES_KEY = 'hj_ads_unlock_expiries_v1'
+
+function readAdUnlockExpiries() {
   try {
-    const raw = localStorage.getItem('hj_ads_unlocked')
-    return new Set(raw ? JSON.parse(raw) : [])
+    const raw = JSON.parse(localStorage.getItem(AD_UNLOCK_EXPIRIES_KEY) || '{}')
+    return raw && typeof raw === 'object' ? raw : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeAdUnlockExpiries(expiries) {
+  localStorage.setItem(AD_UNLOCK_EXPIRIES_KEY, JSON.stringify(expiries))
+}
+
+function cleanupAdUnlockExpiries() {
+  const now = Date.now()
+  const expiries = readAdUnlockExpiries()
+  const active = new Set()
+
+  for (const [key, expiry] of Object.entries(expiries)) {
+    const timestamp = Number(expiry)
+    if (Number.isFinite(timestamp) && timestamp > now) {
+      active.add(key)
+    } else {
+      delete expiries[key]
+    }
+  }
+
+  writeAdUnlockExpiries(expiries)
+  localStorage.setItem(AD_UNLOCKS_KEY, JSON.stringify([...active]))
+  return active
+}
+
+export function loadUnlockedAds() {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    // Legacy Set-only grants had no expiry. Treat them as expired on migration
+    // rather than accidentally preserving indefinite Premium access.
+    return cleanupAdUnlockExpiries()
   } catch {
     return new Set()
   }
 }
 
+export function saveUnlockedAd(key, durationMinutes = 360) {
+  if (!key || typeof window === 'undefined') return null
+  const duration = Math.min(1440, Math.max(1, Number(durationMinutes) || 360))
+  const expiresAt = Date.now() + duration * 60 * 1000
+  const expiries = readAdUnlockExpiries()
+  expiries[String(key)] = expiresAt
+  writeAdUnlockExpiries(expiries)
+  localStorage.setItem(
+    AD_UNLOCKS_KEY,
+    JSON.stringify(
+      Object.entries(expiries)
+        .filter(([, expiry]) => Number(expiry) > Date.now())
+        .map(([unlockKey]) => unlockKey)
+    )
+  )
+  return expiresAt
+}
+
+export function hasActiveAdUnlock(key) {
+  if (!key || typeof window === 'undefined') return false
+  const expiries = readAdUnlockExpiries()
+  const expiry = Number(expiries[String(key)])
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+    if (Object.prototype.hasOwnProperty.call(expiries, String(key))) {
+      delete expiries[String(key)]
+      writeAdUnlockExpiries(expiries)
+      localStorage.setItem(
+        AD_UNLOCKS_KEY,
+        JSON.stringify(Object.entries(expiries).filter(([, value]) => Number(value) > Date.now()).map(([unlockKey]) => unlockKey))
+      )
+    }
+    return false
+  }
+  return true
+}
+
 export function saveUnlockedAds(set) {
-  localStorage.setItem('hj_ads_unlocked', JSON.stringify([...set]))
+  // Backward-compatible API: preserve the caller's set but do not create
+  // indefinite access. Existing callers should migrate to saveUnlockedAd().
+  const active = new Set([...set].filter((key) => hasActiveAdUnlock(key)))
+  localStorage.setItem(AD_UNLOCKS_KEY, JSON.stringify([...active]))
 }
 
 export function adsKeyFor(kind, ...ids) {
@@ -85,7 +161,7 @@ export function canAccess(
   // Ads is an explicit alternate access path. For mixed items such as
   // ["premium", "ads"], a valid ad unlock must grant access even when the
   // visitor is logged out.
-  if (types.includes('ads') && adsKey && unlockedAds?.has(adsKey)) {
+  if (types.includes('ads') && adsKey && hasActiveAdUnlock(adsKey)) {
     return true
   }
 
@@ -115,7 +191,7 @@ export function canAccess(
   }
 
   if (types.includes('ads')) {
-    return Boolean(adsKey && unlockedAds?.has(adsKey))
+    return Boolean(adsKey && hasActiveAdUnlock(adsKey))
   }
 
   if (types.includes('free')) return true
