@@ -3659,23 +3659,23 @@ body:has(.reader-overlay:not(.reader-minimized)),
 .account-recovery-card > .secondary-btn{margin-top:10px;width:100%}
 
 /* Reader themes: clearly change the reader shell and EPUB content surface. */
-.reader-window.reader-theme-dark{background:#080b14}
-.reader-window.reader-theme-paper{background:#e8dfd1;color:#2c281f}
-.reader-window.reader-theme-paper .reader-header,
-.reader-window.reader-theme-paper .reader-bottom{background:rgba(246,239,228,.98);color:#27231e;border-color:rgba(66,52,34,.14)}
-.reader-window.reader-theme-paper .reader-body-full{background:#f8f1e7;color:#2c281f}
-.reader-window.reader-theme-paper .reader-navigation button,
-.reader-window.reader-theme-paper .reader-zoom button,
-.reader-window.reader-theme-paper .reader-theme-picker button{color:#2c281f;background:rgba(55,42,23,.06);border-color:rgba(55,42,23,.14)}
-.reader-window.reader-theme-paper .reader-theme-picker{color:#5b503f}
-.reader-window.reader-theme-paper .reader-theme-picker button.active{background:#2c281f;color:#fff}
-.reader-window.reader-theme-sepia{background:#d9c6a8;color:#3e3021}
-.reader-window.reader-theme-sepia .reader-header,
-.reader-window.reader-theme-sepia .reader-bottom{background:rgba(239,226,201,.98);color:#3e3021;border-color:rgba(76,55,31,.14)}
-.reader-window.reader-theme-sepia .reader-body-full{background:#eee0c4;color:#3e3021}
-.reader-window.reader-theme-night{background:#071223;color:#dcecff}
-.reader-window.reader-theme-night .reader-header,
-.reader-window.reader-theme-night .reader-bottom{background:rgba(7,18,35,.98);color:#dcecff}
+.reader-overlay.reader-theme-dark .reader-window{background:#080b14}
+.reader-overlay.reader-theme-paper .reader-window{background:#e8dfd1;color:#2c281f}
+.reader-overlay.reader-theme-paper .reader-window .reader-header,
+.reader-overlay.reader-theme-paper .reader-window .reader-bottom{background:rgba(246,239,228,.98);color:#27231e;border-color:rgba(66,52,34,.14)}
+.reader-overlay.reader-theme-paper .reader-window .reader-body-full{background:#f8f1e7;color:#2c281f}
+.reader-overlay.reader-theme-paper .reader-window .reader-navigation button,
+.reader-overlay.reader-theme-paper .reader-window .reader-zoom button,
+.reader-overlay.reader-theme-paper .reader-window .reader-theme-picker button{color:#2c281f;background:rgba(55,42,23,.06);border-color:rgba(55,42,23,.14)}
+.reader-overlay.reader-theme-paper .reader-window .reader-theme-picker{color:#5b503f}
+.reader-overlay.reader-theme-paper .reader-window .reader-theme-picker button.active{background:#2c281f;color:#fff}
+.reader-overlay.reader-theme-sepia .reader-window{background:#d9c6a8;color:#3e3021}
+.reader-overlay.reader-theme-sepia .reader-window .reader-header,
+.reader-overlay.reader-theme-sepia .reader-window .reader-bottom{background:rgba(239,226,201,.98);color:#3e3021;border-color:rgba(76,55,31,.14)}
+.reader-overlay.reader-theme-sepia .reader-window .reader-body-full{background:#eee0c4;color:#3e3021}
+.reader-overlay.reader-theme-night .reader-window{background:#071223;color:#dcecff}
+.reader-overlay.reader-theme-night .reader-window .reader-header,
+.reader-overlay.reader-theme-night .reader-window .reader-bottom{background:rgba(7,18,35,.98);color:#dcecff}
 .reader-theme-picker{
   display:flex;
   align-items:center;
