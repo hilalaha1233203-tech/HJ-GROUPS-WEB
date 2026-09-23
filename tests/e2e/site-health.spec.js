@@ -62,6 +62,19 @@ test.describe('HJ GROUPS public website health', () => {
     const health = await collectHealth(page, async () => {
       await expect(page.locator('body')).toBeVisible()
       await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible()
+
+      const particleCanvas = page.locator('.particle-canvas').first()
+      await expect(particleCanvas).toBeVisible()
+      const particlePosition = await particleCanvas.evaluate((element) => getComputedStyle(element).position)
+      expect(particlePosition).toBe('fixed')
+
+      const logoParticleData = await page.evaluate(() => ({
+        width: document.documentElement.clientWidth,
+        height: document.documentElement.clientHeight,
+        hasCanvas: Boolean(document.querySelector('.particle-canvas')),
+        hasTouchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+      }))
+      expect(logoParticleData.hasCanvas).toBe(true)
     })
 
     await test.info().attach('home-health.json', {
