@@ -21,7 +21,7 @@ const DEFAULTS = Object.freeze({
   reducedMotion: false,
 })
 
-function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTimer, onApplyPlayerSettings }) {
+function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTimer, onApplyPlayerSettings, isAdmin = false }) {
   const [name, setName] = useState('')
   const [newEmail, setNewEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -47,10 +47,9 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
   }, [user?.id, user?.email, user?.phone, user?.user_metadata?.full_name])
 
   useEffect(() => {
-    if (user?.user_metadata?.backup_google_connected) {
-      setBackupLabel('Google backup identity connected')
-    }
-  }, [user?.user_metadata?.backup_google_connected])
+    const connected = user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected
+    if (connected) setBackupLabel('Google backup identity connected')
+  }, [user?.id, user?.identities, user?.user_metadata?.backup_google_connected])
 
   const setSetting = (key, value) => {
     const next = { ...DEFAULTS, ...mergedSettings, [key]: value }
@@ -277,14 +276,21 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
           <button className="primary-btn" type="submit" disabled={busy}>Save Name</button>
         </form>
 
-        <form className="account-settings-form" onSubmit={changeEmail}>
-          <label><span>Primary Gmail / Email</span><input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="you@gmail.com" /></label>
-          <button className="secondary-btn" type="submit" disabled={busy}>Change Gmail</button>
-        </form>
-
-        <div className="account-settings-note">
-          Changing the email address does not create a new HJ GROUPS account. The same Supabase user ID is retained, so purchases tied to this account remain on it.
-        </div>
+        {!isAdmin ? (
+          <>
+            <form className="account-settings-form" onSubmit={changeEmail}>
+              <label><span>Primary Gmail / Email</span><input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="you@gmail.com" /></label>
+              <button className="secondary-btn" type="submit" disabled={busy}>Change Gmail</button>
+            </form>
+            <div className="account-settings-note">
+              Changing the email address does not create a new HJ GROUPS account. The same Supabase user ID is retained, so purchases tied to this account remain on it.
+            </div>
+          </>
+        ) : (
+          <div className="account-settings-note">
+            Administrator email is protected here so changing it cannot accidentally remove the HJ GROUPS admin role.
+          </div>
+        )}
       </section>
 
       <section className="account-settings-card">
