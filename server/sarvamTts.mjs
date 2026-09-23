@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 
-const DEFAULT_SPEAKER = 'ishita'
+const DEFAULT_SPEAKER = 'ratan'
 const MAX_CHARS = 3500
 const ENDPOINT = 'https://api.sarvam.ai/text-to-speech/stream'
 const DICT_ID = String(process.env.SARVAM_TTS_DICT_ID || '').trim()
