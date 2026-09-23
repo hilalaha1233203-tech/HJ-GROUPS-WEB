@@ -46,6 +46,7 @@ function normalizeStories(storyRows, episodeRows) {
     id: `tg-story-${story.id}`,
     title: story.title,
     genre: story.genre,
+    language: story.language || 'Tamil',
     cover: story.cover_url || fileUrlFromId(story.cover_file_id, 'image'),
     coverPath: story.cover_path || '',
     description: story.description || '',
@@ -61,6 +62,7 @@ function normalizeBooks(bookRows) {
     description: book.description || '',
     type: book.type,
     category: book.category,
+    language: book.language || 'Tamil',
     cover: book.cover_url || fileUrlFromId(book.cover_file_id, 'image'),
     coverPath: book.cover_path || '',
     file: book.file_url || (book.telegram_message_id && STREAMING_SERVER_URL
@@ -105,6 +107,7 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
     id: `tg-video-${video.id}`,
     title: video.title,
     category: video.category,
+    language: video.language || 'Tamil',
     cover: video.cover_url || fileUrlFromId(video.cover_file_id, 'image'),
     coverPath: video.cover_path || '',
     telegram_message_id: video.telegram_message_id || null,
