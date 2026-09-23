@@ -51,6 +51,22 @@ function corsHeaders(req) {
   }
 }
 
+// PDF/EPUB extraction can split Tamil glyphs with spaces (for example
+// "வ ண க் க ம்"). Joining only long glyph-separated runs restores the word
+// without removing normal spaces between Tamil words.
+function normalizeSpeechText(value) {
+  let text = String(value || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t\r\n]+/g, ' ')
+    .trim()
+
+  text = text.replace(/(?:[\u0B80-\u0BFF](?:\s+|$)){3,}/gu, (run) =>
+    run.replace(/\s+/gu, '')
+  )
+
+  return text
+}
+
 const jsonHeaders = (req) => ({
   'Content-Type': 'application/json; charset=utf-8',
   ...corsHeaders(req),
@@ -78,7 +94,7 @@ async function handleTts(req, res, forcedProvider = 'auto') {
     }), jsonHeaders(req))
   }
 
-  const text = String(body.text || '').replace(/\s+/g, ' ').trim()
+  const text = normalizeSpeechText(body.text)
 
   if (!text) {
     return send(res, 400, JSON.stringify({ error: 'text is required' }), jsonHeaders(req))
@@ -101,7 +117,9 @@ async function handleTts(req, res, forcedProvider = 'auto') {
   } else if (requestedProvider === 'sarvam') {
     providers = ['sarvam']
   } else if (requestedProvider === 'auto') {
-    providers = tamil ? ['edge', 'sarvam'] : ['edge', 'sarvam']
+    // Sarvam is preferred for Tamil because it is the dedicated Indian
+    // language model path; Microsoft Edge remains the reliable fallback.
+    providers = tamil ? ['sarvam', 'edge'] : ['edge', 'sarvam']
     if (!isSarvamConfigured()) providers = providers.filter((provider) => provider !== 'sarvam')
   } else {
     return send(res, 400, JSON.stringify({
@@ -211,7 +229,7 @@ const server = createServer(async (req, res) => {
         edge: { configured: true },
         sarvam: { configured: isSarvamConfigured() },
       },
-      ttsStrategy: 'Tamil: Microsoft Edge Neural (selected Tamil voice) → Sarvam fallback; other text: Edge → Sarvam fallback',
+      ttsStrategy: 'Tamil: Sarvam Bulbul v3 → Microsoft Edge Neural fallback; other text: Edge → Sarvam fallback',
     }), {
       'Content-Type': 'application/json; charset=utf-8',
       ...corsHeaders(req),
