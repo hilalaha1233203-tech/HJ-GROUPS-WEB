@@ -1096,6 +1096,7 @@ export function App() {
 
   useEffect(() => {
     if (!readerOpen || !readerBook || !accountSettings.readerRememberPosition) return
+    if (!readerPositionRestoredRef.current) return
     const key = getReaderPositionKey(readerBook)
     if (!key) return
     const page = readerType === 'pdf' ? pdfPage : epubPage
