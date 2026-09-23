@@ -69,6 +69,10 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Import/i)).toBeVisible()
+    const audioStoryForm = page.locator('form').filter({ hasText: /Add New Audio Story|Edit Audio Story/i }).first()
+    await expect(audioStoryForm.locator('select').nth(0)).toBeVisible()
+    await expect(audioStoryForm.getByText('Genre', { exact: true })).toBeVisible()
+    await expect(audioStoryForm.getByText('Language', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Messages/i })).toBeVisible()
     await expect(page.getByText('Access Types', { exact: true }).first()).toBeVisible()
     const audioVip = page.locator('input[name="bulk-audio-default-access_vip"]').first()
@@ -78,6 +82,9 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Books/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Book Import/i)).toBeVisible()
+    const bookForm = page.locator('form').filter({ hasText: /Add New Book|Edit Book/i }).first()
+    await expect(bookForm.getByText('Genre / Category', { exact: true })).toBeVisible()
+    await expect(bookForm.getByText('Language', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Books/i })).toBeVisible()
     const bookAds = page.locator('input[name="bulk-book-default-access_ads"]').first()
     await expect(bookAds).toBeVisible()
@@ -86,6 +93,9 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Videos/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Video Import/i)).toBeVisible()
+    const videoForm = page.locator('form').filter({ hasText: /Add New Video Story|Edit Video Story/i }).first()
+    await expect(videoForm.getByText('Genre / Category', { exact: true })).toBeVisible()
+    await expect(videoForm.getByText('Language', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Videos/i })).toBeVisible()
     const videoPremium = page.locator('input[name="bulk-video-default-access_premium"]').first()
     await expect(videoPremium).toBeVisible()
