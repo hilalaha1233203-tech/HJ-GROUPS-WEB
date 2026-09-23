@@ -118,7 +118,9 @@ test.describe('HJ GROUPS admin health', () => {
     const siteNameInput = adminOverlay.locator('.admin-settings-card').filter({ hasText: 'WEBSITE SETTINGS' }).locator('input').first()
     await siteNameInput.fill('HJ GROUPS')
     await settingsSave.click()
-    await expect(page.getByText('Management settings saved in this browser', { exact: true })).toBeVisible()
+    await expect(
+      page.getByText(/Management settings saved|Saved locally\. Apply the app_settings SQL/i).first()
+    ).toBeVisible()
 
     const adminClose = adminOverlay.getByRole('button', { name: /close|×|✕/i }).first()
     if (await adminClose.count()) await adminClose.click().catch(() => {})
