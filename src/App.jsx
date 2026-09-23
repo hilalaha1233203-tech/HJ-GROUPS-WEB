@@ -2204,6 +2204,7 @@ export function App() {
   ) =>
     canAccess(item, {
       isAdmin,
+      loggedIn,
       unlockedAds,
       adsKey,
       purchasedStoryIds,
