@@ -6274,3 +6274,14 @@ body:has(.reader-overlay:not(.reader-minimized)),
 .account-recovery-status-list .is-ok{color:#91efc3}
 .account-recovery-status-list .is-warn{color:#d0a4a4}
 .reader-read-aloud-main{font-weight:800 !important;color:#fff !important;border-color:rgba(124,131,255,.55) !important;background:rgba(124,131,255,.16) !important}
+
+
+/* Respect a user's reduced-motion preference across the application. */
+.app.reduced-motion *,
+.app.reduced-motion *::before,
+.app.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
