@@ -2075,10 +2075,10 @@ export function App() {
   const applyAccountPlayerSettings = (next) => {
     const media = getMediaElement()
     const isVideo = currentEpisode?.type === 'video'
-    const value = Number(isVideo ? next.videoVolume : next.audioVolume)
-    const rate = Number(isVideo ? next.videoSpeed : next.audioSpeed)
 
     if (media) {
+      const value = Number(isVideo ? next.videoVolume : next.audioVolume)
+      const rate = Number(isVideo ? next.videoSpeed : next.audioSpeed)
       if (Number.isFinite(value)) {
         media.volume = clamp(value, 0, 1)
         setVolume(clamp(value, 0, 1))
@@ -2089,17 +2089,18 @@ export function App() {
       }
     }
 
+    // TTS has its own persisted volume/speed. Do not feed TTS settings into
+    // the normal audio/video player's shared volume state.
     const ttsVolume = Number(next.ttsVolume)
     const ttsSpeed = Number(next.ttsSpeed)
     if (Number.isFinite(ttsVolume)) {
       const safeVolume = clamp(ttsVolume, 0, 1)
-      setVolume(safeVolume)
       if (speechUtteranceRef.current) speechUtteranceRef.current.volume = safeVolume
       window.dispatchEvent?.(new CustomEvent('hj-tts-volume', { detail: safeVolume }))
     }
     if (Number.isFinite(ttsSpeed)) {
       const safeSpeed = clamp(ttsSpeed, 0.5, 2)
-      setSpeed(safeSpeed)
+      if (speechUtteranceRef.current) speechUtteranceRef.current.rate = safeSpeed
       window.dispatchEvent?.(new CustomEvent('hj-tts-speed', { detail: safeSpeed }))
     }
   }
@@ -5078,6 +5079,10 @@ export function App() {
                 )
               } catch { }
 
+              window.setTimeout(() => {
+                if (!cancelled) applyEpubReaderAppearance()
+              }, 0)
+
               if (
                 pendingAutoReadRef.current
               ) {
@@ -5103,6 +5108,10 @@ export function App() {
               `${epubFontScale}%`
             )
           } catch { }
+
+          window.setTimeout(() => {
+            if (!cancelled) applyEpubReaderAppearance()
+          }, 0)
 
           setEpubReady(
             true
@@ -5600,16 +5609,21 @@ export function App() {
       if (readerType === 'pdf') {
         setPdfScale(1)
         saveReaderSetting('readerPdfScale', 1)
+        window.requestAnimationFrame?.(() => {
+          readerBodyRef.current?.scrollTo?.({ left: 0, behavior: 'auto' })
+        })
         return
       }
+
       setEpubFontScale(100)
       saveReaderSetting('readerFontSize', 100)
-      window.setTimeout(() => {
+      window.requestAnimationFrame?.(() => {
         try {
           epubRenditionRef.current?.themes?.fontSize('100%')
+          epubRenditionRef.current?.resize?.()
         } catch {}
         applyEpubReaderAppearance()
-      }, 0)
+      })
     }
 
   /* =======================================================
@@ -8922,6 +8936,18 @@ export function App() {
                   {readAloudWord}
                 </div>
               )}
+              <div className="reader-bottom-read-aloud-row">
+                <button
+                  type="button"
+                  className="reader-read-aloud-bottom"
+                  onClick={readAloud}
+                  disabled={readerLocked}
+                  aria-label={isReading ? 'Stop Read Aloud' : 'Start Read Aloud'}
+                >
+                  {isReading ? '⏹ Stop Read Aloud' : '🔊 Read Aloud'}
+                </button>
+              </div>
+
               <div className="reader-navigation">
                 <button
                   disabled={
@@ -9226,18 +9252,16 @@ export function App() {
                     min="0"
                     max="1"
                     step="0.01"
-                    value={volume}
-                    onChange={changeVolume}
+                    value={Number(accountSettings.ttsVolume ?? 1)}
+                    onChange={(event) => handleAccountSettingsChange({ ...accountSettings, ttsVolume: Number(event.target.value) })}
                     aria-label="Read aloud volume"
                   />
                 </label>
 
                 <select
                   className="reader-player-speed"
-                  value={speed}
-                  onChange={(event) =>
-                    changeSpeed(Number(event.target.value))
-                  }
+                  value={Number(accountSettings.ttsSpeed ?? 1)}
+                  onChange={(event) => handleAccountSettingsChange({ ...accountSettings, ttsSpeed: Number(event.target.value) })}
                   aria-label="Read aloud speed"
                 >
                   <option value="0.5">0.5x</option>
