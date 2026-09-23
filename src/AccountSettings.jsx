@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { supabase } from './supabase'
 
 const DEFAULTS = Object.freeze({
@@ -34,15 +34,6 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    setName(String(user?.user_metadata?.full_name || ''))
-    setNewEmail(String(user?.email || ''))
-    setPhone(String(user?.phone || ''))
-    setPhoneOtp('')
-    setPhonePending(false)
-    setResetSent(false)
-  }, [user?.id, user?.email, user?.phone, user?.user_metadata?.full_name])
 
   const mergedSettings = useMemo(
     () => ({ ...DEFAULTS, ...(settings || {}) }),
