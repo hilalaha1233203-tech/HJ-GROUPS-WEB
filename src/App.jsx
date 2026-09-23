@@ -3644,7 +3644,7 @@ export function App() {
 
   useEffect(() => {
     readAloudRef.current = readAloud
-  }, [readAloud])
+  }, [readAloud]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* =======================================================
      READER CLEANUP
