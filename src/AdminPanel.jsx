@@ -1,7 +1,7 @@
 import FileUploadField from './components/FileUploadField'
 import { resolveAccessType } from './lib/accessControl'
 import { supabase } from './supabase'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 // The streaming service is deployed separately. Configure its public URL in VITE_STREAMING_SERVER_URL.
 const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL || '')
@@ -226,6 +226,56 @@ function AdminPanel({
 
   const [adminSettings, setAdminSettings] = useState(() => readAdminSettings())
   const [settingsDirty, setSettingsDirty] = useState(false)
+  const [settingsLoading, setSettingsLoading] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadCloudSettings = async () => {
+      setSettingsLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('id', 'hj_admin_settings')
+          .maybeSingle()
+
+        if (error) {
+          const message = String(error.message || '')
+          if (/could not find the table|schema cache|relation .* does not exist/i.test(message)) {
+            return
+          }
+          console.warn('Cloud admin settings load failed:', error.message)
+          return
+        }
+
+        if (mounted && data?.value && typeof data.value === 'object') {
+          const stored = data.value
+          setAdminSettings({
+            ...DEFAULT_ADMIN_SETTINGS,
+            ...stored,
+            website: { ...DEFAULT_ADMIN_SETTINGS.website, ...(stored.website || {}) },
+            content: { ...DEFAULT_ADMIN_SETTINGS.content, ...(stored.content || {}) },
+            ads: { ...DEFAULT_ADMIN_SETTINGS.ads, ...(stored.ads || {}) },
+            payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored.payments || {}) },
+          })
+          try {
+            localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(stored))
+          } catch {}
+        }
+      } catch (error) {
+        console.warn('Cloud admin settings unavailable:', error)
+      } finally {
+        if (mounted) setSettingsLoading(false)
+      }
+    }
+
+    loadCloudSettings()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const updateAdminSetting = (section, key, value) => {
     setAdminSettings((current) => ({
@@ -238,7 +288,7 @@ function AdminPanel({
     setSettingsDirty(true)
   }
 
-  const saveAdminSettings = () => {
+  const saveAdminSettings = async () => {
     try {
       localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(adminSettings))
       setEpisodeAccessType(adminSettings.content.defaultAudioAccess)
@@ -247,8 +297,25 @@ function AdminPanel({
       setBulkDefaultAccessType(adminSettings.content.defaultAudioAccess)
       setVideoBulkDefaultAccessType(adminSettings.content.defaultVideoAccess)
       setBookBulkDefaultAccessType(adminSettings.content.defaultBookAccess)
+      const { error: cloudError } = await supabase
+        .from('app_settings')
+        .upsert({
+          id: 'hj_admin_settings',
+          value: adminSettings,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (cloudError) {
+        const message = String(cloudError.message || '')
+        if (!/could not find the table|schema cache|relation .* does not exist/i.test(message)) {
+          throw cloudError
+        }
+        showToast('Saved locally. Apply the app_settings SQL to enable cloud-wide settings.')
+      } else {
+        showToast('Management settings saved')
+      }
+
       setSettingsDirty(false)
-      showToast('Management settings saved in this browser')
     } catch (error) {
       console.error('Admin settings save error:', error)
       showToast('Could not save management settings', 'error')
@@ -1552,9 +1619,17 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
             </section>
 
             <div className="admin-settings-actions">
-              <button type="button" className="admin-submit" onClick={saveAdminSettings}>✓ Save All Settings</button>
+              <button type="button" className="admin-submit" onClick={saveAdminSettings} disabled={settingsLoading}>
+                {settingsLoading ? '⏳ Loading Settings...' : '✓ Save All Settings'}
+              </button>
               <button type="button" className="admin-cancel" onClick={resetAdminSettings}>Reset Defaults</button>
-              <span className="admin-settings-save-hint">{settingsDirty ? 'Changes are not saved yet.' : 'Saved locally for this browser.'}</span>
+              <span className="admin-settings-save-hint">
+                {settingsDirty
+                  ? 'Changes are not saved yet.'
+                  : settingsLoading
+                    ? 'Loading saved settings...'
+                    : 'Cloud save + local fallback enabled.'}
+              </span>
             </div>
           </>
         )}
