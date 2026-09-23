@@ -6285,3 +6285,18 @@ body:has(.reader-overlay:not(.reader-minimized)),
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+
+.auth-recovery-note{
+  margin:8px 0 12px;
+  padding:8px 10px;
+  border:1px solid rgba(124,131,255,.2);
+  border-radius:10px;
+  background:rgba(124,131,255,.06);
+  color:rgba(245,246,255,.72);
+  font-size:10px;
+  line-height:1.45;
+}
+.login-method-card-google{
+  border-color:rgba(124,131,255,.45) !important;
+}
