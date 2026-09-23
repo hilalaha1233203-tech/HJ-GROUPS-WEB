@@ -2717,8 +2717,36 @@ export function App() {
       try {
         if (mediaSrc) media.src = mediaSrc
         media.load()
-        media.volume = volume
-        media.playbackRate = speed
+
+        const isVideo = episode.type === 'video'
+        const configuredVolume = Number(isVideo ? accountSettings.videoVolume : accountSettings.audioVolume)
+        const configuredSpeed = Number(isVideo ? accountSettings.videoSpeed : accountSettings.audioSpeed)
+        const nextVolume = Number.isFinite(configuredVolume) ? clamp(configuredVolume, 0, 1) : volume
+        const nextSpeed = Number.isFinite(configuredSpeed) ? clamp(configuredSpeed, 0.5, 2) : speed
+
+        media.volume = nextVolume
+        media.playbackRate = nextSpeed
+        setVolume(nextVolume)
+        setSpeed(nextSpeed)
+
+        const positionKey = getMediaPositionKey({
+          ...episode,
+          storyId: story?.id,
+        })
+        const rememberPosition = isVideo
+          ? accountSettings.videoRememberPosition
+          : accountSettings.audioRememberPosition
+
+        if (rememberPosition && positionKey) {
+          try {
+            const saved = Number(localStorage.getItem(positionKey))
+            if (Number.isFinite(saved) && saved > 0) {
+              media.currentTime = saved
+              setCurrentTime(saved)
+            }
+          } catch {}
+        }
+
         const playPromise = media.play()
         playPromise?.then(() => setIsPlaying(true)).catch((error) => {
           console.error('Media play failed:', error)
@@ -2881,10 +2909,25 @@ export function App() {
 
       if (!media) return
 
-      setCurrentTime(
-        media.currentTime ||
-        0
-      )
+      const nextTime = media.currentTime || 0
+      setCurrentTime(nextTime)
+
+      if (currentEpisode && nextTime > 0) {
+        const rememberPosition = currentEpisode.type === 'video'
+          ? accountSettings.videoRememberPosition
+          : accountSettings.audioRememberPosition
+        if (rememberPosition) {
+          try {
+            localStorage.setItem(
+              getMediaPositionKey({
+                ...currentEpisode,
+                storyId: currentStory?.id,
+              }),
+              String(nextTime)
+            )
+          } catch {}
+        }
+      }
     }
 
   const handleLoadedMetadata =
@@ -2906,7 +2949,25 @@ export function App() {
   const handleEnded =
     () => {
       setIsPlaying(false)
-      nextEpisode()
+
+      try {
+        if (currentEpisode) {
+          localStorage.removeItem(
+            getMediaPositionKey({
+              ...currentEpisode,
+              storyId: currentStory?.id,
+            })
+          )
+        }
+      } catch {}
+
+      const shouldAutoplayNext = currentEpisode?.type === 'video'
+        ? accountSettings.videoAutoplay
+        : accountSettings.audioAutoplay
+
+      if (shouldAutoplayNext) {
+        nextEpisode()
+      }
     }
 
   const changeProgress =
@@ -3022,6 +3083,10 @@ export function App() {
         minutes === 0
       ) {
         setSleepMinutes(0)
+        setAccountSettings((current) => ({
+          ...current,
+          sleepTimer: 0,
+        }))
         return
       }
 
@@ -3045,9 +3110,11 @@ export function App() {
           )
         }, minutes * 60 * 1000)
 
-      setSleepMinutes(
-        minutes
-      )
+      setSleepMinutes(minutes)
+      setAccountSettings((current) => ({
+        ...current,
+        sleepTimer: minutes,
+      }))
     }
 
   const closePlayer =
