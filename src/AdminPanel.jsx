@@ -1,5 +1,6 @@
 import FileUploadField from './components/FileUploadField'
 import { resolveAccessType } from './lib/accessControl'
+import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
 import { supabase } from './supabase'
 import React, { useEffect, useState } from 'react'
 
@@ -27,7 +28,8 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     defaultAudioAccess: ['free'],
     defaultBookAccess: ['free'],
     defaultVideoAccess: ['free'],
-    firstEpisodesFree: 10,
+    freeAudioEpisodes: 10,
+    freeVideoEpisodes: 10,
     freeBookPages: 50,
     listenOnlyMode: true,
   },
@@ -62,7 +64,11 @@ const readAdminSettings = () => {
       ...DEFAULT_ADMIN_SETTINGS,
       ...stored,
       website: { ...DEFAULT_ADMIN_SETTINGS.website, ...(stored?.website || {}) },
-      content: { ...DEFAULT_ADMIN_SETTINGS.content, ...(stored?.content || {}) },
+      content: {
+        ...DEFAULT_ADMIN_SETTINGS.content,
+        ...normalizeContentAccessSettings(stored?.content || {}),
+        ...(stored?.content || {}),
+      },
       ads: { ...DEFAULT_ADMIN_SETTINGS.ads, ...(stored?.ads || {}) },
       payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored?.payments || {}) },
     }
@@ -307,15 +313,21 @@ function AdminPanel({
           updated_at: new Date().toISOString(),
         })
 
-      if (cloudError) {
-        const message = String(cloudError.message || '')
-        if (!/could not find the table|schema cache|relation .* does not exist/i.test(message)) {
-          throw cloudError
-        }
-        showToast('Saved locally. Apply the app_settings SQL to enable cloud-wide settings.')
-      } else {
-        showToast('Management settings saved')
-      }
+      if (cloudError) throw cloudError
+
+      const preview = normalizeContentAccessSettings(adminSettings.content)
+      const { error: previewError } = await supabase
+        .from('content_access_settings')
+        .upsert({
+          id: 'default',
+          audio_free_episodes: preview.freeAudioEpisodes,
+          video_free_episodes: preview.freeVideoEpisodes,
+          book_free_pages: preview.freeBookPages,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (previewError) throw previewError
+      showToast('Management settings saved')
 
       setSettingsDirty(false)
     } catch (error) {
@@ -1376,7 +1388,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         <button className={tab === 'stories' ? 'active' : ''} onClick={() => setTab('stories')}>🎧 Audio Stories</button>
         <button className={tab === 'books' ? 'active' : ''} onClick={() => setTab('books')}>📚 Books</button>
         <button className={tab === 'videos' ? 'active' : ''} onClick={() => setTab('videos')}>🎬 Videos</button>
-        <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>⚙ Management & Settings</button>
+        <button className={`admin-settings-tab-button ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>⚙ Management & Settings</button>
       </div>
 
       <div className="admin-body">
@@ -1566,7 +1578,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 <div className="admin-settings-form-grid">
                   <label>Provider
                     <select value={adminSettings.payments.provider} onChange={(e) => updateAdminSetting('payments', 'provider', e.target.value)}>
-                      <option value="">Select provider</option><option value="razorpay">Razorpay</option><option value="stripe">Stripe</option><option value="paypal">PayPal</option><option value="custom">Custom checkout</option>
+                      <option value="">Select provider</option><option value="razorpay">Razorpay</option><option value="cashfree">Cashfree</option><option value="phonepe">PhonePe PG</option><option value="stripe">Stripe</option><option value="paypal">PayPal</option><option value="custom">Custom checkout</option>
                     </select>
                   </label>
                   <label>Currency
@@ -1614,8 +1626,13 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <AccessTypeField groupName="settings-default-videos" value={adminSettings.content.defaultVideoAccess} onChange={(value) => updateAdminSetting('content', 'defaultVideoAccess', value)} />
                 </div>
                 <div className="admin-settings-form-grid">
-                  <label>Free audio episodes<input type="number" min="0" max="100" value={adminSettings.content.firstEpisodesFree} onChange={(e) => updateAdminSetting('content', 'firstEpisodesFree', Number(e.target.value) || 0)} /></label>
-                  <label>Free book pages<input type="number" min="0" max="500" value={adminSettings.content.freeBookPages} onChange={(e) => updateAdminSetting('content', 'freeBookPages', Number(e.target.value) || 0)} /></label>
+                  <label>Free audio episodes<input aria-label="Free audio episodes" type="number" min="0" max="100" value={adminSettings.content.freeAudioEpisodes} onChange={(e) => updateAdminSetting('content', 'freeAudioEpisodes', Number(e.target.value) || 0)} /></label>
+                  <label>Free video episodes<input aria-label="Free video episodes" type="number" min="0" max="100" value={adminSettings.content.freeVideoEpisodes} onChange={(e) => updateAdminSetting('content', 'freeVideoEpisodes', Number(e.target.value) || 0)} /></label>
+                  <label>Free book pages<input aria-label="Free book pages" type="number" min="0" max="500" value={adminSettings.content.freeBookPages} onChange={(e) => updateAdminSetting('content', 'freeBookPages', Number(e.target.value) || 0)} /></label>
+                </div>
+                <div className="admin-preview-rule-note">
+                  <strong>Secondary free-preview rule</strong>
+                  <span>Upload Access Types are primary. These limits only add a free preview to Premium / VIP / Ads content: Audio episodes → first N, Video episodes → first N, Books → first N pages.</span>
                 </div>
                 <label className="admin-settings-toggle"><input type="checkbox" checked={adminSettings.content.listenOnlyMode} onChange={(e) => updateAdminSetting('content', 'listenOnlyMode', e.target.checked)} /><span>Listen / read inside website only (recommended)</span></label>
               </div>

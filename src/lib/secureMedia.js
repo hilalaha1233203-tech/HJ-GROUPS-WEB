@@ -1,4 +1,5 @@
 import { resolveAccessType } from './accessControl'
+import { isEpisodePreviewFree, loadCachedContentAccessSettings } from './contentAccessSettings'
 import { supabase } from '../supabase'
 
 const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL || '').trim().replace(/\/+$/, '')
@@ -27,6 +28,11 @@ export async function resolveMediaSource(item) {
   }
 
   if (!messageId || !STREAMING_SERVER_URL) return String(item.src || '')
+
+  const previewSettings = loadCachedContentAccessSettings()
+  if (isEpisodePreviewFree(item, previewSettings)) {
+    return `${STREAMING_SERVER_URL}/${type}/message/${encodeURIComponent(messageId)}`
+  }
 
   if (!isProtected(item)) {
     return `${STREAMING_SERVER_URL}/${type}/message/${encodeURIComponent(messageId)}`
@@ -61,6 +67,11 @@ export async function resolveBookSource(book) {
 
   if (!messageId || !STREAMING_SERVER_URL) return String(book.file || '')
   if (!isProtectedBook) return `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(messageId)}`
+
+  if (Number(loadCachedContentAccessSettings().freeBookPages) > 0) {
+    // The reader enforces the configured free-page window after the document opens.
+    return `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(messageId)}`
+  }
 
   const { data: { session } = {} } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Please sign in to access premium books.')

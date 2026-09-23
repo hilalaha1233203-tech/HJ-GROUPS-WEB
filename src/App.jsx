@@ -27,6 +27,13 @@ import {
   fetchTelegramContent,
   subscribeToTelegramContent,
 } from './lib/telegramContent'
+import {
+  CONTENT_ACCESS_SETTINGS_KEY,
+  normalizeContentAccessSettings,
+  loadCachedContentAccessSettings,
+  isEpisodePreviewFree,
+  isBookPreviewPageFree,
+} from './lib/contentAccessSettings'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -814,6 +821,7 @@ export function App() {
     useState(null)
 
   const [purchasedStoryIds, setPurchasedStoryIds] = useState(new Set())
+  const [contentAccessSettings, setContentAccessSettings] = useState(() => loadCachedContentAccessSettings())
   const [accountSettings, setAccountSettings] = useState(DEFAULT_ACCOUNT_SETTINGS)
   const [accountSettingsReadyFor, setAccountSettingsReadyFor] = useState('')
   const accountSettingsSaveTimerRef = useRef(null)
@@ -832,6 +840,41 @@ export function App() {
     ADMIN_EMAIL.toLowerCase()
 
   const isVIP = isAdmin
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadContentAccessSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('content_access_settings')
+          .select('audio_free_episodes, video_free_episodes, book_free_pages')
+          .eq('id', 'default')
+          .maybeSingle()
+
+        if (error) {
+          console.warn('Content access settings load failed:', error.message)
+          return
+        }
+
+        if (!mounted || !data) return
+        const next = normalizeContentAccessSettings({
+          freeAudioEpisodes: data.audio_free_episodes,
+          freeVideoEpisodes: data.video_free_episodes,
+          freeBookPages: data.book_free_pages,
+        })
+        setContentAccessSettings(next)
+        try {
+          localStorage.setItem(CONTENT_ACCESS_SETTINGS_KEY, JSON.stringify(next))
+        } catch {}
+      } catch (error) {
+        console.warn('Content access settings unavailable:', error)
+      }
+    }
+
+    loadContentAccessSettings()
+    return () => { mounted = false }
+  }, [])
 
   /* =======================================================
      ADS
@@ -949,14 +992,14 @@ export function App() {
   const [pdfPages, setPdfPages] =
     useState(0)
 
-  const BOOK_FREE_PAGES = 50
+  const BOOK_FREE_PAGES = Number(contentAccessSettings.freeBookPages) || 0
 
   const getBookAccessKey = (book) =>
     book ? adsKeyFor('book', book.id) : undefined
 
   const canReadBookPage = useCallback((pageNumber, book = readerBook) => {
     if (!book) return false
-    if (Number(pageNumber) <= BOOK_FREE_PAGES) return true
+    if (isBookPreviewPageFree(pageNumber, book, contentAccessSettings)) return true
     return canAccess(book, {
       isAdmin,
       loggedIn,
@@ -965,7 +1008,7 @@ export function App() {
       purchasedStoryIds,
       storyId: book.id,
     })
-  }, [readerBook, isAdmin, loggedIn, unlockedAds, purchasedStoryIds])
+  }, [readerBook, isAdmin, loggedIn, unlockedAds, purchasedStoryIds, contentAccessSettings])
 
   const [readerPageTurn, setReaderPageTurn] =
     useState('')
@@ -2691,8 +2734,10 @@ export function App() {
     item,
     adsKey,
     storyId
-  ) =>
-    canAccess(item, {
+  ) => {
+    // Upload-selected Access Types are primary. Global preview limits are secondary.
+    if (isEpisodePreviewFree(item, contentAccessSettings)) return true
+    return canAccess(item, {
       isAdmin,
       loggedIn,
       unlockedAds,
@@ -2700,6 +2745,7 @@ export function App() {
       purchasedStoryIds,
       storyId,
     })
+  }
 
   const getEpisodeAccessLabel = (
     episode

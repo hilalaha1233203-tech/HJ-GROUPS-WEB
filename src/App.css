@@ -6342,3 +6342,31 @@ body:has(.reader-overlay:not(.reader-minimized)),
 .login-method-card-google{
   border-color:rgba(124,131,255,.45) !important;
 }
+
+
+/* HJ GROUPS — production settings visibility + preview rules */
+.admin-tabs { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; scrollbar-width: thin; }
+.admin-tabs button { flex: 0 0 auto; white-space: nowrap; }
+.admin-settings-tab-button {
+  color: #eef0ff !important;
+  font-weight: 800;
+  padding-inline: 10px !important;
+  border: 1px solid rgba(124,131,255,.22) !important;
+  border-radius: 9px 9px 0 0;
+  background: rgba(124,131,255,.07) !important;
+}
+.admin-settings-tab-button.active {
+  color: #fff !important;
+  background: rgba(124,131,255,.18) !important;
+  border-color: rgba(124,131,255,.48) !important;
+}
+.admin-preview-rule-note {
+  display: grid; gap: 4px; margin-top: 12px; padding: 10px 12px;
+  border: 1px solid rgba(124,131,255,.22); border-radius: 10px;
+  background: rgba(124,131,255,.06); color: #cdd2ff; font-size: 10px; line-height: 1.5;
+}
+.admin-preview-rule-note strong { color: #fff; font-size: 11px; }
+.admin-preview-rule-note span { color: #aeb4cf; }
+.admin-settings-card .admin-settings-form-grid label { color: #b8bfd7; }
+.admin-settings-card .admin-settings-form-grid input,
+.admin-settings-card .admin-settings-form-grid select { color: #fff !important; background: #111421 !important; }

@@ -115,6 +115,9 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(page.getByText('PAYMENTS', { exact: true })).toBeVisible()
     await expect(page.getByText('WEBSITE SETTINGS', { exact: true })).toBeVisible()
     await expect(page.getByText('CONTENT ACCESS', { exact: true })).toBeVisible()
+    await expect(adminOverlay.getByLabel('Free audio episodes')).toBeVisible()
+    await expect(adminOverlay.getByLabel('Free video episodes')).toBeVisible()
+    await expect(adminOverlay.getByLabel('Free book pages')).toBeVisible()
 
     const settingsSave = adminOverlay.getByRole('button', { name: /Save All Settings/i })
     await expect(settingsSave).toBeVisible()
