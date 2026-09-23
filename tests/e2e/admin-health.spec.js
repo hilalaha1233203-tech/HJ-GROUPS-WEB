@@ -69,7 +69,8 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Import/i)).toBeVisible()
-    const audioStoryForm = page.locator('form').filter({ hasText: /Add New Audio Story|Edit Audio Story/i }).first()
+    const audioStorySection = page.locator('section.admin-section').filter({ hasText: /Add New Audio Story|Edit Audio Story/i }).first()
+    const audioStoryForm = audioStorySection.locator('form.admin-form').first()
     await expect(audioStoryForm.locator('select').nth(0)).toBeVisible()
     await expect(audioStoryForm.getByText('Genre', { exact: true })).toBeVisible()
     await expect(audioStoryForm.getByText('Language', { exact: true })).toBeVisible()
@@ -82,7 +83,7 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Books/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Book Import/i)).toBeVisible()
-    const bookForm = page.locator('form').filter({ hasText: /Add New Book|Edit Book/i }).first()
+    const bookForm = page.locator('section.admin-section').filter({ hasText: /Add New Book|Edit Book/i }).first().locator('form.admin-form').first()
     await expect(bookForm.getByText('Genre / Category', { exact: true })).toBeVisible()
     await expect(bookForm.getByText('Language', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Books/i })).toBeVisible()
@@ -93,7 +94,7 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Videos/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Video Import/i)).toBeVisible()
-    const videoForm = page.locator('form').filter({ hasText: /Add New Video Story|Edit Video Story/i }).first()
+    const videoForm = page.locator('section.admin-section').filter({ hasText: /Add New Video Story|Edit Video Story/i }).first().locator('form.admin-form').first()
     await expect(videoForm.getByText('Genre / Category', { exact: true })).toBeVisible()
     await expect(videoForm.getByText('Language', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Videos/i })).toBeVisible()
