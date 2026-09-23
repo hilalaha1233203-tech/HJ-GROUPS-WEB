@@ -293,6 +293,32 @@ function AdminPanel({
     }
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+    const loadCloudAdDuration = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('content_access_settings')
+          .select('ad_unlock_duration_minutes')
+          .eq('id', 'default')
+          .maybeSingle()
+
+        if (!mounted || error || !data) return
+        const duration = Math.min(1440, Math.max(1, Number(data.ad_unlock_duration_minutes) || 360))
+        setAdminSettings((current) => ({
+          ...current,
+          ads: { ...current.ads, unlockDurationMinutes: duration },
+        }))
+      } catch {
+        // Keep the existing local/cloud admin settings when the optional
+        // shared content-access table is temporarily unavailable.
+      }
+    }
+
+    loadCloudAdDuration()
+    return () => { mounted = false }
+  }, [])
+
   const updateAdminSetting = (section, key, value) => {
     setAdminSettings((current) => ({
       ...current,
