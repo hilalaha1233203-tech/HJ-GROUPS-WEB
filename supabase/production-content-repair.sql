@@ -22,6 +22,7 @@ alter table public.episodes add column if not exists telegram_message_id bigint;
 alter table public.episodes add column if not exists access_type text default 'free';
 alter table public.episodes add column if not exists available boolean default true;
 alter table public.episodes add column if not exists created_at timestamptz not null default now();
+alter table public.episodes add column if not exists language text default 'Tamil';
 
 -- Older installations used episode_number/audio_url.
 do $$
@@ -111,6 +112,7 @@ alter table public.video_episodes add column if not exists type text default 'vi
 alter table public.video_episodes add column if not exists file_url text;
 alter table public.video_episodes add column if not exists file_path text default '';
 alter table public.video_episodes add column if not exists telegram_message_id bigint;
+alter table public.video_episodes add column if not exists language text default 'Tamil';
 
 -- -----------------------------
 -- Global admin settings
