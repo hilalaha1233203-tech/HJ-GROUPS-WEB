@@ -7264,51 +7264,116 @@ export function App() {
          ACCOUNT
       ===================================================== */}
 
-      {page ===
-        'account' && (
-          <main className="account-page">
-            <div className="account-card">
-              <div className="account-avatar">
-                {isAdmin
-                  ? '👑'
-                  : '👤'}
-              </div>
+      {page === 'account' && (
+        <main className="account-page">
+          <div className="account-card">
+            <div className="account-avatar">{isAdmin ? '👑' : '👤'}</div>
 
-              <div>
-                <div className="eyebrow">
-                  ACCOUNT
-                </div>
+            <div className="account-card-main">
+              <div className="eyebrow">ACCOUNT</div>
+              <h1>{isAdmin ? 'Admin Account' : 'Welcome Back'}</h1>
+              <p>{user?.user_metadata?.full_name || user?.email || user?.phone || 'Your HJ GROUPS account'}</p>
+              <small>
+                {user?.email || user?.phone || 'Account'}
+                {user?.phone ? ' · Recovery mobile bound' : ''}
+              </small>
+              {isAdmin && <small>👑 VIP Access · Administrator</small>}
+            </div>
 
-                <h1>
-                  {isAdmin
-                    ? 'Admin Account'
-                    : 'Welcome Back'}
-                </h1>
-
-                <p>
-                  {user?.email ||
-                    user?.phone ||
-                    'Your HJ GROUPS account'}
-                </p>
-
-                {isAdmin && (
-                  <small>
-                    👑 VIP Access · Administrator
-                  </small>
-                )}
-              </div>
-
-              <button
-                className="secondary-btn"
-                onClick={
-                  handleLogout
-                }
-              >
+            <div className="account-card-actions">
+              <button className="primary-btn" onClick={() => setPage('account-settings')}>
+                ⚙ Settings
+              </button>
+              <button className="secondary-btn" onClick={handleLogout}>
                 Logout
               </button>
             </div>
-          </main>
-        )}
+          </div>
+
+          <div className="account-quick-grid">
+            <button className="account-quick-card" onClick={() => setPage('account-settings')}>
+              <strong>⚙ Settings</strong>
+              <span>Sleep timer · Audio · Video · TTS · Reader</span>
+            </button>
+            <button className="account-quick-card" onClick={() => setPage('account-settings')}>
+              <strong>🛡️ Account Recovery</strong>
+              <span>Password reset · Backup Google · Recovery mobile</span>
+            </button>
+            <button className="account-quick-card" onClick={() => setPage('account-settings')}>
+              <strong>📖 Book Reader</strong>
+              <span>Paper/Sepia modes · Zoom · Read Aloud · Voices</span>
+            </button>
+          </div>
+        </main>
+      )}
+
+      {page === 'account-settings' && loggedIn && (
+        <AccountSettings
+          user={user}
+          settings={accountSettings}
+          onSettingsChange={handleAccountSettingsChange}
+          onBack={() => setPage('account')}
+          onSleepTimer={startSleepTimer}
+          onApplyPlayerSettings={applyAccountPlayerSettings}
+          isAdmin={isAdmin}
+        />
+      )}
+
+      {passwordRecoveryOpen && (
+        <div className="modal-overlay account-recovery-overlay" role="dialog" aria-modal="true" aria-label="Set new password">
+          <div className="account-recovery-card">
+            <div className="eyebrow">ACCOUNT RECOVERY</div>
+            <h2>Set a New Password</h2>
+            <p>This recovery session is for the same HJ GROUPS account. Your purchases remain tied to this account.</p>
+
+            {recoveryMessage && <div className="account-settings-status">{recoveryMessage}</div>}
+            {recoveryError && <div className="account-settings-error">{recoveryError}</div>}
+
+            <form onSubmit={async (event) => {
+              event.preventDefault()
+              setRecoveryError('')
+              setRecoveryMessage('')
+
+              if (recoveryPassword.length < 6) {
+                setRecoveryError('Password must be at least 6 characters.')
+                return
+              }
+              if (recoveryPassword !== recoveryPasswordConfirm) {
+                setRecoveryError('Passwords do not match.')
+                return
+              }
+
+              setRecoverySaving(true)
+              const { error } = await supabase.auth.updateUser({ password: recoveryPassword })
+              setRecoverySaving(false)
+
+              if (error) {
+                setRecoveryError(error.message)
+                return
+              }
+
+              setRecoveryPassword('')
+              setRecoveryPasswordConfirm('')
+              setRecoveryMessage('Password updated successfully.')
+              window.setTimeout(() => setPasswordRecoveryOpen(false), 900)
+            }}>
+              <label>
+                <span>New password</span>
+                <input type="password" minLength={6} value={recoveryPassword} onChange={(event) => setRecoveryPassword(event.target.value)} placeholder="At least 6 characters" autoComplete="new-password" />
+              </label>
+              <label>
+                <span>Confirm new password</span>
+                <input type="password" minLength={6} value={recoveryPasswordConfirm} onChange={(event) => setRecoveryPasswordConfirm(event.target.value)} placeholder="Repeat password" autoComplete="new-password" />
+              </label>
+              <button className="primary-btn" type="submit" disabled={recoverySaving}>
+                {recoverySaving ? 'Saving…' : 'Save New Password'}
+              </button>
+            </form>
+
+            <button className="secondary-btn" type="button" onClick={() => setPasswordRecoveryOpen(false)}>Close</button>
+          </div>
+        </div>
+      )}
 
       {/* =====================================================
          FOOTER
