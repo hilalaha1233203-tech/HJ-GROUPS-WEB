@@ -137,9 +137,9 @@ test.describe('HJ GROUPS TTS health', () => {
         text: 'வணக்கம் HJ GROUPS.',
         language_code: 'ta-IN',
         provider: 'auto',
-        speaker: 'ishita',
-        pace: 0.95,
-        temperature: 0.6,
+        speaker: 'ratan',
+        pace: 0.92,
+        temperature: 0.35,
       },
       timeout: 80_000,
     })
