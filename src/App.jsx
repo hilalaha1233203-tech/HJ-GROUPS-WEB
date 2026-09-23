@@ -394,7 +394,16 @@ const installEdgeTtsSpeechBridge = () => {
     } catch {}
   }
 
+  const onTtsVolume = (event) => {
+    const value = Number(event?.detail)
+    if (!Number.isFinite(value) || !activeAudio) return
+    try {
+      activeAudio.volume = Math.max(0, Math.min(1, value))
+    } catch {}
+  }
+
   window.addEventListener('hj-tts-speed', onTtsSpeed)
+  window.addEventListener('hj-tts-volume', onTtsVolume)
 
   let activeAudio = null
   let run = 0
@@ -616,6 +625,7 @@ const installEdgeTtsSpeechBridge = () => {
     try { if (originalResume) synthesis.resume = originalResume } catch {}
     cache.clear()
     window.removeEventListener('hj-tts-speed', onTtsSpeed)
+    window.removeEventListener('hj-tts-volume', onTtsVolume)
     delete window.__hjEdgeTtsSpeechBridge
   }
 }
@@ -1993,9 +2003,7 @@ export function App() {
       const safeVolume = clamp(ttsVolume, 0, 1)
       setVolume(safeVolume)
       if (speechUtteranceRef.current) speechUtteranceRef.current.volume = safeVolume
-      if (window.__hjEdgeTtsAudioElement) {
-        try { window.__hjEdgeTtsAudioElement.volume = safeVolume } catch {}
-      }
+      window.dispatchEvent?.(new CustomEvent('hj-tts-volume', { detail: safeVolume }))
     }
     if (Number.isFinite(ttsSpeed)) {
       const safeSpeed = clamp(ttsSpeed, 0.5, 2)
@@ -3067,14 +3075,7 @@ export function App() {
           value
       }
 
-      if (
-        window.__hjEdgeTtsAudioElement
-      ) {
-        try {
-          window.__hjEdgeTtsAudioElement.volume =
-            value
-        } catch { }
-      }
+      window.dispatchEvent?.(new CustomEvent('hj-tts-volume', { detail: value }))
 
       if (activePlayerKind === 'readaloud') {
         handleAccountSettingsChange({ ...accountSettings, ttsVolume: value })
