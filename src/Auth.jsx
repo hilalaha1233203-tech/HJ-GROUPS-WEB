@@ -10,6 +10,9 @@ function Auth({ onBack }) {
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [otp, setOtp] = useState('')
+  const [phone, setPhone] = useState('')
+  const [phoneOtp, setPhoneOtp] = useState('')
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false)
 
   const [otpSent, setOtpSent] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -207,6 +210,62 @@ function Auth({ onBack }) {
     return () => clearInterval(interval)
   }, [otpCooldown])
 
+  const sendPhoneOtp = async (event) => {
+    if (event) event.preventDefault()
+    clearMessages()
+
+    const value = phone.trim()
+    if (!/^\+?[1-9]\d{9,14}$/.test(value)) {
+      setError('Enter a valid mobile number with country code, e.g. +919876543210')
+      return
+    }
+
+    if (otpCooldown > 0) return
+
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: value,
+      options: {
+        shouldCreateUser: false,
+      },
+    })
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setPhoneOtpSent(true)
+      setOtpCooldown(60)
+      setMessage('Mobile OTP sent. Enter the code below.')
+    }
+
+    setLoading(false)
+  }
+
+  const verifyPhoneOtp = async (event) => {
+    event.preventDefault()
+    clearMessages()
+
+    if (!phoneOtp.trim()) {
+      setError('Enter the mobile OTP')
+      return
+    }
+
+    setLoading(true)
+    const { error } = await supabase.auth.verifyOtp({
+      phone: phone.trim(),
+      token: phoneOtp.trim(),
+      type: 'sms',
+    })
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setMessage('Login successful.')
+    }
+
+    setLoading(false)
+  }
+
   const sendOtp = async (event) => {
     if (event) event.preventDefault()
     clearMessages()
@@ -275,11 +334,35 @@ function Auth({ onBack }) {
     setLoading(false)
   }
 
+  const sendPasswordReset = async () => {
+    clearMessages()
+
+    if (!email.trim()) {
+      setError('Enter your email first')
+      return
+    }
+
+    setLoading(true)
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: getRedirectUrl(),
+    })
+
+    if (resetError) {
+      setError(resetError.message)
+    } else {
+      setMessage('Password reset email sent. Open it to set a new password on this same account.')
+    }
+
+    setLoading(false)
+  }
+
   const selectMethod = (method) => {
     setLoginMethod(method)
     setOtpSent(false)
     setSignupOtpSent(false)
     setOtp('')
+    setPhoneOtpSent(false)
+    setPhoneOtp('')
     clearMessages()
   }
 
@@ -290,6 +373,8 @@ function Auth({ onBack }) {
     setSignupOtpSent(false)
     setOtp('')
     setOtpCooldown(0)
+    setPhoneOtpSent(false)
+    setPhoneOtp('')
     clearMessages()
   }
 
@@ -381,7 +466,7 @@ function Auth({ onBack }) {
                     <div className="otp-message">Enter the 6-digit OTP sent to your email.</div>
                     <div className="auth-field">
                       <label>Enter OTP</label>
-                      <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength="6" placeholder="6 digit OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/D/g, '').slice(0, 6))} />
+                      <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength="6" placeholder="6 digit OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} />
                     </div>
                     <button type="submit" className="auth-submit" disabled={loading}>
                       {loading ? 'Verifying...' : 'Verify & Create Account'}
@@ -426,6 +511,14 @@ function Auth({ onBack }) {
                     <small className="method-description">Login using a one-time password</small>
                   </span>
                 </button>
+
+                <button type="button" className="login-method-card" onClick={() => selectMethod('phone')}>
+                  <span className="method-icon">📱</span>
+                  <span className="method-text">
+                    <strong className="method-title">Phone OTP Login</strong>
+                    <small className="method-description">Login with your verified recovery mobile number</small>
+                  </span>
+                </button>
               </div>
             )}
 
@@ -446,6 +539,48 @@ function Auth({ onBack }) {
                 <button type="submit" className="auth-submit" disabled={loading}>
                   {loading ? 'Logging in...' : 'Login'}
                 </button>
+                <button type="button" className="method-back" onClick={sendPasswordReset} disabled={loading}>
+                  Forgot Password? Send Reset Email
+                </button>
+
+                <button type="button" className="method-back" onClick={() => selectMethod(null)}>
+                  ← Choose another method
+                </button>
+              </form>
+            )}
+
+            {loginMethod === 'phone' && (
+              <form onSubmit={phoneOtpSent ? verifyPhoneOtp : sendPhoneOtp} className="login-box">
+                <div className="login-box-title">Phone OTP Login</div>
+
+                {!phoneOtpSent && (
+                  <>
+                    <div className="auth-field">
+                      <label>Mobile Number</label>
+                      <input type="tel" inputMode="tel" autoComplete="tel" placeholder="+919876543210" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    </div>
+
+                    <button type="submit" className="auth-submit" disabled={loading}>
+                      {loading ? 'Sending OTP...' : 'Send Mobile OTP'}
+                    </button>
+                  </>
+                )}
+
+                {phoneOtpSent && (
+                  <>
+                    <div className="otp-message">Enter the OTP sent to your verified mobile number.</div>
+                    <div className="auth-field">
+                      <label>Mobile OTP</label>
+                      <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength="6" placeholder="6 digit OTP" value={phoneOtp} onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+                    </div>
+                    <button type="submit" className="auth-submit" disabled={loading}>
+                      {loading ? 'Verifying...' : 'Verify Mobile OTP'}
+                    </button>
+                    <button type="button" className="method-back" onClick={() => { setPhoneOtpSent(false); setPhoneOtp(''); setOtpCooldown(0); clearMessages() }} disabled={loading}>
+                      ← Change Mobile
+                    </button>
+                  </>
+                )}
 
                 <button type="button" className="method-back" onClick={() => selectMethod(null)}>
                   ← Choose another method
