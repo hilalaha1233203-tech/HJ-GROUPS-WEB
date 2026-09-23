@@ -79,6 +79,12 @@ jobs:
           grep -q "dataSaver" src/App.jsx
           grep -q "hj_settings" src/App.jsx
           grep -q "reader-read-aloud-main" src/App.jsx
+          grep -q "reader-bottom-read-aloud-row" src/App.jsx
+          grep -q "accountSettings.ttsVolume" src/App.jsx
+          grep -q "accountSettings.ttsSpeed" src/App.jsx
+          grep -q "applyEpubReaderAppearance" src/App.jsx
           grep -q "reader-tools" src/App.css
+          grep -q "reader-bottom-read-aloud-row" src/App.css
+          ! grep -q "reader-body .react-pdf__Page canvas.*width: auto" src/App.css
           grep -q "max-width: none !important" src/App.css
           grep -q "reader-theme-paper" src/App.css
