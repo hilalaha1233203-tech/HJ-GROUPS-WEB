@@ -78,14 +78,16 @@ export function canAccess(
   if (item.available === false) return false
 
   const types = resolveAccessType(item)
+  const requiresPurchase =
+    types.includes('vip') ||
+    types.includes('premium')
 
-  if (types.includes('free')) return true
-  if (types.includes('ads') && adsKey && unlockedAds?.has(adsKey)) return true
+  // A paid access type always takes precedence over a legacy/accidental
+  // "free" flag. Otherwise an item such as ["free","premium"] could be
+  // opened by a logged-out visitor and bypass the intended gate.
+  if (requiresPurchase) {
+    if (!purchasedStoryIds || purchasedStoryIds.size === 0) return false
 
-  if ((types.includes('vip') || types.includes('premium')) && purchasedStoryIds) {
-    // Episodes normally don't have their parent story ID in their normalized
-    // shape. Accept the explicit parent storyId first, then fall back to an
-    // item's own story_id/id for compatibility with other content shapes.
     const candidates = [
       storyId,
       item.story_id,
@@ -96,13 +98,28 @@ export function canAccess(
     for (const candidate of candidates) {
       const text = String(candidate)
       const numeric = Number(candidate)
-      if (purchasedStoryIds.has(text) || (Number.isFinite(numeric) && purchasedStoryIds.has(String(numeric)))) {
+      if (
+        purchasedStoryIds.has(text) ||
+        (Number.isFinite(numeric) && purchasedStoryIds.has(String(numeric)))
+      ) {
         return true
       }
     }
+
+    // Premium/VIP can coexist with an ads access mode, but the presence of
+    // the paid type means the normal free path must never unlock it.
+    if (types.includes('ads') && adsKey && unlockedAds?.has(adsKey)) {
+      return true
+    }
+
+    return false
   }
 
-  // vip / premium: locked for normal users until the corresponding
-  // purchase/subscription record exists.
+  if (types.includes('ads')) {
+    return Boolean(adsKey && unlockedAds?.has(adsKey))
+  }
+
+  if (types.includes('free')) return true
+
   return false
 }
