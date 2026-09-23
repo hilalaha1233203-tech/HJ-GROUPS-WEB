@@ -404,7 +404,7 @@ function AdminPanel({
   const [bookAuthor, setBookAuthor] = useState('')
   const [bookDescription, setBookDescription] = useState('')
   const [bookType, setBookType] = useState('pdf')
-  const [bookCategory, setBookCategory] = useState('Tamil Stories')
+  const [bookCategory, setBookCategory] = useState('Tamil Literature')
   const [bookLanguage, setBookLanguage] = useState('Tamil')
   const [bookCover, setBookCover] = useState('')
   const [bookCoverUploading, setBookCoverUploading] = useState(false)
