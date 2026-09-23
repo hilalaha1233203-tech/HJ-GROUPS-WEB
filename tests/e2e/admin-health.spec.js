@@ -118,6 +118,9 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(adminOverlay.getByLabel('Free audio episodes')).toBeVisible()
     await expect(adminOverlay.getByLabel('Free video episodes')).toBeVisible()
     await expect(adminOverlay.getByLabel('Free book pages')).toBeVisible()
+    await expect(adminOverlay.getByText('Enable shortener routing', { exact: true })).toBeVisible()
+    await expect(adminOverlay.getByLabel('Primary shortener')).toBeVisible()
+    await expect(adminOverlay.getByLabel('Fallback shortener')).toBeVisible()
 
     const settingsSave = adminOverlay.getByRole('button', { name: /Save All Settings/i })
     await expect(settingsSave).toBeVisible()
