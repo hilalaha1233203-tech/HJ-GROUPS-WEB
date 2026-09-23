@@ -40,7 +40,7 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     publisherId: '',
     rewardedAdUnitId: '',
     interstitialAdUnitId: '',
-    unlockDurationMinutes: 120,
+    unlockDurationMinutes: 360,
     shortenerEnabled: false,
     primaryShortener: 'earn4link',
     fallbackShortener: 'shrinkme',
@@ -331,6 +331,7 @@ function AdminPanel({
           audio_free_episodes: preview.freeAudioEpisodes,
           video_free_episodes: preview.freeVideoEpisodes,
           book_free_pages: preview.freeBookPages,
+          ad_unlock_duration_minutes: Math.min(1440, Math.max(1, Number(adminSettings.ads.unlockDurationMinutes) || 360)),
           updated_at: new Date().toISOString(),
         })
 
