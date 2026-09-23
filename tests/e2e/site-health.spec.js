@@ -116,6 +116,46 @@ test.describe('HJ GROUPS public website health', () => {
 })
 
 
+test.describe('HJ GROUPS TTS health', () => {
+  test('production TTS endpoint returns playable audio', async ({ request }) => {
+    test.skip(
+      process.env.STRICT_TTS_QA !== 'true',
+      'Set STRICT_TTS_QA=true to run the live TTS audio smoke test.'
+    )
+
+    test.setTimeout(90_000)
+
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com'
+
+    const healthResponse = await request.get(baseURL + '/health')
+    expect(healthResponse.status()).toBe(200)
+    const health = await healthResponse.json()
+    expect(health?.ttsProviders?.edge?.configured).toBe(true)
+
+    const response = await request.post(baseURL + '/api/tts', {
+      data: {
+        text: 'வணக்கம் HJ GROUPS.',
+        language_code: 'ta-IN',
+        provider: 'auto',
+        speaker: 'ishita',
+        pace: 0.95,
+        temperature: 0.6,
+      },
+      timeout: 80_000,
+    })
+
+    expect(response.status(), await response.text()).toBe(200)
+    const contentType = String(response.headers()['content-type'] || '')
+    expect(contentType).toMatch(/^audio\/mpeg(?:;|$)/i)
+
+    const provider = String(response.headers()['x-tts-provider'] || '')
+    expect(['sarvam', 'edge']).toContain(provider)
+
+    const audio = await response.body()
+    expect(audio.byteLength).toBeGreaterThan(1000)
+  })
+})
+
 test.describe('HJ GROUPS Telegram streaming health', () => {
   test('streaming server health and CORS preflight', async ({ request }) => {
     const streamingURL = String(process.env.PLAYWRIGHT_STREAMING_URL || '').trim().replace(/\/+$/, '')
