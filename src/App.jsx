@@ -2235,6 +2235,26 @@ export function App() {
     }
 
     const types = resolveAccessType(item)
+    const requiresPaidAccess =
+      types.includes('vip') ||
+      types.includes('premium')
+
+    // Paid/VIP types take precedence over an Ads label. A mixed
+    // ["premium","ads"] item must never grant access to a logged-out visitor.
+    if (requiresPaidAccess) {
+      if (!loggedIn) {
+        alert('Please log in to access Premium/VIP content.')
+        setLoginOpen(true)
+        return
+      }
+
+      alert(
+        types.includes('vip')
+          ? 'This is VIP content. VIP access or a purchase is required.'
+          : 'This is Premium content. Premium access is required.'
+      )
+      return
+    }
 
     if (types.includes('ads')) {
       pendingUnlockRef.current = {
@@ -2242,16 +2262,6 @@ export function App() {
         onGranted,
       }
       setAdModalOpen(true)
-      return
-    }
-
-    if (types.includes('vip')) {
-      alert('This is VIP content. VIP access or a purchase is required.')
-      return
-    }
-
-    if (types.includes('premium')) {
-      alert('This is Premium content. Premium access is required.')
       return
     }
 
