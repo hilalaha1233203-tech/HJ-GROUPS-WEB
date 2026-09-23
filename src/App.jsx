@@ -4261,9 +4261,9 @@ export function App() {
           try {
             book.spine?.hooks?.serialize?.register(function (output) {
               this.output = String(output || '')
-                .replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, '')
-                .replace(/\\son[a-z]+\\s*=\\s*(["']).*?\\1/gi, '')
-                .replace(/\\s(?:href|src)\\s*=\\s*(["'])javascript:[\\s\\S]*?\\1/gi, '')
+                .replace(new RegExp(`<script\\\\b[^>]*>[\\\\s\\\\S]*?<\\\\/script>`, 'gi'), '')
+                .replace(new RegExp(`\\\\son[a-z]+\\\\s*=\\\\s*(["']).*?\\\\1`, 'gi'), '')
+                .replace(new RegExp(`\\\\s(?:href|src)\\\\s*=\\\\s*(["'])javascript:[\\\\s\\\\S]*?\\\\1`, 'gi'), '')
             })
           } catch (error) {
             console.warn('EPUB safety hook unavailable:', error)
