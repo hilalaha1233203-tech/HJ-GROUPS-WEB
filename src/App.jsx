@@ -4260,11 +4260,20 @@ export function App() {
           // allowScriptedContent (which would weaken EPUB isolation).
           try {
             book.spine?.hooks?.serialize?.register(function (output) {
+              const backslash = String.fromCharCode(92)
+              const scriptPattern =
+                '<script' +
+                backslash +
+                'b[^>]*>[' +
+                backslash +
+                's' +
+                backslash +
+                'S]*?' +
+                backslash +
+                '/script>'
+
               this.output = String(output || '')
-                .replace(new RegExp(`<script\\\\b[^>]*>[\\\\s\\\\S]*?<\\\\/script>`, 'gi'), '')
-                .replace(new RegExp(`\\\\son[a-z]+\\\\s*=\\\\s*(["']).*?\\\\1`, 'gi'), '')
-                .replace(new RegExp(`\\\\s(?:href|src)\\\\s*=\\\\s*(["'])javascript:[\\\\s\\\\S]*?\\\\1`, 'gi'), '')
-            })
+                .replace(new RegExp(scriptPattern, 'gi'), '')            })
           } catch (error) {
             console.warn('EPUB safety hook unavailable:', error)
           }
