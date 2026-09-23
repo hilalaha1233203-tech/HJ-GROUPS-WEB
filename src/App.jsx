@@ -1159,6 +1159,7 @@ export function App() {
     epubLocationsReady,
     epubPages,
     accountSettings.readerRememberPosition,
+    BOOK_FREE_PAGES,
     canReadBookPage,
   ])
 
