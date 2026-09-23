@@ -113,6 +113,42 @@ alter table public.video_episodes add column if not exists file_path text defaul
 alter table public.video_episodes add column if not exists telegram_message_id bigint;
 
 -- -----------------------------
+-- Global admin settings
+-- -----------------------------
+create table if not exists public.app_settings (
+  id text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.app_settings enable row level security;
+
+grant select, insert, update, delete on public.app_settings to authenticated;
+
+do $
+begin
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='app_settings' and policyname='Admin read app settings') then
+    create policy "Admin read app settings" on public.app_settings for select to authenticated
+      using ((select auth.jwt()->>'email')='hilalaha1233203@gmail.com');
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='app_settings' and policyname='Admin insert app settings') then
+    create policy "Admin insert app settings" on public.app_settings for insert to authenticated
+      with check ((select auth.jwt()->>'email')='hilalaha1233203@gmail.com');
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='app_settings' and policyname='Admin update app settings') then
+    create policy "Admin update app settings" on public.app_settings for update to authenticated
+      using ((select auth.jwt()->>'email')='hilalaha1233203@gmail.com')
+      with check ((select auth.jwt()->>'email')='hilalaha1233203@gmail.com');
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='app_settings' and policyname='Admin delete app settings') then
+    create policy "Admin delete app settings" on public.app_settings for delete to authenticated
+      using ((select auth.jwt()->>'email')='hilalaha1233203@gmail.com');
+  end if;
+end $;
+
+-- -----------------------------
 -- Purchases (required by current app read path)
 -- -----------------------------
 create table if not exists public.purchases (
