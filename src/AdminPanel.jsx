@@ -69,6 +69,34 @@ const readAdminSettings = () => {
   }
 }
 
+const GENRE_OPTIONS = [
+  'Fantasy', 'Action', 'Adventure', 'Romance', 'Mystery', 'Thriller',
+  'Sci-Fi', 'Horror', 'Comedy', 'Drama', 'Historical', 'Mythology',
+  'Crime', 'Supernatural', 'System', 'Isekai', 'Cultivation',
+  'Martial Arts', 'School', 'Family', 'Spiritual', 'Kids', 'Biography',
+  'Other',
+]
+
+const BOOK_GENRE_OPTIONS = [
+  'Tamil Literature', 'Fiction', 'Fantasy', 'Action', 'Adventure',
+  'Romance', 'Mystery', 'Thriller', 'Sci-Fi', 'Horror', 'Comedy',
+  'Drama', 'Historical', 'Mythology', 'Crime', 'Supernatural',
+  'Self Help', 'Biography', 'Education', 'Children', 'Poetry', 'Other',
+]
+
+const VIDEO_GENRE_OPTIONS = [
+  'Action', 'Adventure', 'Drama', 'Romance', 'Comedy', 'Thriller',
+  'Mystery', 'Crime', 'Horror', 'Sci-Fi', 'Fantasy', 'Historical',
+  'Documentary', 'Short Film', 'Music', 'Kids', 'Family', 'Animation',
+  'Educational', 'Other',
+]
+
+const LANGUAGE_OPTIONS = [
+  'Tamil', 'English', 'Hindi', 'Malayalam', 'Telugu', 'Kannada',
+  'Bengali', 'Marathi', 'Gujarati', 'Punjabi', 'Urdu', 'Odia',
+  'Assamese', 'Sanskrit', 'Other',
+]
+
 function AccessTypeSelect({ groupName, value, onChange }) {
   const options = [
     { value: 'free', label: 'Free' },
@@ -267,6 +295,7 @@ function AdminPanel({
 
   const [storyTitle, setStoryTitle] = useState('')
   const [storyGenre, setStoryGenre] = useState('Fantasy')
+  const [storyLanguage, setStoryLanguage] = useState('Tamil')
   const [storyCover, setStoryCover] = useState('')
   const [storyCoverUploading, setStoryCoverUploading] = useState(false)
   const [storyDescription, setStoryDescription] = useState('')
@@ -284,6 +313,7 @@ function AdminPanel({
   const [episodeFileUploading, setEpisodeFileUploading] = useState(false)
   const [episodeAvailable, setEpisodeAvailable] = useState(true)
   const [episodeAccessType, setEpisodeAccessType] = useState(() => readAdminSettings().content.defaultAudioAccess)
+  const [episodeLanguage, setEpisodeLanguage] = useState('Tamil')
 
   /* =====================================================
      BULK TELEGRAM IMPORT
@@ -306,6 +336,7 @@ function AdminPanel({
   const [bookDescription, setBookDescription] = useState('')
   const [bookType, setBookType] = useState('pdf')
   const [bookCategory, setBookCategory] = useState('Tamil Stories')
+  const [bookLanguage, setBookLanguage] = useState('Tamil')
   const [bookCover, setBookCover] = useState('')
   const [bookCoverUploading, setBookCoverUploading] = useState(false)
  const [bookFile, setBookFile] = useState('')
@@ -390,6 +421,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
   const [videoTitle, setVideoTitle] = useState('')
   const [videoCategory, setVideoCategory] = useState('Action')
+  const [videoLanguage, setVideoLanguage] = useState('Tamil')
   const [videoCover, setVideoCover] = useState('')
   const [videoCoverUploading, setVideoCoverUploading] = useState(false)
   const [videoSrc, setVideoSrc] = useState('')
@@ -599,6 +631,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setEditingStoryId(null)
     setStoryTitle('')
     setStoryGenre('Fantasy')
+    setStoryLanguage('Tamil')
     setStoryCover('')
     setStoryDescription('')
   }
@@ -607,6 +640,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setEditingStoryId(story.id)
     setStoryTitle(story.title || '')
     setStoryGenre(story.genre || 'Fantasy')
+    setStoryLanguage(story.language || 'Tamil')
     setStoryCover(story.cover || '')
     setStoryDescription(story.description || '')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -626,6 +660,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         await onUpdateStory(editingStoryId, {
           title: storyTitle.trim(),
           genre: storyGenre,
+          language: storyLanguage,
           cover: storyCover.trim(),
           description: storyDescription.trim(),
         })
@@ -738,7 +773,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   setBookAuthor('')
   setBookDescription('')
   setBookType('pdf')
-  setBookCategory('Tamil Stories')
+  setBookCategory('Tamil Literature')
+  setBookLanguage('Tamil')
   setBookCover('')
   setBookCoverPath('')
   setBookFile('')
@@ -795,6 +831,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     description: bookDescription.trim(),
     type: bookType,
     category: bookCategory,
+    language: bookLanguage,
 
     cover: bookCover.trim(),
     coverPath: bookCoverPath || '',
@@ -1107,6 +1144,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setEditingVideoId(null)
     setVideoTitle('')
     setVideoCategory('Action')
+    setVideoLanguage('Tamil')
     setVideoCover('')
     setVideoSrc('')
     setVideoAccessType('free')
@@ -1122,6 +1160,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setEditingVideoId(video.id)
     setVideoTitle(video.title || '')
     setVideoCategory(video.category || 'Action')
+    setVideoLanguage(video.language || 'Tamil')
     setVideoCover(video.cover || '')
 
     const firstEpisode = video.episodes?.[0]
@@ -1154,6 +1193,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       await onUpdateVideo(editingVideoId, {
         title: videoTitle.trim(),
         category: videoCategory,
+        language: videoLanguage,
         cover: videoCover.trim(),
         accessType: videoAccessType,
       })
