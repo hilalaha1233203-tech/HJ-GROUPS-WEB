@@ -139,6 +139,7 @@ test.describe('HJ GROUPS authentication UI health', () => {
       await expect(page.getByText('Password Login', { exact: true })).toBeVisible()
       await expect(page.getByText('Email OTP Login', { exact: true })).toBeVisible()
       await expect(page.getByText('Phone OTP Login', { exact: true })).toBeVisible()
+      await expect(page.getByText('Google Backup Login', { exact: true })).toBeVisible()
 
       await page.getByRole('button', { name: /sign up/i }).last().click()
       await expect(page.getByText('Password Sign Up', { exact: true })).toBeVisible()
