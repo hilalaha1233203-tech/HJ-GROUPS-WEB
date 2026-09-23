@@ -4,6 +4,7 @@ import { supabase } from './supabase'
 function Auth({ onBack }) {
   const [mode, setMode] = useState('login')
   const [loginMethod, setLoginMethod] = useState(null)
+  const [signupOtpSent, setSignupOtpSent] = useState(false)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,7 +23,16 @@ function Auth({ onBack }) {
     setError('')
   }
 
-  const getRedirectUrl = () => `${window.location.origin}/`
+  const getRedirectUrl = () => {
+    const configured = String(
+      import.meta.env.VITE_PUBLIC_SITE_URL || ''
+    ).trim().replace(/\/+$/, '')
+
+    return configured
+      ? `${configured}/`
+      : `${window.location.origin}/`
+  }
+
 
   const handlePasswordLogin = async (event) => {
     event.preventDefault()
@@ -95,6 +105,96 @@ function Auth({ onBack }) {
     setLoading(false)
   }
 
+  const sendSignupOtp = async (event) => {
+    if (event) event.preventDefault()
+    clearMessages()
+
+    if (!fullName.trim()) {
+      setError('Enter your full name')
+      return
+    }
+
+    if (!email.trim()) {
+      setError('Enter your email')
+      return
+    }
+
+    if (otpCooldown > 0) return
+
+    setLoading(true)
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: getRedirectUrl(),
+        data: {
+          full_name: fullName.trim(),
+        },
+      },
+    })
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setSignupOtpSent(true)
+      setOtpSent(true)
+      setOtpCooldown(60)
+      setMessage('OTP sent to your email. Enter the code below to finish creating your account.')
+    }
+
+    setLoading(false)
+  }
+
+  const verifySignupOtp = async (event) => {
+    event.preventDefault()
+    clearMessages()
+
+    if (!fullName.trim()) {
+      setError('Enter your full name')
+      return
+    }
+
+    if (!email.trim()) {
+      setError('Enter your email')
+      return
+    }
+
+    if (!otp.trim()) {
+      setError('Enter the OTP')
+      return
+    }
+
+    setLoading(true)
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: otp.trim(),
+      type: 'email',
+    })
+
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+      return
+    }
+
+    try {
+      await supabase.auth.updateUser({
+        data: { full_name: fullName.trim() },
+      })
+    } catch (updateError) {
+      console.warn('Signup profile metadata update failed:', updateError)
+    }
+
+    setMessage(
+      data?.user
+        ? 'Account verified successfully. You are now logged in.'
+        : 'Account verified successfully. Please continue.'
+    )
+    setLoading(false)
+  }
+
   useEffect(() => {
     let interval = null
     if (otpCooldown > 0) {
@@ -136,7 +236,8 @@ function Auth({ onBack }) {
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
-        shouldCreateUser: true,
+        shouldCreateUser: false,
+        emailRedirectTo: getRedirectUrl(),
       },
     })
 
@@ -180,6 +281,7 @@ function Auth({ onBack }) {
   const selectMethod = (method) => {
     setLoginMethod(method)
     setOtpSent(false)
+    setSignupOtpSent(false)
     setOtp('')
     clearMessages()
   }
@@ -188,7 +290,9 @@ function Auth({ onBack }) {
     setMode(newMode)
     setLoginMethod(null)
     setOtpSent(false)
+    setSignupOtpSent(false)
     setOtp('')
+    setOtpCooldown(0)
     clearMessages()
   }
 
@@ -207,26 +311,103 @@ function Auth({ onBack }) {
         </div>
 
         {mode === 'signup' && (
-          <form onSubmit={handleSignup}>
-            <div className="auth-field">
-              <label>Full Name</label>
-              <input type="text" placeholder="Your full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-            </div>
+          <>
+            {!loginMethod && (
+              <div className="login-method-selection">
+                <button type="button" className="login-method-card" onClick={() => selectMethod('password')}>
+                  <span className="method-icon">🔐</span>
+                  <span className="method-text">
+                    <strong className="method-title">Password Sign Up</strong>
+                    <small className="method-description">Create an account with a password</small>
+                  </span>
+                </button>
 
-            <div className="auth-field">
-              <label>Email</label>
-              <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
+                <button type="button" className="login-method-card" onClick={() => selectMethod('otp')}>
+                  <span className="method-icon">📧</span>
+                  <span className="method-text">
+                    <strong className="method-title">Email OTP Sign Up</strong>
+                    <small className="method-description">Create and verify your account with a one-time code</small>
+                  </span>
+                </button>
+              </div>
+            )}
 
-            <div className="auth-field">
-              <label>Password</label>
-              <input type="password" placeholder="Create password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
+            {loginMethod === 'password' && (
+              <form onSubmit={handleSignup} className="login-box">
+                <div className="login-box-title">Password Sign Up</div>
 
-            <button type="submit" className="auth-submit" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </button>
-          </form>
+                <div className="auth-field">
+                  <label>Full Name</label>
+                  <input type="text" placeholder="Your full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                </div>
+
+                <div className="auth-field">
+                  <label>Email</label>
+                  <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+
+                <div className="auth-field">
+                  <label>Password</label>
+                  <input type="password" placeholder="Create password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+
+                <button type="submit" className="auth-submit" disabled={loading}>
+                  {loading ? 'Creating Account...' : 'Create Account'}
+                </button>
+
+                <button type="button" className="method-back" onClick={() => selectMethod(null)}>
+                  ← Choose another method
+                </button>
+              </form>
+            )}
+
+            {loginMethod === 'otp' && (
+              <form onSubmit={signupOtpSent ? verifySignupOtp : sendSignupOtp} className="login-box">
+                <div className="login-box-title">Email OTP Sign Up</div>
+
+                <div className="auth-field">
+                  <label>Full Name</label>
+                  <input type="text" placeholder="Your full name" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={signupOtpSent} />
+                </div>
+
+                <div className="auth-field">
+                  <label>Email</label>
+                  <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={signupOtpSent} />
+                </div>
+
+                {!signupOtpSent ? (
+                  <button type="submit" className="auth-submit" disabled={loading}>
+                    {loading ? 'Sending OTP...' : 'Send Signup OTP'}
+                  </button>
+                ) : (
+                  <>
+                    <div className="otp-message">Enter the 6-digit OTP sent to your email.</div>
+                    <div className="auth-field">
+                      <label>Enter OTP</label>
+                      <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength="6" placeholder="6 digit OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/D/g, '').slice(0, 6))} />
+                    </div>
+                    <button type="submit" className="auth-submit" disabled={loading}>
+                      {loading ? 'Verifying...' : 'Verify & Create Account'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="auth-submit secondary-btn"
+                      disabled={loading || otpCooldown > 0}
+                      onClick={sendSignupOtp}
+                      style={{ marginTop: '0.5rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+                    >
+                      {otpCooldown > 0 ? `Resend OTP in ${otpCooldown}s` : 'Resend OTP'}
+                    </button>
+                  </>
+                )}
+
+                <button type="button" className="method-back" onClick={() => selectMethod(null)}>
+                  ← Choose another method
+                </button>
+              </form>
+            )}
+          </>
         )}
 
         {mode === 'login' && (
