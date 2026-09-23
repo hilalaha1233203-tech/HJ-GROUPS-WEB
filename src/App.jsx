@@ -6084,12 +6084,12 @@ export function App() {
                 const returnTarget = preDetailsPage
 
                 setSelectedBook(null)
-                setBooksModalOpen(returnTarget === 'books-modal')
+                setBooksModalOpen(false)
                 setVideoModalOpen(false)
 
                 setPage(
-                  returnTarget === 'books-modal'
-                    ? 'home'
+                  returnTarget === 'books-modal' || returnTarget === 'home'
+                    ? 'books'
                     : returnTarget
                 )
               }}
@@ -6209,12 +6209,12 @@ export function App() {
                 const returnTarget = preDetailsPage
 
                 setSelectedVideo(null)
-                setVideoModalOpen(returnTarget === 'videos-modal')
+                setVideoModalOpen(false)
                 setBooksModalOpen(false)
 
                 setPage(
-                  returnTarget === 'videos-modal'
-                    ? 'home'
+                  returnTarget === 'videos-modal' || returnTarget === 'home'
+                    ? 'videos'
                     : returnTarget
                 )
               }}
