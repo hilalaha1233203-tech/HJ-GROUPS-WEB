@@ -27,6 +27,12 @@ export default defineConfig([
     languageOptions: { globals: globals.node },
   },
   {
+    files: ['**/*.{mjs,cjs}'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
     files: ['src/App.jsx'],
     rules: {
       'no-unused-vars': 'off',
