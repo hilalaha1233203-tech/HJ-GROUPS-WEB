@@ -2239,8 +2239,17 @@ export function App() {
       types.includes('vip') ||
       types.includes('premium')
 
-    // Paid/VIP types take precedence over an Ads label. A mixed
-    // ["premium","ads"] item must never grant access to a logged-out visitor.
+    // Ads is a valid alternate path for mixed access items such as
+    // ["premium", "ads"]. Show the ad unlock flow before the paid-only gate.
+    if (types.includes('ads')) {
+      pendingUnlockRef.current = {
+        adsKey,
+        onGranted,
+      }
+      setAdModalOpen(true)
+      return
+    }
+
     if (requiresPaidAccess) {
       if (!loggedIn) {
         alert('Please log in to access Premium/VIP content.')
@@ -2253,15 +2262,6 @@ export function App() {
           ? 'This is VIP content. VIP access or a purchase is required.'
           : 'This is Premium content. Premium access is required.'
       )
-      return
-    }
-
-    if (types.includes('ads')) {
-      pendingUnlockRef.current = {
-        adsKey,
-        onGranted,
-      }
-      setAdModalOpen(true)
       return
     }
 
