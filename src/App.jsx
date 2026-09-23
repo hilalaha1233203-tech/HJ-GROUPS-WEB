@@ -3659,10 +3659,13 @@ export function App() {
       const indianEnglish = voices.find((item) => /^en[-_]IN(?:[-_]|$)/i.test(String(item.lang || '')))
       utterance.lang = hasTamil ? 'ta-IN' : 'en-IN'
       utterance.voice = hasTamil ? (tamilVoice || speechVoiceRef.current || null) : (indianEnglish || speechVoiceRef.current || null)
-      utterance.rate = hasTamil ? Math.min(Math.max(speed, 0.75), 0.98) : Math.min(Math.max(speed, 0.8), 1.1)
+      const configuredTtsSpeed = Number(accountSettings.ttsSpeed)
+      const configuredTtsVolume = Number(accountSettings.ttsVolume)
+      const ttsRate = Number.isFinite(configuredTtsSpeed) ? Math.max(0.5, Math.min(2, configuredTtsSpeed)) : speed
+      const ttsVolume = Number.isFinite(configuredTtsVolume) ? Math.max(0, Math.min(1, configuredTtsVolume)) : volume
+      utterance.rate = hasTamil ? Math.min(Math.max(ttsRate, 0.75), 0.98) : Math.min(Math.max(ttsRate, 0.8), 1.1)
       utterance.pitch = 1
-      utterance.volume =
-        volume
+      utterance.volume = ttsVolume
 
       speechUtteranceRef.current =
         utterance
