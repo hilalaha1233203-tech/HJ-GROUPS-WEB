@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 
 const DEFAULTS = Object.freeze({
@@ -34,6 +34,15 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    setName(String(user?.user_metadata?.full_name || ''))
+    setNewEmail(String(user?.email || ''))
+    setPhone(String(user?.phone || ''))
+    setPhoneOtp('')
+    setPhonePending(false)
+    setResetSent(false)
+  }, [user?.id, user?.email, user?.phone, user?.user_metadata?.full_name])
 
   const mergedSettings = useMemo(
     () => ({ ...DEFAULTS, ...(settings || {}) }),
@@ -332,7 +341,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
 
           <div className="account-settings-mini">
             <strong>Backup Google account</strong>
-            <p>Link a Google identity to this same account so the backup identity can recover access without creating a separate purchaser account.</p>
+            <p>Link a Google identity to this same HJ GROUPS account. If the primary login becomes unavailable, this linked Google identity can recover the same account instead of creating a new purchaser account.</p>
             <button className="secondary-btn" type="button" onClick={connectGoogleBackup} disabled={busy}>
               {user?.identities?.some((identity) => identity?.provider === 'google') || user?.user_metadata?.backup_google_connected
                 ? 'Google Backup Connected'
@@ -345,7 +354,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
 
           <div className="account-settings-mini account-settings-phone">
             <strong>Recovery mobile</strong>
-            <p>Bind and verify a mobile number. After verification it can be used with HJ GROUPS Phone OTP login when SMS auth is enabled.</p>
+            <p>Bind and verify a mobile number. After verification, Phone OTP can restore access to this same account; after logging in, you can set a new password. SMS authentication must be enabled in Supabase.</p>
             <label><span>Mobile number</span><input type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+919876543210" disabled={phonePending} /></label>
 
             {!phonePending ? (
@@ -357,6 +366,10 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
               </form>
             )}
           </div>
+        </div>
+
+        <div className="account-settings-note account-settings-recovery-flow">
+          <strong>Recommended recovery setup:</strong> keep your primary Gmail verified, connect a personal Google backup, and bind your mobile number. These recovery methods point back to the same account ID, so content purchases are not duplicated into a new account.
         </div>
 
         <form className="account-settings-form" onSubmit={savePassword}>
