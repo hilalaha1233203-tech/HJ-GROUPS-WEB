@@ -4244,6 +4244,21 @@ export function App() {
           epubBookRef.current =
             book
 
+          // Sanitize chapter markup before epub.js builds its sandboxed
+          // iframe. This keeps the reader script-free and prevents harmless
+          // about:srcdoc blocked-script console noise without enabling
+          // allowScriptedContent (which would weaken EPUB isolation).
+          try {
+            book.spine?.hooks?.serialize?.register(function (output) {
+              this.output = String(output || '')
+                .replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, '')
+                .replace(/\\son[a-z]+\\s*=\\s*(["']).*?\\1/gi, '')
+                .replace(/\\s(?:href|src)\\s*=\\s*(["'])javascript:[\\s\\S]*?\\1/gi, '')
+            })
+          } catch (error) {
+            console.warn('EPUB safety hook unavailable:', error)
+          }
+
           /*
             Read EPUB's navigation
             table of contents.
