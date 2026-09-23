@@ -1676,16 +1676,59 @@ export function App() {
   useEffect(() => {
     let mounted = true
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (mounted) {
-          setUser(
-            data.session?.user ??
-            null
-          )
+    const finishAuthRedirect = async () => {
+      try {
+        const hash = String(window.location.hash || '').replace(/^#/, '')
+        const hashParams = new URLSearchParams(hash)
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
+        const code = new URLSearchParams(window.location.search).get('code')
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+
+          if (error) {
+            console.warn('Supabase email link session restore failed:', error.message)
+          } else {
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname + window.location.search
+            )
+          }
+        } else if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+          if (error) {
+            console.warn('Supabase email callback exchange failed:', error.message)
+          } else {
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            )
+          }
         }
-      })
+      } catch (error) {
+        console.warn('Supabase auth callback handling failed:', error)
+      }
+    }
+
+    finishAuthRedirect().finally(() => {
+      supabase.auth
+        .getSession()
+        .then(({ data }) => {
+          if (mounted) {
+            setUser(
+              data.session?.user ??
+              null
+            )
+          }
+        })
+    })
 
     const {
       data: listener,
