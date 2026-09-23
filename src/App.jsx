@@ -269,10 +269,12 @@ const clamp = (value, min, max) =>
 const cleanSpeechText = (text) =>
   String(text || '')
     .replace(/\u00a0/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
 
-const chunkTextForSpeech = (text, maxLength = 240) => {
+const chunkTextForSpeech = (text, maxLength = 360) => {
   const cleaned = cleanSpeechText(text)
   if (!cleaned) return []
 
