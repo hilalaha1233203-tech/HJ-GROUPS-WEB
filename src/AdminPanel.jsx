@@ -3,6 +3,8 @@ import { resolveAccessType } from './lib/accessControl'
 import { supabase } from './supabase'
 import React, { useEffect, useState } from 'react'
 
+const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
+
 // The streaming service is deployed separately. Configure its public URL in VITE_STREAMING_SERVER_URL.
 const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL || '')
   .trim()
@@ -425,7 +427,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
 
   const addBookVolume = () => {
-    setBookVolumes(prev => [...prev, { id: Date.now() + Math.random(), title: `Volume ${prev.length + 1}`, file: '', filePath: '' }])
+    setBookVolumes(prev => [...prev, { id: makeAdminEntityId(), title: `Volume ${prev.length + 1}`, file: '', filePath: '' }])
   }
   const updateBookVolume = (id, patch) => {
     setBookVolumes(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v))
@@ -869,7 +871,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   setBookTelegramUrl(book.telegram_message_id ? `https://t.me/c/id/${book.telegram_message_id}` : '')
 
   setBookAccessType(resolveAccessType(book))
-  setBookVolumes(Array.isArray(book.volumes) ? book.volumes.map((v, index) => ({ id: Date.now() + index + Math.random(), title: v.title || `Volume ${index + 1}`, file: v.file || '', filePath: v.filePath || '' })) : [])
+  setBookVolumes(Array.isArray(book.volumes) ? book.volumes.map((v, index) => ({ id: makeAdminEntityId() + index, title: v.title || `Volume ${index + 1}`, file: v.file || '', filePath: v.filePath || '' })) : [])
 
   window.scrollTo({
     top: 0,
@@ -922,7 +924,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       await onUpdateBook(editingBookId, data)
     } else {
       await onAddBook({
-        id: Date.now(),
+        id: makeAdminEntityId(),
         ...data,
       })
     }
@@ -1174,7 +1176,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
       try {
         await onAddBook({
-          id: Date.now() + messageId,
+          id: makeAdminEntityId() + messageId,
           title,
           author: '',
           description: '',
@@ -1287,7 +1289,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       }
     } else {
       await onAddVideo({
-        id: Date.now(),
+        id: makeAdminEntityId(),
         title: videoTitle.trim(),
         category: videoCategory,
         cover: videoCover.trim(),
