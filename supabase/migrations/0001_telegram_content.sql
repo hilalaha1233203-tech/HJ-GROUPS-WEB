@@ -18,6 +18,7 @@ create table if not exists stories (
   id bigint generated always as identity primary key,
   title text not null,
   genre text default 'Fantasy',
+  language text default 'Tamil',
   cover_file_id text,\n  telegram_message_id bigint,
   description text default '',
   created_at timestamptz not null default now()
@@ -55,6 +56,7 @@ create table if not exists video_stories (
   id bigint generated always as identity primary key,
   title text not null,
   category text default 'Action',
+  language text default 'Tamil',
   cover_file_id text,
   access_type text not null default 'free'
     check (access_type in ('free', 'vip', 'premium', 'ads')),
@@ -66,6 +68,7 @@ create table if not exists video_episodes (
   video_story_id bigint not null references video_stories(id) on delete cascade,
   number int not null,
   title text not null,
+  language text default 'Tamil',
   file_id text,
   access_type text not null default 'free'
     check (access_type in ('free', 'vip', 'premium', 'ads')),
