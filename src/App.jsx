@@ -1019,35 +1019,71 @@ export function App() {
   }
 
   const addStory = async (story) => {
-    const { data, error } = await supabase
+    const row = {
+      title: story.title,
+      genre: story.genre || 'Fantasy',
+      language: story.language || 'Tamil',
+      cover_url: story.cover || null,
+      cover_path: story.coverPath || '',
+      description: story.description || '',
+    }
+
+    let result = await supabase
       .from('stories')
-      .insert({
-        title: story.title,
-        genre: story.genre || 'Fantasy',
-        cover_url: story.cover || null,
-        cover_path: story.coverPath || '',
-        description: story.description || '',
-      })
+      .insert(row)
       .select('*')
       .single()
-    if (error) {
-      console.error('Supabase story insert error:', error)
-      throw error
+
+    if (result.error) {
+      const message = String(result.error.message || '')
+      const schemaMismatch = /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(message)
+
+      if (!schemaMismatch) {
+        console.error('Supabase story insert error:', result.error)
+        throw result.error
+      }
+
+      const legacyRow = { ...row }
+      delete legacyRow.language
+
+      result = await supabase
+        .from('stories')
+        .insert(legacyRow)
+        .select('*')
+        .single()
     }
-    return data
+
+    if (result.error) {
+      console.error('Supabase story insert error:', result.error)
+      throw result.error
+    }
+
+    return result.data
   }
 
   const updateStory = async (storyId, updates) => {
     const supabaseId = getSupabaseStoryId(storyId)
     if (supabaseId !== null) {
-      const { error } = await supabase.from('stories').update({
+      const next = {
         title: updates.title,
         genre: updates.genre,
+        language: updates.language || 'Tamil',
         cover_url: updates.cover || null,
         cover_path: updates.coverPath || '',
         description: updates.description || '',
-      }).eq('id', supabaseId)
-      if (error) throw error
+      }
+
+      let result = await supabase.from('stories').update(next).eq('id', supabaseId)
+      if (result.error) {
+        const message = String(result.error.message || '')
+        if (!/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(message)) {
+          throw result.error
+        }
+        const legacy = { ...next }
+        delete legacy.language
+        result = await supabase.from('stories').update(legacy).eq('id', supabaseId)
+      }
+      if (result.error) throw result.error
       await refreshTelegramContent().catch(() => {})
       return
     }
@@ -1348,6 +1384,7 @@ export function App() {
       file_url: book.file || null,
       file_path: book.filePath || '',
       telegram_message_id: Number.isFinite(messageId) ? messageId : null,
+      language: book.language || 'Tamil',
       access_type: serializeAccessType(book.accessType),
       volumes: Array.isArray(book.volumes) ? book.volumes : [],
     }
@@ -1417,6 +1454,7 @@ export function App() {
         file_url: updates.file || null,
         file_path: updates.filePath || '',
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
+        language: updates.language || 'Tamil',
         access_type: serializeAccessType(updates.accessType),
         volumes: Array.isArray(updates.volumes) ? updates.volumes : [],
       }).eq('id', supabaseId)
@@ -1455,6 +1493,7 @@ export function App() {
         cover_url: video.cover || null,
         cover_path: video.coverPath || '',
         telegram_message_id: video.telegram_message_id ? Number(video.telegram_message_id) : null,
+        language: video.language || 'Tamil',
         access_type: serializeAccessType(video.accessType),
       })
       .select('*')
@@ -1497,6 +1536,7 @@ export function App() {
         cover_url: updates.cover || null,
         cover_path: updates.coverPath || '',
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
+        language: updates.language || 'Tamil',
         access_type: serializeAccessType(updates.accessType),
       }).eq('id', supabaseId)
       if (error) throw error
