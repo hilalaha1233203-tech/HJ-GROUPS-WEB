@@ -441,7 +441,6 @@ function Auth({ onBack }) {
                   </span>
                 </button>
               </div>
-              </>
             )}
 
             {loginMethod === 'password' && (
@@ -568,6 +567,7 @@ function Auth({ onBack }) {
                   </span>
                 </button>
               </div>
+              </>
             )}
 
             {loginMethod === 'password' && (
