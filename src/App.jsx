@@ -1101,9 +1101,7 @@ export function App() {
         ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
         : (episode.src || null)
 
-      const accessType = Array.isArray(episode.accessType)
-        ? (episode.accessType[0] || 'free')
-        : (episode.accessType || 'free')
+      const accessType = episode.accessType || 'free'
 
       // Try a hybrid payload first. This succeeds when production has both
       // legacy episode_number/audio_url columns and newer number/file_url
@@ -1119,6 +1117,7 @@ export function App() {
         file_path: episode.filePath || '',
         file_id: null,
         access_type: serializeAccessType(accessType),
+        language: episode.language || 'Tamil',
         available: episode.available !== false,
         ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
       }
@@ -1152,6 +1151,7 @@ export function App() {
           file_path: episode.filePath || '',
           file_id: null,
           access_type: serializeAccessType(accessType),
+          language: episode.language || 'Tamil',
           available: episode.available !== false,
           ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
         }
@@ -1200,6 +1200,7 @@ export function App() {
           // individually when they exist; missing columns are safely ignored.
           const metadata = {
             access_type: serializeAccessType(accessType),
+            language: episode.language || 'Tamil',
             available: episode.available !== false,
             ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
             ...(episode.filePath ? { file_path: episode.filePath } : {}),
@@ -1254,6 +1255,7 @@ export function App() {
         file_path: updates.filePath || '',
         file_id: null,
         access_type: serializeAccessType(updates.accessType),
+        language: updates.language || 'Tamil',
         available: updates.available !== false,
       }
       if (updates.telegram_message_id) modernRow.telegram_message_id = Number(updates.telegram_message_id)
@@ -1278,6 +1280,7 @@ export function App() {
 
         const metadata = {
           access_type: serializeAccessType(updates.accessType),
+          language: updates.language || 'Tamil',
           available: updates.available !== false,
           ...(updates.telegram_message_id ? { telegram_message_id: Number(updates.telegram_message_id) } : {}),
           ...(updates.filePath ? { file_path: updates.filePath } : {}),
