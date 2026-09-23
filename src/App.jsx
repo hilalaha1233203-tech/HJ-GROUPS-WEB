@@ -4182,6 +4182,11 @@ export function App() {
       setReaderLocked(false)
       setTtsSettingsOpen(false)
 
+      const configuredReaderSize = clamp(Number(accountSettings.readerFontSize) || 100, 75, 180)
+      const configuredReaderTheme = String(accountSettings.readerTheme || 'dark')
+      setReaderTheme(configuredReaderTheme)
+      setEpubFontScale(configuredReaderSize)
+
       setPdfPage(1)
       setPdfPages(0)
       setPdfScale(1)
@@ -5339,70 +5344,77 @@ export function App() {
      ZOOM
   ======================================================= */
 
+  const applyEpubReaderAppearance = () => {
+    const rendition = epubRenditionRef.current
+    if (!rendition) return
+
+    try {
+      rendition.themes.fontSize(String(Math.round(epubFontScale)) + '%')
+    } catch {}
+
+    try {
+      const iframe = epubContainerRef.current?.querySelector('iframe')
+      const doc = iframe?.contentDocument
+      if (!doc) return
+
+      let style = doc.getElementById('hj-epub-reader-appearance')
+      if (!style) {
+        style = doc.createElement('style')
+        style.id = 'hj-epub-reader-appearance'
+        doc.head?.appendChild(style)
+      }
+
+      const palettes = {
+        dark: { background: '#111522', color: '#f4f5fb' },
+        paper: { background: '#fbf7ef', color: '#26231e' },
+        sepia: { background: '#f1e3c7', color: '#3d2d1f' },
+        night: { background: '#0a1730', color: '#dcecff' },
+      }
+      const palette = palettes[readerTheme] || palettes.dark
+      style.textContent =
+        'html,body{background:' + palette.background + ' !important;color:' + palette.color + ' !important;}' +
+        'body,body *{color:' + palette.color + ' !important;}' +
+        'img{max-width:100% !important;height:auto !important;}' +
+        '::selection{background:rgba(124,131,255,.35) !important;}'
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (readerType !== 'epub' || !epubReady) return
+    applyEpubReaderAppearance()
+  }, [readerType, epubReady, epubFontScale, readerTheme])
+
   const zoomIn =
     () => {
-      if (
-        readerType ===
-        'pdf'
-      ) {
-        setPdfScale(
-          (value) =>
-            Number(
-              Math.min(
-                2.5,
-                value + 0.25
-              ).toFixed(2)
-            )
-        )
-      } else {
-        setEpubFontScale(
-          (value) =>
-            Math.min(
-              200,
-              value + 10
-            )
-        )
+      if (readerType === 'pdf') {
+        setPdfScale((value) => Number(Math.min(2.5, value + 0.25).toFixed(2)))
+        return
       }
+      setEpubFontScale((value) => Math.min(200, value + 10))
     }
 
   const zoomOut =
     () => {
-      if (
-        readerType ===
-        'pdf'
-      ) {
-        setPdfScale(
-          (value) =>
-            Number(
-              Math.max(
-                0.5,
-                value - 0.25
-              ).toFixed(2)
-            )
-        )
-      } else {
-        setEpubFontScale(
-          (value) =>
-            Math.max(
-              60,
-              value - 10
-            )
-        )
+      if (readerType === 'pdf') {
+        setPdfScale((value) => Number(Math.max(0.5, value - 0.25).toFixed(2)))
+        return
       }
+      setEpubFontScale((value) => Math.max(60, value - 10))
     }
 
   const zoomReset =
     () => {
-      if (
-        readerType ===
-        'pdf'
-      ) {
+      if (readerType === 'pdf') {
         setPdfScale(1)
-      } else {
-        setEpubFontScale(
-          100
-        )
+        return
       }
+      setEpubFontScale(100)
+      window.setTimeout(() => {
+        try {
+          epubRenditionRef.current?.themes?.fontSize('100%')
+        } catch {}
+        applyEpubReaderAppearance()
+      }, 0)
     }
 
   /* =======================================================
@@ -8210,7 +8222,7 @@ export function App() {
           ref={
             readerContainerRef
           }
-          className={`reader-overlay ${ttsPlayerMinimized ? 'reader-controls-minimized' : ''} ${readerLocked ? 'reader-locked' : ''} ${(isReading || activePlayerKind === 'readaloud') ? 'reader-reading' : ''}`}
+          className={'reader-overlay ' + (ttsPlayerMinimized ? 'reader-controls-minimized ' : '') + (readerLocked ? 'reader-locked ' : '') + 'reader-theme-' + readerTheme + ((isReading || activePlayerKind === 'readaloud') ? ' reader-reading' : '')}
         >
           <div className="reader-window">
             {/* HEADER */}
