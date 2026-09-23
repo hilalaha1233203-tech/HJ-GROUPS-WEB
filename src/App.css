@@ -5168,3 +5168,97 @@ body:has(.reader-overlay:not(.reader-minimized)),
     overflow-y: auto !important;
   }
 }
+
+
+/* Mobile reader: reserve almost the entire viewport for the page.
+   The read-aloud controls stay in a compact single-row footer. */
+@media (max-width: 700px) {
+  .reader-overlay {
+    inset: 0;
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .reader-window {
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: 48px minmax(0, 1fr) auto;
+  }
+
+  .reader-header {
+    min-height: 48px;
+    height: 48px;
+    padding: 0 8px;
+    gap: 5px;
+  }
+
+  .reader-header > button,
+  .reader-tools button {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .reader-header > strong {
+    font-size: 12px;
+  }
+
+  .reader-body {
+    min-height: 0;
+    padding: 6px 8px 8px;
+  }
+
+  .reader-bottom {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "player";
+    gap: 0;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+  }
+
+  .reader-navigation,
+  .reader-zoom,
+  .reader-word-indicator,
+  .reader-read-status,
+  .reader-player-volume,
+  .reader-player-speed,
+  .reader-player-sleep {
+    display: none !important;
+  }
+
+  .reader-player {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "nav progress";
+    gap: 6px;
+    padding: 3px 2px !important;
+  }
+
+  .reader-player-nav {
+    gap: 4px;
+  }
+
+  .reader-player-nav > button {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  .reader-player-progress {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .reader-tools button {
+    padding: 5px 6px;
+    font-size: 10px;
+  }
+
+  .reader-player-nav > button {
+    flex-basis: 34px;
+    width: 34px;
+    height: 34px;
+  }
+}
