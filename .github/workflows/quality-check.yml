@@ -46,6 +46,7 @@ jobs:
       - name: Auth / settings / metadata sanity check
         run: |
           grep -q "shouldCreateUser: false" src/Auth.jsx
+          grep -q "signInWithOAuth" src/Auth.jsx
           grep -q "shouldCreateUser: true" src/Auth.jsx
           grep -q "Email OTP Sign Up" src/Auth.jsx
           grep -q "Phone OTP Login" src/Auth.jsx
