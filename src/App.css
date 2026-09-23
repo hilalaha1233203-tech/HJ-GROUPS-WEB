@@ -6167,3 +6167,103 @@ body:has(.reader-overlay:not(.reader-minimized)),
     width: 100%;
   }
 }
+
+
+/* =========================================================
+   FINAL READER INTERACTION FIXES
+   ========================================================= */
+
+/* Do not let the reader canvas shrink a zoomed PDF back to container width. */
+.reader-body .react-pdf__Document {
+  flex-shrink: 0 !important;
+  max-width: none !important;
+  width: max-content !important;
+}
+.reader-body .react-pdf__Page {
+  flex-shrink: 0 !important;
+  max-width: none !important;
+}
+.reader-body .react-pdf__Page canvas {
+  max-width: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Make every reader appearance actually change the shell, not only a small accent. */
+.reader-overlay:not(.reader-minimized).reader-theme-dark .reader-window,
+.reader-overlay:not(.reader-minimized).reader-theme-dark .reader-body-full {
+  background: #111522 !important;
+  color: #f4f5fb !important;
+}
+.reader-overlay:not(.reader-minimized).reader-theme-dark .reader-body-full .react-pdf__Page,
+.reader-overlay:not(.reader-minimized).reader-theme-dark .epub-reader {
+  background: #171c2b !important;
+}
+.reader-overlay:not(.reader-minimized).reader-theme-paper .reader-window,
+.reader-overlay:not(.reader-minimized).reader-theme-paper .reader-body-full {
+  background: #f8f1e7 !important;
+  color: #2c281f !important;
+}
+.reader-overlay:not(.reader-minimized).reader-theme-paper .reader-body-full .react-pdf__Page,
+.reader-overlay:not(.reader-minimized).reader-theme-paper .epub-reader,
+.reader-overlay:not(.reader-minimized).reader-theme-paper .epub-reader iframe {
+  background: #fbf7ef !important;
+}
+.reader-overlay:not(.reader-minimized).reader-theme-sepia .reader-window,
+.reader-overlay:not(.reader-minimized).reader-theme-sepia .reader-body-full {
+  background: #eee0c4 !important;
+  color: #3e3021 !important;
+}
+.reader-overlay:not(.reader-minimized).reader-theme-sepia .reader-body-full .react-pdf__Page,
+.reader-overlay:not(.reader-minimized).reader-theme-sepia .epub-reader,
+.reader-overlay:not(.reader-minimized).reader-theme-sepia .epub-reader iframe {
+  background: #f1e3c7 !important;
+}
+.reader-overlay:not(.reader-minimized).reader-theme-night .reader-window,
+.reader-overlay:not(.reader-minimized).reader-theme-night .reader-body-full {
+  background: #0a1730 !important;
+  color: #dcecff !important;
+}
+.reader-overlay:not(.reader-minimized).reader-theme-night .reader-body-full .react-pdf__Page,
+.reader-overlay:not(.reader-minimized).reader-theme-night .epub-reader,
+.reader-overlay:not(.reader-minimized).reader-theme-night .epub-reader iframe {
+  background: #0e2344 !important;
+}
+
+/* Mobile: give the Read Aloud control its own visible row instead of letting the tool strip overflow. */
+@media (max-width: 760px) {
+  .reader-header {
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    min-height: auto !important;
+    padding: 8px !important;
+  }
+  .reader-header > button:first-child {
+    order: 1;
+  }
+  .reader-header > strong {
+    order: 2;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+  }
+  .reader-tools {
+    order: 3;
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-shrink: 0 !important;
+    justify-content: flex-start !important;
+    padding-bottom: 3px;
+    scrollbar-width: thin;
+  }
+  .reader-tools button {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    min-height: 40px;
+  }
+  .reader-tools button:first-child {
+    border-color: rgba(124,131,255,.55) !important;
+    background: rgba(124,131,255,.16) !important;
+    color: #fff !important;
+  }
+}
