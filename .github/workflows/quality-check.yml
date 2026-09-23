@@ -61,7 +61,7 @@ jobs:
           grep -q "create table if not exists public.app_settings" supabase/production-content-repair.sql
           grep -q "{{ .Token }}" supabase/email-templates/magic_link_otp.html
           ! grep -q "{{ .ConfirmationURL }}" supabase/email-templates/magic_link_otp.html
-          ! grep -R -n "localhost:3000" src supabase/email-templates
+          ! git grep -n "localhost:3000" -- src supabase/email-templates
 
       - name: Final source sanity check
         run: |
