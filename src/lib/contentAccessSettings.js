@@ -6,6 +6,7 @@ export const DEFAULT_CONTENT_ACCESS_SETTINGS = Object.freeze({
   freeAudioEpisodes: 10,
   freeVideoEpisodes: 10,
   freeBookPages: 50,
+  adUnlockDurationMinutes: 360,
 })
 
 const clampInt = (value, min, max, fallback) => {
@@ -20,6 +21,7 @@ export function normalizeContentAccessSettings(content = {}) {
     freeAudioEpisodes: clampInt(content?.freeAudioEpisodes ?? legacy, 0, 100, DEFAULT_CONTENT_ACCESS_SETTINGS.freeAudioEpisodes),
     freeVideoEpisodes: clampInt(content?.freeVideoEpisodes ?? legacy, 0, 100, DEFAULT_CONTENT_ACCESS_SETTINGS.freeVideoEpisodes),
     freeBookPages: clampInt(content?.freeBookPages, 0, 500, DEFAULT_CONTENT_ACCESS_SETTINGS.freeBookPages),
+    adUnlockDurationMinutes: clampInt(content?.adUnlockDurationMinutes, 1, 1440, DEFAULT_CONTENT_ACCESS_SETTINGS.adUnlockDurationMinutes),
   }
 }
 
