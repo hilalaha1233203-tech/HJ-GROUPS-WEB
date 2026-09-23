@@ -78,6 +78,7 @@ const DEFAULT_ACCOUNT_SETTINGS = Object.freeze({
   readerPdfScale: 1,
   readerRememberPosition: true,
   reducedMotion: false,
+  dataSaver: false,
 })
 
 const readAccountSettings = (userId, user = null) => {
@@ -86,8 +87,9 @@ const readAccountSettings = (userId, user = null) => {
   try {
     const local = JSON.parse(localStorage.getItem(ACCOUNT_SETTINGS_KEY + ':' + userId) || '{}')
     const cloud = user?.user_metadata?.hj_settings
-    const source = cloud && typeof cloud === 'object' ? cloud : local
-    return { ...fallback, ...(source && typeof source === 'object' ? source : {}) }
+    const localSource = local && typeof local === 'object' ? local : {}
+    const cloudSource = cloud && typeof cloud === 'object' ? cloud : {}
+    return { ...fallback, ...localSource, ...cloudSource }
   } catch {
     return fallback
   }
@@ -797,6 +799,7 @@ export function App() {
   const [purchasedStoryIds, setPurchasedStoryIds] = useState(new Set())
   const [accountSettings, setAccountSettings] = useState(DEFAULT_ACCOUNT_SETTINGS)
   const [accountSettingsReadyFor, setAccountSettingsReadyFor] = useState('')
+  const accountSettingsSaveTimerRef = useRef(null)
   const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false)
   const [recoveryPassword, setRecoveryPassword] = useState('')
   const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('')
@@ -1936,7 +1939,38 @@ export function App() {
     if (Number.isFinite(Number(normalized.ttsSpeed))) {
       window.dispatchEvent?.(new CustomEvent('hj-tts-speed', { detail: Number(normalized.ttsSpeed) }))
     }
+
+    if (typeof window !== 'undefined' && user?.id) {
+      try {
+        localStorage.setItem(ACCOUNT_SETTINGS_KEY + ':' + user.id, JSON.stringify(normalized))
+      } catch {}
+
+      if (accountSettingsSaveTimerRef.current) clearTimeout(accountSettingsSaveTimerRef.current)
+
+      accountSettingsSaveTimerRef.current = window.setTimeout(async () => {
+        try {
+          const { data: refreshedUser, error } = await supabase.auth.updateUser({
+            data: {
+              ...(user.user_metadata || {}),
+              hj_settings: normalized,
+            },
+          })
+          if (error) {
+            console.warn('Account settings cloud sync failed:', error.message || error)
+            return
+          }
+          if (refreshedUser?.user) setUser(refreshedUser.user)
+        } catch (error) {
+          console.warn('Account settings cloud sync failed:', error?.message || error)
+        }
+      }, 650)
+    }
   }
+
+  useEffect(() => () => {
+    if (accountSettingsSaveTimerRef.current) clearTimeout(accountSettingsSaveTimerRef.current)
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current)
+  }, [])
 
   const applyAccountPlayerSettings = (next) => {
     const media = getMediaElement()
@@ -1951,6 +1985,22 @@ export function App() {
     if (Number.isFinite(rate)) {
       media.playbackRate = clamp(rate, 0.5, 2)
       setSpeed(clamp(rate, 0.5, 2))
+    }
+
+    const ttsVolume = Number(next.ttsVolume)
+    const ttsSpeed = Number(next.ttsSpeed)
+    if (Number.isFinite(ttsVolume)) {
+      const safeVolume = clamp(ttsVolume, 0, 1)
+      setVolume(safeVolume)
+      if (speechUtteranceRef.current) speechUtteranceRef.current.volume = safeVolume
+      if (window.__hjEdgeTtsAudioElement) {
+        try { window.__hjEdgeTtsAudioElement.volume = safeVolume } catch {}
+      }
+    }
+    if (Number.isFinite(ttsSpeed)) {
+      const safeSpeed = clamp(ttsSpeed, 0.5, 2)
+      setSpeed(safeSpeed)
+      window.dispatchEvent?.(new CustomEvent('hj-tts-speed', { detail: safeSpeed }))
     }
   }
 
@@ -3025,6 +3075,14 @@ export function App() {
             value
         } catch { }
       }
+
+      if (activePlayerKind === 'readaloud') {
+        handleAccountSettingsChange({ ...accountSettings, ttsVolume: value })
+      } else if (currentEpisode?.type === 'video') {
+        handleAccountSettingsChange({ ...accountSettings, videoVolume: value })
+      } else if (currentEpisode?.type === 'audio') {
+        handleAccountSettingsChange({ ...accountSettings, audioVolume: value })
+      }
     }
 
   const updateTtsSetting =
@@ -3074,6 +3132,13 @@ export function App() {
       /*
         Edge TTS receives the selected rate for the next chunk.
       */
+      if (activePlayerKind === 'readaloud') {
+        handleAccountSettingsChange({ ...accountSettings, ttsSpeed: value })
+      } else if (currentEpisode?.type === 'video') {
+        handleAccountSettingsChange({ ...accountSettings, videoSpeed: value })
+      } else if (currentEpisode?.type === 'audio') {
+        handleAccountSettingsChange({ ...accountSettings, audioSpeed: value })
+      }
     }
 
   const startSleepTimer =
@@ -5808,7 +5873,7 @@ export function App() {
           <audio
             ref={audioRef}
             src={currentMediaSrc || undefined}
-            preload="metadata"
+            preload={accountSettings.dataSaver ? 'metadata' : 'auto'}
             onLoadedMetadata={
               handleLoadedMetadata
             }
@@ -5832,7 +5897,7 @@ export function App() {
           <video
             ref={videoRef}
             src={currentMediaSrc || undefined}
-            preload="metadata"
+            preload={accountSettings.dataSaver ? 'metadata' : 'auto'}
             onLoadedMetadata={
               handleLoadedMetadata
             }
@@ -8345,12 +8410,14 @@ export function App() {
 
               <div className="reader-tools">
                 <button
+                  className="reader-read-aloud-main"
                   onClick={readAloud}
                   disabled={readerLocked}
                   title={isReading ? 'Stop Read Aloud' : 'Start Read Aloud'}
+                  aria-label={isReading ? 'Stop Read Aloud' : 'Start Read Aloud'}
                 >
                   {isReading
-                    ? '⏹ Stop'
+                    ? '⏹ Stop Read Aloud'
                     : '🔊 Read Aloud'}
                 </button>
 
