@@ -27,7 +27,7 @@ export default defineConfig([
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['**/*.{mjs,cjs}'],
+    files: ['server.mjs', 'server/**/*.mjs', '**/*.cjs'],
     languageOptions: {
       globals: { ...globals.node, process: 'readonly' },
     },
