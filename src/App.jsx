@@ -5,6 +5,7 @@ import ePub from 'epubjs'
 import { supabase } from './supabase'
 import { resolveMediaSource, resolveBookSource } from './lib/secureMedia'
 import Auth from './Auth'
+import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
 
@@ -56,6 +57,45 @@ const PDF_OPTIONS = Object.freeze({
 })
 
 const ADMIN_EMAIL = 'hilalaha1233203@gmail.com'
+
+const ACCOUNT_SETTINGS_KEY = 'hj_account_settings_v2'
+const DEFAULT_ACCOUNT_SETTINGS = Object.freeze({
+  sleepTimer: 0,
+  audioVolume: 1,
+  audioSpeed: 1,
+  audioAutoplay: true,
+  audioRememberPosition: true,
+  videoVolume: 1,
+  videoSpeed: 1,
+  videoAutoplay: false,
+  videoRememberPosition: true,
+  ttsVolume: 1,
+  ttsSpeed: 1,
+  tamilVoice: 'ta-IN-PallaviNeural',
+  englishVoice: 'en-IN-NeerjaNeural',
+  readerTheme: 'dark',
+  readerFontSize: 100,
+  readerRememberPosition: true,
+  reducedMotion: false,
+})
+
+const readAccountSettings = (userId, user = null) => {
+  const fallback = { ...DEFAULT_ACCOUNT_SETTINGS }
+  if (!userId || typeof window === 'undefined') return fallback
+  try {
+    const local = JSON.parse(localStorage.getItem(ACCOUNT_SETTINGS_KEY + ':' + userId) || '{}')
+    const cloud = user?.user_metadata?.hj_settings
+    const source = cloud && typeof cloud === 'object' ? cloud : local
+    return { ...fallback, ...(source && typeof source === 'object' ? source : {}) }
+  } catch {
+    return fallback
+  }
+}
+
+const getMediaPositionKey = (episode) => {
+  if (!episode) return ''
+  return 'hj_media_position_v2:' + (episode.type || 'audio') + ':' + (episode.storyId || episode.story_id || 'story') + ':' + (episode.number || episode.id || 0)
+}
 
 /* =========================================================
    SEED DATA
@@ -754,6 +794,14 @@ export function App() {
     useState(null)
 
   const [purchasedStoryIds, setPurchasedStoryIds] = useState(new Set())
+  const [accountSettings, setAccountSettings] = useState(DEFAULT_ACCOUNT_SETTINGS)
+  const [accountSettingsReadyFor, setAccountSettingsReadyFor] = useState('')
+  const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false)
+  const [recoveryPassword, setRecoveryPassword] = useState('')
+  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('')
+  const [recoverySaving, setRecoverySaving] = useState(false)
+  const [recoveryError, setRecoveryError] = useState('')
+  const [recoveryMessage, setRecoveryMessage] = useState('')
 
   const loggedIn = !!user
 
@@ -939,6 +987,8 @@ export function App() {
 
   const [ttsSettings, setTtsSettings] =
     useState(() => readTtsSettings())
+
+  const [readerTheme, setReaderTheme] = useState('dark')
 
   /* =======================================================
      CHAPTER MENU
