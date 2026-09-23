@@ -133,7 +133,9 @@ test.describe('HJ GROUPS admin health', () => {
       await expect(page.getByText('VIDEO PLAYER', { exact: true })).toBeVisible()
       await expect(page.getByText('TTS & READ ALOUD', { exact: true })).toBeVisible()
       await expect(page.getByText('BOOK READER', { exact: true })).toBeVisible()
-      await expect(page.getByText('DEVICE & SESSION CONTROLS', { exact: true })).toBeVisible()
+      await expect(page.getByText('DEVICE & DATA', { exact: true })).toBeVisible()
+      await expect(page.getByText('Data Saver', { exact: true })).toBeVisible()
+      await expect(page.getByText('Recovery status', { exact: true })).toBeVisible()
     }
 
     await test.info().attach('admin-health.json', {
