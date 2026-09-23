@@ -1935,14 +1935,29 @@ export function App() {
     let animationId
     let particles = []
     let ready = false
-    let scrollOffset = 0
+    let scrollPhase = 0
 
     const resize = () => {
+      const previousWidth = width
+      const previousHeight = height
+
       width =
         window.innerWidth
 
       height =
         window.innerHeight
+
+      const shiftX = (width - previousWidth) / 2
+      const shiftY = (height - previousHeight) / 2
+
+      if (particles.length && (shiftX || shiftY)) {
+        for (const particle of particles) {
+          particle.homeX += shiftX
+          particle.homeY += shiftY
+          particle.x += shiftX
+          particle.y += shiftY
+        }
+      }
 
       const dpr = Math.min(
         window.devicePixelRatio ||
@@ -2043,9 +2058,12 @@ export function App() {
         width / 2 -
         targetWidth / 2
 
-      const originY = isMobile
-        ? Math.max(88, height * 0.12)
-        : height * 0.14
+      // Keep the water-particle logo centered in the viewport on
+      // both desktop and mobile. Scrolling only adds a subtle bounded
+      // motion; the logo never drifts off-screen.
+      const originY =
+        height / 2 -
+        targetHeight / 2
 
       const step =
         targetWidth > 220
@@ -2136,10 +2154,22 @@ export function App() {
             let targetX =
               particle.homeX
 
-            // Page-scroll parallax keeps the background logo moving with the page.
+            // Scroll gently animates the particle field around its
+            // centered home position without moving the logo away.
+            const scrollWobbleX =
+              Math.cos(scrollPhase + particle.homeY * 0.008) *
+              3
+            const scrollWobbleY =
+              Math.sin(scrollPhase + particle.homeX * 0.008) *
+              3
+
+            let targetX =
+              particle.homeX +
+              scrollWobbleX
+
             let targetY =
-              particle.homeY -
-              scrollOffset
+              particle.homeY +
+              scrollWobbleY
 
             if (mouse.moving) {
               const dx =
@@ -2261,22 +2291,43 @@ export function App() {
       }
 
     const handleScroll = () => {
-      scrollOffset = window.scrollY * 0.22
+      // Bounded phase shift: scrolling moves the particles subtly while
+      // preserving the centered logo position.
+      scrollPhase =
+        Math.min(80, Math.max(-80, window.scrollY * 0.008))
     }
 
-    const handleMouseMove = (
-      event
-    ) => {
-      mouseRef.current.x =
-        event.clientX
+    const setPointerPosition = (x, y) => {
+      mouseRef.current.x = x
+      mouseRef.current.y = y
+    }
 
-      mouseRef.current.y =
+    const handlePointerMove = (event) => {
+      setPointerPosition(
+        event.clientX,
         event.clientY
+      )
+    }
+
+    const handleTouchMove = (event) => {
+      const touch = event.touches?.[0]
+      if (!touch) return
+      setPointerPosition(
+        touch.clientX,
+        touch.clientY
+      )
     }
 
     window.addEventListener(
-      'mousemove',
-      handleMouseMove
+      'pointermove',
+      handlePointerMove,
+      { passive: true }
+    )
+
+    window.addEventListener(
+      'touchmove',
+      handleTouchMove,
+      { passive: true }
     )
 
     window.addEventListener(
@@ -2299,8 +2350,13 @@ export function App() {
       )
 
       window.removeEventListener(
-        'mousemove',
-        handleMouseMove
+        'pointermove',
+        handlePointerMove
+      )
+
+      window.removeEventListener(
+        'touchmove',
+        handleTouchMove
       )
 
       window.removeEventListener(
