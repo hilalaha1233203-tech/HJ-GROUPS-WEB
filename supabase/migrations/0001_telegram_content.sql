@@ -30,6 +30,7 @@ create table if not exists episodes (
   number int not null,
   title text not null,
   type text not null check (type in ('audio', 'video')),
+  language text default 'Tamil',
   file_id text,
   access_type text not null default 'free'
     check (access_type in ('free', 'vip', 'premium', 'ads')),
@@ -45,6 +46,7 @@ create table if not exists books (
   description text default '',
   type text not null check (type in ('pdf', 'epub')),
   category text default 'Other',
+  language text default 'Tamil',
   cover_file_id text,
   file_id text,
   access_type text not null default 'free'
