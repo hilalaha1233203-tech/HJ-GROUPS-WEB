@@ -36,6 +36,7 @@ function normalizeStories(storyRows, episodeRows) {
       telegram_message_id: messageId || null,
       src: ep.file_url || src,
       filePath: ep.file_path || '',
+      language: ep.language || 'Tamil',
       available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,
     })
@@ -97,6 +98,7 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
       telegram_message_id: messageId || null,
       src: ep.file_url || src,
       filePath: ep.file_path || '',
+      language: ep.language || 'Tamil',
       available: ep.available !== false,
       accessType: ep.access_type,
     })
