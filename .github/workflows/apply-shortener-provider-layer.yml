@@ -1,0 +1,195 @@
+name: Apply shortener provider switch layer
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'chore: apply shortener provider switch layer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Apply provider abstraction and admin controls
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+
+          helper = root / 'src/lib/shortenerProviders.js'
+          helper.write_text(r'''export const SHORTENER_PROVIDERS = Object.freeze([
+  { value: 'earn4link', label: 'Earn4Link' },
+  { value: 'shrinkme', label: 'ShrinkMe' },
+])
+
+export const SHORTENER_PROVIDER_VALUES = new Set(
+  SHORTENER_PROVIDERS.map((provider) => provider.value)
+)
+
+export const DEFAULT_SHORTENER_SETTINGS = Object.freeze({
+  primaryProvider: 'earn4link',
+  fallbackProvider: 'shrinkme',
+  enabled: false,
+})
+
+export function normalizeShortenerProvider(value, fallback = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'none') return ''
+  return SHORTENER_PROVIDER_VALUES.has(normalized) ? normalized : fallback
+}
+
+export function normalizeShortenerSettings(value = {}) {
+  const source = value && typeof value === 'object' ? value : {}
+  const primaryProvider = normalizeShortenerProvider(
+    source.primaryProvider,
+    DEFAULT_SHORTENER_SETTINGS.primaryProvider
+  )
+  let fallbackProvider = normalizeShortenerProvider(
+    source.fallbackProvider,
+    DEFAULT_SHORTENER_SETTINGS.fallbackProvider
+  )
+
+  if (fallbackProvider && fallbackProvider === primaryProvider) {
+    fallbackProvider = ''
+  }
+
+  return {
+    ...DEFAULT_SHORTENER_SETTINGS,
+    ...source,
+    primaryProvider,
+    fallbackProvider,
+    enabled: source.enabled === true,
+  }
+}
+
+export function getShortenerProviderLabel(value) {
+  const normalized = normalizeShortenerProvider(value)
+  return SHORTENER_PROVIDERS.find((provider) => provider.value === normalized)?.label || 'None'
+}
+
+export function getShortenerProviderOrder(settings = {}) {
+  const normalized = normalizeShortenerSettings(settings)
+  return [normalized.primaryProvider, normalized.fallbackProvider].filter(Boolean)
+}
+
+export function getShortenerProviderHint(settings = {}) {
+  const order = getShortenerProviderOrder(settings)
+  return order.length
+    ? order.map(getShortenerProviderLabel).join(' → ')
+    : 'No shortener configured'
+}
+''', encoding='utf-8')
+
+          admin = root / 'src/AdminPanel.jsx'
+          text = admin.read_text(encoding='utf-8')
+
+          old = """    interstitialAdUnitId: '',
+    unlockDurationMinutes: 120,
+"""
+          new = """    interstitialAdUnitId: '',
+    unlockDurationMinutes: 120,
+    shortenerEnabled: false,
+    primaryShortener: 'earn4link',
+    fallbackShortener: 'shrinkme',
+"""
+          if old not in text:
+              raise SystemExit('AdminPanel default ads settings anchor not found')
+          text = text.replace(old, new, 1)
+
+          anchor = """                  <label>Interstitial Ad Unit ID<input value={adminSettings.ads.interstitialAdUnitId} onChange={(e) => updateAdminSetting('ads', 'interstitialAdUnitId', e.target.value)} placeholder="Optional interstitial ID" /></label>
+                  <label>Unlock duration (minutes)<input type="number" min="1" max="1440" value={adminSettings.ads.unlockDurationMinutes} onChange={(e) => updateAdminSetting('ads', 'unlockDurationMinutes', Number(e.target.value) || 120)} /></label>
+"""
+          insert = """                  <label>Interstitial Ad Unit ID<input value={adminSettings.ads.interstitialAdUnitId} onChange={(e) => updateAdminSetting('ads', 'interstitialAdUnitId', e.target.value)} placeholder="Optional interstitial ID" /></label>
+                  <label>Unlock duration (minutes)<input type="number" min="1" max="1440" value={adminSettings.ads.unlockDurationMinutes} onChange={(e) => updateAdminSetting('ads', 'unlockDurationMinutes', Number(e.target.value) || 120)} /></label>
+                  <label className="admin-settings-toggle">
+                    <input
+                      type="checkbox"
+                      checked={adminSettings.ads.shortenerEnabled}
+                      onChange={(e) => updateAdminSetting('ads', 'shortenerEnabled', e.target.checked)}
+                    />
+                    <span>Enable shortener routing</span>
+                  </label>
+                  <label>Primary shortener
+                    <select value={adminSettings.ads.primaryShortener} onChange={(e) => updateAdminSetting('ads', 'primaryShortener', e.target.value)}>
+                      <option value="earn4link">Earn4Link</option>
+                      <option value="shrinkme">ShrinkMe</option>
+                    </select>
+                  </label>
+                  <label>Fallback shortener
+                    <select value={adminSettings.ads.fallbackShortener} onChange={(e) => updateAdminSetting('ads', 'fallbackShortener', e.target.value)}>
+                      <option value="">None</option>
+                      <option value="earn4link">Earn4Link</option>
+                      <option value="shrinkme">ShrinkMe</option>
+                    </select>
+                  </label>
+                  <small className="admin-settings-note">
+                    Provider order: <strong>{adminSettings.ads.primaryShortener === 'earn4link' ? 'Earn4Link' : 'ShrinkMe'}</strong>
+                    {adminSettings.ads.fallbackShortener ? <> → <strong>{adminSettings.ads.fallbackShortener === 'earn4link' ? 'Earn4Link' : 'ShrinkMe'}</strong></> : null}.
+                    Shortener routing is disabled by default. Use only for provider-approved link flows; do not treat a shortener redirect as ad-completion proof.
+                  </small>
+"""
+          if anchor not in text:
+              raise SystemExit('AdminPanel ads UI anchor not found')
+          text = text.replace(anchor, insert, 1)
+          admin.write_text(text, encoding='utf-8')
+
+          # Add automated static verification to the existing quality workflow.
+          workflow = root / '.github/workflows/quality-check.yml'
+          if workflow.exists():
+              w = workflow.read_text(encoding='utf-8')
+              check = """          grep -q "SHORTENER_PROVIDERS" src/lib/shortenerProviders.js
+          grep -q "shortenerEnabled" src/AdminPanel.jsx
+          grep -q "primaryShortener" src/AdminPanel.jsx
+          grep -q "fallbackShortener" src/AdminPanel.jsx
+"""
+              marker = "          ! git grep -n \"localhost:3000\" -- src supabase/email-templates\n"
+              if marker in w and 'SHORTENER_PROVIDERS' not in w:
+                  w = w.replace(marker, marker + check, 1)
+              workflow.write_text(w, encoding='utf-8')
+
+          # Extend admin E2E checks for the new switch controls.
+          test = root / 'tests/e2e/admin-health.spec.js'
+          if test.exists():
+              t = test.read_text(encoding='utf-8')
+              anchor = """    await expect(adminOverlay.getByLabel('Free book pages')).toBeVisible()
+"""
+              extra = """    await expect(adminOverlay.getByText('Enable shortener routing', { exact: true })).toBeVisible()
+    await expect(adminOverlay.locator('select').filter({ has: undefined }).count()).toBeGreaterThanOrEqual(2)
+    const primaryShortener = adminOverlay.locator('select').filter({ hasText: 'Earn4Link' }).first()
+    await expect(primaryShortener).toBeVisible()
+"""
+              # Use label-based selectors instead of brittle select indexing.
+              extra = """    await expect(adminOverlay.getByText('Enable shortener routing', { exact: true })).toBeVisible()
+    await expect(adminOverlay.getByLabel('Primary shortener')).toBeVisible()
+    await expect(adminOverlay.getByLabel('Fallback shortener')).toBeVisible()
+"""
+              if anchor in t and 'Primary shortener' not in t:
+                  t = t.replace(anchor, anchor + extra, 1)
+                  test.write_text(t, encoding='utf-8')
+
+          print('Shortener provider switch layer applied')
+          PY
+
+      - name: Validate
+        run: |
+          npm ci
+          npm run build
+          npm run lint
+
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/shortenerProviders.js src/AdminPanel.jsx tests/e2e/admin-health.spec.js .github/workflows/quality-check.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add switchable shortener provider layer"
+          git push origin main
