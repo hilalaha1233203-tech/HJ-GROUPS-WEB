@@ -75,6 +75,7 @@ const DEFAULT_ACCOUNT_SETTINGS = Object.freeze({
   englishVoice: 'en-IN-NeerjaNeural',
   readerTheme: 'dark',
   readerFontSize: 100,
+  readerPdfScale: 1,
   readerRememberPosition: true,
   reducedMotion: false,
 })
@@ -1928,6 +1929,9 @@ export function App() {
     }))
     if (Number.isFinite(Number(normalized.readerFontSize))) {
       setEpubFontScale(clamp(Number(normalized.readerFontSize), 75, 180))
+    }
+    if (Number.isFinite(Number(normalized.readerPdfScale))) {
+      setPdfScale(clamp(Number(normalized.readerPdfScale), 0.5, 2.5))
     }
     if (Number.isFinite(Number(normalized.ttsSpeed))) {
       window.dispatchEvent?.(new CustomEvent('hj-tts-speed', { detail: Number(normalized.ttsSpeed) }))
@@ -4189,7 +4193,7 @@ export function App() {
 
       setPdfPage(1)
       setPdfPages(0)
-      setPdfScale(1)
+      setPdfScale(clamp(Number(accountSettings.readerPdfScale) || 1, 0.5, 2.5))
       setPdfOutline([])
 
       setEpubPage(1)
@@ -5384,31 +5388,56 @@ export function App() {
     applyEpubReaderAppearance()
   }, [readerType, epubReady, epubFontScale, readerTheme])
 
+  const saveReaderSetting = (key, value) => {
+    setAccountSettings((current) => ({
+      ...current,
+      [key]: value,
+    }))
+  }
+
   const zoomIn =
     () => {
       if (readerType === 'pdf') {
-        setPdfScale((value) => Number(Math.min(2.5, value + 0.25).toFixed(2)))
+        setPdfScale((value) => {
+          const next = Number(Math.min(2.5, value + 0.25).toFixed(2))
+          saveReaderSetting('readerPdfScale', next)
+          return next
+        })
         return
       }
-      setEpubFontScale((value) => Math.min(200, value + 10))
+      setEpubFontScale((value) => {
+        const next = Math.min(200, value + 10)
+        saveReaderSetting('readerFontSize', next)
+        return next
+      })
     }
 
   const zoomOut =
     () => {
       if (readerType === 'pdf') {
-        setPdfScale((value) => Number(Math.max(0.5, value - 0.25).toFixed(2)))
+        setPdfScale((value) => {
+          const next = Number(Math.max(0.5, value - 0.25).toFixed(2))
+          saveReaderSetting('readerPdfScale', next)
+          return next
+        })
         return
       }
-      setEpubFontScale((value) => Math.max(60, value - 10))
+      setEpubFontScale((value) => {
+        const next = Math.max(60, value - 10)
+        saveReaderSetting('readerFontSize', next)
+        return next
+      })
     }
 
   const zoomReset =
     () => {
       if (readerType === 'pdf') {
         setPdfScale(1)
+        saveReaderSetting('readerPdfScale', 1)
         return
       }
       setEpubFontScale(100)
+      saveReaderSetting('readerFontSize', 100)
       window.setTimeout(() => {
         try {
           epubRenditionRef.current?.themes?.fontSize('100%')
