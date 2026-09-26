@@ -1,57 +1,64 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
-const AD_DURATION_SECONDS = 5
+function AdUnlockModal({
+  onClose,
+  onUnlock,
+  providerLabel = 'Ad shortener',
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-function AdUnlockModal({ onClose, onUnlocked }) {
-  const [secondsLeft, setSecondsLeft] = useState(AD_DURATION_SECONDS)
-  const [done, setDone] = useState(false)
-  const timerRef = useRef(null)
+  const startUnlock = async () => {
+    setLoading(true)
+    setError('')
 
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setSecondsLeft((value) => {
-        if (value <= 1) {
-          clearInterval(timerRef.current)
-          setDone(true)
-          return 0
-        }
-        return value - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timerRef.current)
-  }, [])
-
-  const progress = Math.round(((AD_DURATION_SECONDS - secondsLeft) / AD_DURATION_SECONDS) * 100)
+    try {
+      await onUnlock?.()
+    } catch (unlockError) {
+      setError(String(unlockError?.message || 'Unable to start the ad unlock flow.'))
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="ad-unlock-overlay">
       <div className="ad-unlock-card">
-        <h3>📺 Watch Ad to Unlock</h3>
+        <h3>📺 Unlock with an Ad</h3>
 
-        {!done ? (
-          <>
-            <p>This content unlocks automatically when the ad finishes.</p>
+        <p>
+          Complete the {providerLabel} link flow to unlock this content for the
+          configured temporary duration.
+        </p>
 
-            <div className="ad-unlock-progress-track">
-              <div className="ad-unlock-progress-fill" style={{ width: `${progress}%` }} />
-            </div>
+        <p className="ad-unlock-countdown">
+          You will return to HJ GROUPS automatically after the provider flow.
+        </p>
 
-            <p className="ad-unlock-countdown">{secondsLeft}s remaining</p>
-
-            <button type="button" className="secondary-btn" onClick={onClose}>
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <p>✓ Ad complete — this content is now unlocked.</p>
-
-            <button type="button" className="primary-btn" onClick={onUnlocked}>
-              Continue
-            </button>
-          </>
+        {error && (
+          <p className="auth-error" role="alert">
+            {error}
+          </p>
         )}
+
+        <div className="ad-unlock-actions">
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={startUnlock}
+            disabled={loading}
+          >
+            {loading ? 'Opening…' : 'Continue to Unlock'}
+          </button>
+        </div>
       </div>
     </div>
   )
