@@ -241,6 +241,7 @@ function AdminPanel({
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [shortenerHealth, setShortenerHealth] = useState(null)
   const [shortenerHealthLoading, setShortenerHealthLoading] = useState(false)
+  const [shortenerHealthRefresh, setShortenerHealthRefresh] = useState(0)
 
   useEffect(() => {
     if (tab !== 'settings') return undefined
@@ -1678,7 +1679,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     <button
                       type="button"
                       className="admin-settings-inline-button"
-                      onClick={() => setTab((current) => current)}
+                      onClick={() => setShortenerHealthRefresh((value) => value + 1)}
                       disabled={shortenerHealthLoading}
                     >
                       {shortenerHealthLoading ? 'Checking…' : 'Refresh'}
