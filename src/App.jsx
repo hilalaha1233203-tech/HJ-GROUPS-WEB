@@ -34,6 +34,7 @@ import {
   isEpisodePreviewFree,
   isBookPreviewPageFree,
 } from './lib/contentAccessSettings'
+import { getShortenerProviderLabel } from './lib/shortenerProviders'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -887,7 +888,109 @@ export function App() {
   const [adModalOpen, setAdModalOpen] =
     useState(false)
 
+  const [adUnlockError, setAdUnlockError] = useState('')
+  const [adUnlockLoading, setAdUnlockLoading] = useState(false)
+
   const pendingUnlockRef = useRef(null)
+
+  useEffect(() => {
+    if (!user?.id) return undefined
+    let mounted = true
+
+    const loadServerAdUnlocks = async () => {
+      try {
+        const { data: { session } = {} } = await supabase.auth.getSession()
+        if (!session?.access_token) return
+
+        const response = await fetch('/api/shortener/entitlements', {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Authorization: 'Bearer ' + session.access_token },
+          cache: 'no-store',
+        })
+
+        if (!response.ok) return
+        const payload = await response.json()
+        for (const unlock of Array.isArray(payload?.unlocks) ? payload.unlocks : []) {
+          const remaining = Math.max(
+            1,
+            Math.ceil((new Date(unlock.expires_at).getTime() - Date.now()) / 60000)
+          )
+          if (unlock.content_type === 'book') {
+            saveUnlockedAd(adsKeyFor('book', unlock.content_id), remaining)
+          } else if (unlock.storyId != null && unlock.episodeNumber != null) {
+            saveUnlockedAd(
+              adsKeyFor(
+                unlock.content_type === 'video' ? 'video-episode' : 'episode',
+                unlock.storyId,
+                unlock.episodeNumber
+              ),
+              remaining
+            )
+          }
+        }
+
+        if (mounted) setUnlockedAds(loadUnlockedAds())
+      } catch (error) {
+        console.warn('Temporary ad unlock sync failed:', error)
+      }
+    }
+
+    loadServerAdUnlocks()
+    return () => { mounted = false }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!user?.id) return undefined
+    let mounted = true
+
+    const completeReturnedUnlock = async () => {
+      try {
+        const { data: { session } = {} } = await supabase.auth.getSession()
+        if (!session?.access_token) return
+
+        const response = await fetch('/api/shortener/complete', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { Authorization: 'Bearer ' + session.access_token },
+          cache: 'no-store',
+        })
+
+        if (!response.ok) return
+        const payload = await response.json()
+        if (!payload?.ok || !payload.expiresAt) return
+
+        const remaining = Math.max(
+          1,
+          Math.ceil((new Date(payload.expiresAt).getTime() - Date.now()) / 60000)
+        )
+
+        if (payload.contentType === 'book') {
+          saveUnlockedAd(adsKeyFor('book', payload.contentId), remaining)
+        } else if (payload.storyId != null && payload.episodeNumber != null) {
+          saveUnlockedAd(
+            adsKeyFor(
+              payload.contentType === 'video' ? 'video-episode' : 'episode',
+              payload.storyId,
+              payload.episodeNumber
+            ),
+            remaining
+          )
+        }
+
+        if (mounted) {
+          setUnlockedAds(loadUnlockedAds())
+          setAdUnlockError('')
+          window.alert('✓ Ad unlock complete. This content is available for 6 hours.')
+        }
+      } catch (error) {
+        console.warn('Temporary ad unlock completion failed:', error)
+      }
+    }
+
+    completeReturnedUnlock()
+    return () => { mounted = false }
+  }, [user?.id])
 
   /* =======================================================
      SEARCH
@@ -2756,11 +2859,66 @@ export function App() {
       isAdmin,
     })
 
+  const startShortenerUnlock = async () => {
+    const pending = pendingUnlockRef.current
+    if (!pending?.item?.id || !pending?.contentType) {
+      throw new Error('Unlock target is unavailable.')
+    }
+
+    const { data: { session } = {} } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      setLoginOpen(true)
+      throw new Error('Please log in before starting an ad unlock.')
+    }
+
+    setAdUnlockLoading(true)
+    setAdUnlockError('')
+
+    const returnPath =
+      window.location.pathname +
+      window.location.search +
+      window.location.hash
+
+    const response = await fetch('/api/shortener/start', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({
+        contentType: pending.contentType,
+        contentId: pending.item.id,
+        returnPath,
+      }),
+    })
+
+    let payload = null
+    try { payload = await response.json() } catch {}
+
+    if (!response.ok || !payload?.shortUrl) {
+      const message = String(payload?.error || 'Ad unlock is temporarily unavailable.')
+      setAdUnlockError(message)
+      setAdUnlockLoading(false)
+      throw new Error(message)
+    }
+
+    pendingUnlockRef.current = {
+      ...pending,
+      provider: payload.provider,
+    }
+
+    setAdModalOpen(false)
+    setAdUnlockLoading(false)
+    window.location.assign(payload.shortUrl)
+  }
+
   const requestAccess = (
     item,
     adsKey,
     onGranted,
-    storyId
+    storyId,
+    contentType
   ) => {
     if (canAccessContent(item, adsKey, storyId)) {
       onGranted()
@@ -2780,10 +2938,26 @@ export function App() {
     // Ads is a valid alternate path for mixed access items such as
     // ["premium", "ads"]. Show the ad unlock flow before the paid-only gate.
     if (types.includes('ads')) {
+      if (!loggedIn) {
+        alert('Please log in to unlock this content with an ad.')
+        setLoginOpen(true)
+        return
+      }
+
+      const resolvedContentType = contentType || (
+        item?.type === 'video'
+          ? 'video'
+          : (item?.type === 'pdf' || item?.type === 'epub' ? 'book' : 'audio')
+      )
+
       pendingUnlockRef.current = {
+        item,
         adsKey,
         onGranted,
+        contentType: resolvedContentType,
       }
+      setAdUnlockError('')
+      setAdUnlockLoading(false)
       setAdModalOpen(true)
       return
     }
@@ -2806,49 +2980,14 @@ export function App() {
     alert('This content is locked.')
   }
 
-  const handleAdUnlocked =
-    () => {
-      const pending =
-        pendingUnlockRef.current
-
-      if (
-        pending?.adsKey
-      ) {
-        setUnlockedAds(
-          (previous) => {
-            const next =
-              new Set(
-                previous
-              )
-
-            next.add(
-              pending.adsKey
-            )
-
-            saveUnlockedAd(
-              pending.adsKey,
-              contentAccessSettings.adUnlockDurationMinutes
-            )
-
-            return loadUnlockedAds()
-          }
-        )
-      }
-
-      pending?.onGranted?.()
-
-      pendingUnlockRef.current =
-        null
-
-      setAdModalOpen(false)
-    }
-
   const handleAdCancel =
     () => {
       pendingUnlockRef.current =
         null
 
       setAdModalOpen(false)
+      setAdUnlockError('')
+      setAdUnlockLoading(false)
     }
 
   /* =======================================================
@@ -3016,7 +3155,7 @@ export function App() {
       setCurrentTime(0)
       setDuration(0)
       void prepareEpisodePlayback(episode, story)
-    }, story.id)
+    }, story.id, episode.type === 'video' ? 'video' : 'audio')
   }
 
   const selectEpisode = (episode) => {
@@ -3027,7 +3166,7 @@ export function App() {
       setCurrentTime(0)
       setDuration(0)
       void prepareEpisodePlayback(episode, currentStory)
-    }, currentStory.id)
+    }, currentStory.id, episode.type === 'video' ? 'video' : 'audio')
   }
   const nextEpisode =
     () => {
@@ -3620,7 +3759,8 @@ export function App() {
       readerBook,
       getBookAccessKey(readerBook),
       onGranted,
-      readerBook.id
+      readerBook.id,
+      'book'
     )
     return false
   }
@@ -8464,12 +8604,9 @@ export function App() {
 
       {adModalOpen && (
         <AdUnlockModal
-          onClose={
-            handleAdCancel
-          }
-          onUnlocked={
-            handleAdUnlocked
-          }
+          onClose={handleAdCancel}
+          onUnlock={startShortenerUnlock}
+          providerLabel={getShortenerProviderLabel(pendingUnlockRef.current?.provider) || 'AroLinks / Earn4Link'}
         />
       )}
 
