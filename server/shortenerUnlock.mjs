@@ -497,6 +497,33 @@ async function createIntent({ user, contentType, contentId, provider, destinatio
   return { rawToken, expiresAt }
 }
 
+async function getExistingAccess(user, contentType, contentId, content) {
+  if (String(user?.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+    return { source: 'admin', expiresAt: null }
+  }
+
+  const nowIso = new Date().toISOString()
+  const { data: adUnlock, error: unlockError } = await getServiceClient()
+    .from('ad_unlocks')
+    .select('expires_at')
+    .eq('user_id', user.id)
+    .eq('content_type', contentType)
+    .eq('content_id', contentId)
+    .gt('expires_at', nowIso)
+    .maybeSingle()
+
+  if (unlockError) throw new Error('Unable to verify existing temporary access.')
+  if (adUnlock?.expires_at) {
+    return { source: 'ad_unlock', expiresAt: adUnlock.expires_at }
+  }
+
+  if (await hasActivePurchase(user.id, content)) {
+    return { source: 'purchase', expiresAt: null }
+  }
+
+  return null
+}
+
 async function startUnlock(req, res, body) {
   const user = await authenticate(req)
   if (!UNLOCK_TOKEN_SECRET || !isValidPublicBaseUrl()) {
@@ -510,6 +537,21 @@ async function startUnlock(req, res, body) {
   }
 
   const content = await loadContent(contentType, contentId)
+
+  // The browser may be stale or a caller may invoke this endpoint directly.
+  // Re-check paid/temporary/admin access on the server before creating a new
+  // shortener intent. This prevents unnecessary provider traffic and ensures
+  // the shortener is never used as an alternate path when access already exists.
+  const existingAccess = await getExistingAccess(user, contentType, contentId, content)
+  if (existingAccess) {
+    return json(res, 200, {
+      ok: true,
+      alreadyGranted: true,
+      source: existingAccess.source,
+      expiresAt: existingAccess.expiresAt,
+    })
+  }
+
   const settings = await getAdminSettings()
   if (!settings.shortenerEnabled) {
     return json(res, 503, { error: 'Ad unlock is currently disabled.' })
