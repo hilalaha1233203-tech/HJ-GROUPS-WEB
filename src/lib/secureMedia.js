@@ -108,11 +108,13 @@ export async function resolveBookSource(book) {
   const contentSettings = loadCachedContentAccessSettings()
   const previewFreePages = Number(contentSettings.freeBookPages) || 0
 
-  // The existing reader performs page-level preview gating. The server check
-  // protects fully locked Ads books before returning their document.
+  // Preserve the existing free-book-pages preview rule: page 1 is allowed
+  // without an entitlement when a book has a configured free-page preview.
+  // The reader gates every later page through requestBookPageAccess().
   // A dedicated partial-document route is still required for strong server
-  // enforcement of free-page previews without exposing the whole PDF.
-  await assertServerAccess(book, 'book', book.id, false)
+  // enforcement without exposing the whole PDF to the browser.
+  const previewPageIsFree = isBookPreviewPageFree(1, book, contentSettings)
+  await assertServerAccess(book, 'book', book.id, previewPageIsFree)
 
   if (isProtectedBook && (!messageId || !STREAMING_SERVER_URL)) {
     throw new Error('Protected books are not available through a secure streaming source.')
