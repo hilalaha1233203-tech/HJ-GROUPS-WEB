@@ -2954,6 +2954,22 @@ body:has(.reader-overlay:not(.reader-minimized)),
   color: #aaa;
 }
 
+.ad-unlock-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.ad-unlock-actions button {
+  flex: 1;
+  min-height: 42px;
+}
+
+.ad-unlock-card .auth-error {
+  margin: 12px 0 0;
+}
+
 /* =========================================================
    BOTTOM NAV
 ========================================================= */
