@@ -57,6 +57,17 @@ function isAdsEnabled(content) {
   return parseAccessTypes(content?.access_type ?? content?.accessType).includes('ads')
 }
 
+function isValidPublicBaseUrl() {
+  try {
+    const parsed = new URL(PUBLIC_BASE_URL)
+    if (!parsed.hostname) return false
+    if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 function safeReturnPath(value) {
   const raw = String(value || '/').trim()
   if (!raw.startsWith('/') || raw.startsWith('//') || /[\\\r\n]/.test(raw)) return '/'
@@ -162,10 +173,6 @@ const PROVIDER_ADAPTERS = Object.freeze({
 
 function getProviderAdapter(provider) {
   return PROVIDER_ADAPTERS[String(provider || '').trim().toLowerCase()] || null
-}
-
-function providerEnvKey(provider) {
-  return getProviderAdapter(provider)?.tokenEnv || ''
 }
 
 function providerHost(provider) {
@@ -492,7 +499,7 @@ async function createIntent({ user, contentType, contentId, provider, destinatio
 
 async function startUnlock(req, res, body) {
   const user = await authenticate(req)
-  if (!UNLOCK_TOKEN_SECRET || !PUBLIC_BASE_URL) {
+  if (!UNLOCK_TOKEN_SECRET || !isValidPublicBaseUrl()) {
     return json(res, 503, { error: 'Temporary unlock is not configured.' })
   }
 
@@ -837,7 +844,7 @@ async function status(req, res) {
       earn4link: Boolean(String(process.env.EARN4LINK_API_TOKEN || '').trim()),
       unlockSecret: Boolean(UNLOCK_TOKEN_SECRET),
       supabaseServiceRole: Boolean(SERVICE_ROLE_KEY),
-      publicBaseUrl: Boolean(PUBLIC_BASE_URL),
+      publicBaseUrl: isValidPublicBaseUrl(),
     },
     unlockDurationMinutes: settings.unlockDurationMinutes,
   })
