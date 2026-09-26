@@ -131,11 +131,10 @@ const PROVIDER_ADAPTERS = Object.freeze({
   arolinks: {
     host: 'arolinks.com',
     tokenEnv: 'AROLINKS_API_TOKEN',
-    apiBase: () => String(process.env.AROLINKS_API_BASE_URL || 'https://arolinks.com/api').trim(),
     createShortLink: async ({ destinationUrl, fetchImpl = globalThis.fetch }) => {
       const token = String(process.env.AROLINKS_API_TOKEN || '').trim()
       if (!token) throw new Error('arolinks API token is not configured.')
-      const endpoint = new URL(String(process.env.AROLINKS_API_BASE_URL || 'https://arolinks.com/api').trim())
+      const endpoint = new URL('https://arolinks.com/api')
       endpoint.searchParams.set('api', token)
       endpoint.searchParams.set('url', destinationUrl)
       return fetchImpl(endpoint, {
@@ -147,7 +146,6 @@ const PROVIDER_ADAPTERS = Object.freeze({
   earn4link: {
     host: 'earn4link.in',
     tokenEnv: 'EARN4LINK_API_TOKEN',
-    apiBase: () => 'https://earn4link.in/api',
     createShortLink: async ({ destinationUrl, fetchImpl = globalThis.fetch }) => {
       const token = String(process.env.EARN4LINK_API_TOKEN || '').trim()
       if (!token) throw new Error('earn4link API token is not configured.')
@@ -168,10 +166,6 @@ function getProviderAdapter(provider) {
 
 function providerEnvKey(provider) {
   return getProviderAdapter(provider)?.tokenEnv || ''
-}
-
-function providerApiBase(provider) {
-  return getProviderAdapter(provider)?.apiBase?.() || ''
 }
 
 function providerHost(provider) {
