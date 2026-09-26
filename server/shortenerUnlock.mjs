@@ -152,7 +152,7 @@ function extractProviderUrl(provider, body) {
   candidates.push(String(body || ''))
 
   for (const candidate of candidates) {
-    const matches = candidate.match(/https?:\\/\\/[^\\s"'<>\\]+/g) || []
+    const matches = candidate.match(/https?:\/\/[^\s"'<>\\]+/g) || []
     for (const match of matches) {
       try {
         const url = new URL(match)
