@@ -35,6 +35,17 @@ test('provider normalization preserves an explicit None fallback', () => {
   assert.deepEqual(shortener.getShortenerProviderOrder(settings), ['arolinks'])
 })
 
+test('provider normalization persists the Admin primaryShortener field', () => {
+  const settings = shortener.normalizeShortenerSettings({
+    primaryShortener: 'earn4link',
+    fallbackShortener: 'arolinks',
+  })
+  assert.equal(settings.primaryProvider, 'earn4link')
+  assert.equal(settings.primaryShortener, 'earn4link')
+  assert.equal(settings.fallbackProvider, 'arolinks')
+  assert.equal(settings.fallbackShortener, 'arolinks')
+})
+
 test('provider order removes duplicates and ignores unsupported providers', () => {
   assert.deepEqual(
     getProviderOrder({ primary: 'arolinks', fallback: 'arolinks' }),
