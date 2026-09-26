@@ -2907,9 +2907,23 @@ export function App() {
     let payload = null
     try { payload = await response.json() } catch {}
 
-    if (!response.ok || !payload?.shortUrl) {
+    if (!response.ok) {
       const message = String(payload?.error || 'Ad unlock is temporarily unavailable.')
       throw new Error(message)
+    }
+
+    // The server is authoritative. If access was already granted through an
+    // active temporary entitlement, purchase, or admin access, do not send the
+    // user through the shortener again.
+    if (payload?.alreadyGranted) {
+      pendingUnlockRef.current = null
+      setAdModalOpen(false)
+      pending.onGranted?.()
+      return
+    }
+
+    if (!payload?.shortUrl) {
+      throw new Error('Ad unlock is temporarily unavailable.')
     }
 
     pendingUnlockRef.current = {
