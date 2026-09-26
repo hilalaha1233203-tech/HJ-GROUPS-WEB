@@ -123,7 +123,7 @@ export async function resolveMediaSource(item) {
   return url
 }
 
-export async function resolveBookSource(book) {
+export async function resolveBookSource(book, { previewOnly = false } = {}) {
   if (!book) throw new Error('Book is unavailable.')
 
   const messageId = getMessageId(book)
@@ -132,14 +132,23 @@ export async function resolveBookSource(book) {
   if (isProtectedBook && !contentId) {
     throw new Error('Protected book is missing its database content ID.')
   }
-  await assertServerAccess(book, 'book', contentId, false)
-
-  if (isProtectedBook && (!messageId || !STREAMING_SERVER_URL)) {
-    throw new Error('Protected books are not available through a secure streaming source.')
+  if (!messageId || !STREAMING_SERVER_URL) {
+    if (isProtectedBook) {
+      throw new Error('Protected books are not available through a secure streaming source.')
+    }
+    return String(book.file || '')
   }
 
-  if (!messageId || !STREAMING_SERVER_URL) return String(book.file || '')
-  if (!isProtectedBook) return `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(messageId)}`
+  if (previewOnly) {
+    if (!isProtectedBook) {
+      return STREAMING_SERVER_URL + '/document/message/' + encodeURIComponent(messageId)
+    }
+    return STREAMING_SERVER_URL + '/document/preview/message/' + encodeURIComponent(messageId)
+  }
+
+  await assertServerAccess(book, 'book', contentId, false)
+
+  if (!isProtectedBook) return STREAMING_SERVER_URL + '/document/message/' + encodeURIComponent(messageId)
 
   const { data: { session } = {} } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Please sign in to access premium books.')
