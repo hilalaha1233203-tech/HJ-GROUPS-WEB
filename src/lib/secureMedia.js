@@ -1,9 +1,9 @@
 import { resolveAccessType } from './accessControl'
-import { isEpisodePreviewFree, isBookPreviewPageFree, loadCachedContentAccessSettings } from './contentAccessSettings'
+import { isEpisodePreviewFree, loadCachedContentAccessSettings } from './contentAccessSettings'
 import { supabase } from '../supabase'
 
 const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL || '').trim().replace(/\/+$/, '')
-const protectedTypes = new Set(['premium', 'vip'])
+const protectedTypes = new Set(['premium', 'vip', 'ads'])
 
 const isProtected = (item) => {
   const types = resolveAccessType(item)
@@ -11,6 +11,25 @@ const isProtected = (item) => {
   // Only content without an Ads fallback requires an authenticated secure
   // media ticket from the dedicated streaming service.
   return !types.includes('ads') && types.some((type) => protectedTypes.has(type))
+}
+
+const getContentId = (item, contentType) => {
+  const numericId = Number(item?.id)
+  if (Number.isInteger(numericId) && numericId > 0) return numericId
+
+  const text = String(item?.id || '')
+  const prefixes = contentType === 'book'
+    ? ['tg-book-']
+    : contentType === 'audio'
+      ? ['tg-episode-']
+      : ['tg-video-']
+  for (const prefix of prefixes) {
+    if (text.startsWith(prefix)) {
+      const parsed = Number(text.slice(prefix.length))
+      if (Number.isInteger(parsed) && parsed > 0) return parsed
+    }
+  }
+  return null
 }
 
 const getMessageId = (item) => {
@@ -64,9 +83,13 @@ export async function resolveMediaSource(item) {
   const previewSettings = loadCachedContentAccessSettings()
   const previewFree = isEpisodePreviewFree(item, previewSettings)
 
-  // Never return a fallback source for Ads content until the server verifies
-  // the current user's temporary/paid entitlement.
-  await assertServerAccess(item, type, item.id, previewFree)
+  // Never return a fallback source for protected Ads content until the server
+  // verifies the current user's temporary/paid entitlement.
+  const contentId = getContentId(item, type)
+  if (resolveAccessType(item).includes('ads') && !contentId && !previewFree) {
+    throw new Error('Protected audio/video is missing its database content ID.')
+  }
+  await assertServerAccess(item, type, contentId, previewFree)
 
   if (isProtected(item) && (!messageId || !STREAMING_SERVER_URL)) {
     throw new Error('Protected media is not available through a secure streaming source.')
@@ -105,16 +128,11 @@ export async function resolveBookSource(book) {
 
   const messageId = getMessageId(book)
   const isProtectedBook = isProtected(book)
-  const contentSettings = loadCachedContentAccessSettings()
-  const previewFreePages = Number(contentSettings.freeBookPages) || 0
-
-  // Preserve the existing free-book-pages preview rule: page 1 is allowed
-  // without an entitlement when a book has a configured free-page preview.
-  // The reader gates every later page through requestBookPageAccess().
-  // A dedicated partial-document route is still required for strong server
-  // enforcement without exposing the whole PDF to the browser.
-  const previewPageIsFree = isBookPreviewPageFree(1, book, contentSettings)
-  await assertServerAccess(book, 'book', book.id, previewPageIsFree)
+  const contentId = getContentId(book, 'book')
+  if (isProtectedBook && !contentId) {
+    throw new Error('Protected book is missing its database content ID.')
+  }
+  await assertServerAccess(book, 'book', contentId, false)
 
   if (isProtectedBook && (!messageId || !STREAMING_SERVER_URL)) {
     throw new Error('Protected books are not available through a secure streaming source.')
@@ -122,12 +140,6 @@ export async function resolveBookSource(book) {
 
   if (!messageId || !STREAMING_SERVER_URL) return String(book.file || '')
   if (!isProtectedBook) return `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(messageId)}`
-
-  if (previewFreePages > 0) {
-    // Preserve the current reader implementation; page-level gating remains
-    // client-side until the streaming service supports document-aware slicing.
-    return `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(messageId)}`
-  }
 
   const { data: { session } = {} } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Please sign in to access premium books.')
