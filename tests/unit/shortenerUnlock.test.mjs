@@ -14,6 +14,7 @@ const {
   randomToken,
   safeReturnPath,
   calculateUnlockExpiry,
+  isIntentUsable,
 } = await import('../../server/shortenerUnlock.mjs')
 
 const shortener = await import('../../src/lib/shortenerProviders.js')
@@ -164,6 +165,83 @@ test('six-hour expiry uses server-side duration in UTC ISO format', () => {
   assert.equal(
     calculateUnlockExpiry(now, 360),
     '2026-09-26T16:00:00.000Z'
+  )
+})
+
+test('unlock intent rejects wrong user, wrong content, expired, and already-used sessions', () => {
+  const base = {
+    user_id: 'user-1',
+    content_type: 'audio',
+    content_id: 25,
+    status: 'pending',
+    expires_at: '2026-09-26T11:00:00.000Z',
+  }
+  const now = Date.parse('2026-09-26T10:00:00.000Z')
+
+  assert.equal(
+    isIntentUsable(base, {
+      userId: 'user-1',
+      contentType: 'audio',
+      contentId: 25,
+      nowMs: now,
+    }),
+    true
+  )
+
+  assert.equal(
+    isIntentUsable(base, {
+      userId: 'user-2',
+      contentType: 'audio',
+      contentId: 25,
+      nowMs: now,
+    }),
+    false
+  )
+
+  assert.equal(
+    isIntentUsable(base, {
+      userId: 'user-1',
+      contentType: 'video',
+      contentId: 25,
+      nowMs: now,
+    }),
+    false
+  )
+
+  assert.equal(
+    isIntentUsable(base, {
+      userId: 'user-1',
+      contentType: 'audio',
+      contentId: 26,
+      nowMs: now,
+    }),
+    false
+  )
+
+  assert.equal(
+    isIntentUsable({
+      ...base,
+      expires_at: '2026-09-26T09:59:00.000Z',
+    }, {
+      userId: 'user-1',
+      contentType: 'audio',
+      contentId: 25,
+      nowMs: now,
+    }),
+    false
+  )
+
+  assert.equal(
+    isIntentUsable({
+      ...base,
+      status: 'completed',
+    }, {
+      userId: 'user-1',
+      contentType: 'audio',
+      contentId: 25,
+      nowMs: now,
+    }),
+    false
   )
 })
 
