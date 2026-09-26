@@ -59,7 +59,7 @@ function isAdsEnabled(content) {
 
 function safeReturnPath(value) {
   const raw = String(value || '/').trim()
-  if (!raw.startsWith('/') || raw.startsWith('//') || /[\\r\\n]/.test(raw)) return '/'
+  if (!raw.startsWith('/') || raw.startsWith('//') || /[\r\n]/.test(raw)) return '/'
   return raw || '/'
 }
 
