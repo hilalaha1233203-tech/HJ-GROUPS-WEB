@@ -893,6 +893,12 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
     if (!episodeSrc.trim() && !extractedTelegramId) { showToast(`Choose ${episodeType === 'video' ? 'a video' : 'an audio'} file or paste Telegram URL`, 'error'); return }
 
+    const protectedEpisode = resolveAccessType(episodeAccessType).some((type) => ['ads', 'premium', 'vip'].includes(type))
+    if (protectedEpisode && !extractedTelegramId) {
+      showToast('Protected audio/video must use a Telegram source.', 'error')
+      return
+    }
+
     try {
       const number = Number(episodeNumber)
       const data = {
