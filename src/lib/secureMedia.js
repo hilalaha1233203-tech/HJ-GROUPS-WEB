@@ -7,10 +7,8 @@ const protectedTypes = new Set(['premium', 'vip', 'ads'])
 
 const isProtected = (item) => {
   const types = resolveAccessType(item)
-  // Mixed Premium/VIP + Ads content keeps the existing ad-unlock route.
-  // Only content without an Ads fallback requires an authenticated secure
-  // media ticket from the dedicated streaming service.
-  return !types.includes('ads') && types.some((type) => protectedTypes.has(type))
+  // Premium, VIP and Ads content must use the secure streaming/ticket path.
+  return types.some((type) => protectedTypes.has(type))
 }
 
 const getContentId = (item, contentType) => {
