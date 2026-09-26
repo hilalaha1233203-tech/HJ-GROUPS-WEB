@@ -132,7 +132,7 @@ const PROVIDER_ADAPTERS = Object.freeze({
     host: 'arolinks.com',
     tokenEnv: 'AROLINKS_API_TOKEN',
     apiBase: () => String(process.env.AROLINKS_API_BASE_URL || 'https://arolinks.com/api').trim(),
-    createShortLink: async ({ destinationUrl, alias, fetchImpl = globalThis.fetch }) => {
+    createShortLink: async ({ destinationUrl, fetchImpl = globalThis.fetch }) => {
       const token = String(process.env.AROLINKS_API_TOKEN || '').trim()
       if (!token) throw new Error('arolinks API token is not configured.')
       const endpoint = new URL(String(process.env.AROLINKS_API_BASE_URL || 'https://arolinks.com/api').trim())
@@ -148,7 +148,7 @@ const PROVIDER_ADAPTERS = Object.freeze({
     host: 'earn4link.in',
     tokenEnv: 'EARN4LINK_API_TOKEN',
     apiBase: () => 'https://earn4link.in/api',
-    createShortLink: async ({ destinationUrl, alias, fetchImpl = globalThis.fetch }) => {
+    createShortLink: async ({ destinationUrl, fetchImpl = globalThis.fetch }) => {
       const token = String(process.env.EARN4LINK_API_TOKEN || '').trim()
       if (!token) throw new Error('earn4link API token is not configured.')
       const endpoint = new URL('https://earn4link.in/api')
@@ -326,7 +326,7 @@ async function getOrCreateShortLink(contentType, contentId, order) {
   const key = contentType + ':' + contentId + ':' + chain
 
   const initial = await getExistingShortLink(contentType, contentId)
-  if (initial && initial.provider_chain === chain) {
+  if (isReusableShortLink(initial, chain)) {
     return { link: initial, reused: true }
   }
 
@@ -335,7 +335,7 @@ async function getOrCreateShortLink(contentType, contentId, order) {
 
   const operation = (async () => {
     const latest = await getExistingShortLink(contentType, contentId)
-    if (latest && latest.provider_chain === chain) {
+    if (isReusableShortLink(latest, chain)) {
       return { link: latest, reused: true }
     }
 
@@ -372,7 +372,7 @@ async function getOrCreateShortLink(contentType, contentId, order) {
 
     if (inserted.error) {
       const existing = await getExistingShortLink(contentType, contentId)
-      if (!existing || existing.provider_chain !== chain) {
+      if (!isReusableShortLink(existing, chain)) {
         throw new Error('Unable to save shortener link.')
       }
       return { link: existing, reused: true }
@@ -389,7 +389,28 @@ async function getOrCreateShortLink(contentType, contentId, order) {
   }
 }
 
-async function getExistingShortLink(contentType, contentId) {
+async function isReusableShortLink(link, providerChain) {
+  return Boolean(
+    link?.active === true &&
+    String(link?.short_url || '').trim() &&
+    String(link?.destination_path || '').startsWith('/unlock/') &&
+    link?.provider_chain === providerChain
+  )
+}
+
+function isEntitlementActive(expiresAt, nowMs = Date.now()) {
+  const timestamp = new Date(expiresAt || '').getTime()
+  return Number.isFinite(timestamp) && timestamp > nowMs
+}
+
+function chooseUnlockExpiry(existingExpiry, newExpiry) {
+  const existingMs = new Date(existingExpiry || '').getTime()
+  const newMs = new Date(newExpiry || '').getTime()
+  if (!Number.isFinite(newMs)) throw new Error('Invalid unlock expiry.')
+  return Number.isFinite(existingMs) && existingMs > newMs ? existingExpiry : newExpiry
+}
+
+function getExistingShortLink(contentType, contentId) {
   const { data, error } = await getServiceClient()
     .from('shortener_links')
     .select('id, provider, short_url, destination_path, provider_chain, active')
@@ -583,10 +604,7 @@ async function completeUnlock(req, res) {
     .eq('content_id', intent.content_id)
     .maybeSingle()
 
-  const finalExpiry = existing?.expires_at &&
-    new Date(existing.expires_at).getTime() > new Date(expiresAt).getTime()
-    ? existing.expires_at
-    : expiresAt
+  const finalExpiry = chooseUnlockExpiry(existing?.expires_at, expiresAt)
 
   const { error: upsertError } = await getServiceClient()
     .from('ad_unlocks')
@@ -864,6 +882,10 @@ export {
   safeReturnPath,
   calculateUnlockExpiry,
   isIntentUsable,
+  contentPath,
+  isReusableShortLink,
+  isEntitlementActive,
+  chooseUnlockExpiry,
 }
 
 export async function handleShortenerRequest(req, res, url, readBody) {
