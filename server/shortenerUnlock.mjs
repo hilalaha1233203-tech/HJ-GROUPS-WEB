@@ -259,9 +259,19 @@ async function callProvider(provider, destinationUrl, alias) {
     return shortUrl
   } catch (error) {
     const durationMs = Date.now() - startedAt
-    const message = String(error?.message || provider + ' request failed').slice(0, 220)
-    console.warn('[shortener]', provider, 'failed:', message, durationMs + 'ms')
-    throw new Error(message)
+    const rawMessage = String(error?.message || '').toLowerCase()
+    const failureKind =
+      rawMessage.includes('abort') || rawMessage.includes('timeout')
+        ? 'timeout'
+        : rawMessage.includes('malformed') || rawMessage.includes('no valid')
+          ? 'malformed_response'
+          : 'request_error'
+
+    // Never log provider response bodies, request URLs, API tokens, or raw
+    // network error strings because some HTTP clients may include request
+    // metadata in their error messages.
+    console.warn('[shortener]', provider, 'failed:', failureKind, durationMs + 'ms')
+    throw new Error(provider + ' provider request failed')
   } finally {
     clearTimeout(timeout)
   }
