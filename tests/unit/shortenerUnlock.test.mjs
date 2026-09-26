@@ -383,3 +383,42 @@ test('unlock completion cannot accept arbitrary browser expiry values', () => {
   assert.equal(block.includes("body.expiresAt"), false)
   assert.match(block, /calculateUnlockExpiry\(Date\.now\(\), settings\.unlockDurationMinutes\)/)
 })
+
+test('shortener start re-checks existing server-side access before creating a provider intent', async () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+  const start = source.indexOf('async function startUnlock')
+  const settings = source.indexOf('const settings = await getAdminSettings()', start)
+  assert.ok(start >= 0 && settings > start)
+  const block = source.slice(start, settings)
+  assert.match(block, /getExistingAccess\(user, contentType, contentId, content\)/)
+  assert.match(block, /alreadyGranted: true/)
+  assert.match(block, /return json\(res, 200/)
+})
+
+test('secret configuration is server-only and never referenced through VITE_ variables', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+  for (const secret of [
+    'AROLINKS_API_TOKEN',
+    'EARN4LINK_API_TOKEN',
+    'UNLOCK_TOKEN_SECRET',
+    'SUPABASE_SERVICE_ROLE_KEY',
+  ]) {
+    assert.equal(source.includes('VITE_' + secret), false)
+  }
+})
+
+test('secure media keeps Ads content behind the server entitlement check', async () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'src/lib/secureMedia.js'),
+    'utf8'
+  )
+  assert.match(source, /resolveAccessType\(item\)\.includes\('ads'\)/)
+  assert.match(source, /fetch\('\/api\/shortener\/access'/)
+  assert.match(source, /contentType,\n      contentId/)
+})
