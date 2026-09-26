@@ -8606,7 +8606,11 @@ export function App() {
         <AdUnlockModal
           onClose={handleAdCancel}
           onUnlock={startShortenerUnlock}
-          providerLabel={getShortenerProviderLabel(pendingUnlockRef.current?.provider) || 'AroLinks / Earn4Link'}
+          providerLabel={
+            pendingUnlockRef.current?.provider
+              ? getShortenerProviderLabel(pendingUnlockRef.current.provider)
+              : 'AroLinks / Earn4Link'
+          }
         />
       )}
 
