@@ -42,8 +42,8 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     interstitialAdUnitId: '',
     unlockDurationMinutes: 360,
     shortenerEnabled: false,
-    primaryShortener: 'earn4link',
-    fallbackShortener: 'shrinkme',
+    primaryShortener: 'arolinks',
+    fallbackShortener: 'earn4link',
   },
   payments: {
     enabled: false,
@@ -1608,27 +1608,27 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   </label>
                   <label>Primary shortener
                     <select
-                      value={adminSettings.ads.primaryShortener || 'earn4link'}
+                      value={adminSettings.ads.primaryShortener || 'arolinks'}
                       onChange={(e) => updateAdminSetting('ads', 'primaryShortener', e.target.value)}
                     >
+                      <option value="arolinks">AroLinks</option>
                       <option value="earn4link">Earn4Link</option>
-                      <option value="shrinkme">ShrinkMe</option>
                     </select>
                   </label>
                   <label>Fallback shortener
                     <select
-                      value={adminSettings.ads.fallbackShortener || ''}
+                      value={adminSettings.ads.fallbackShortener || 'earn4link'}
                       onChange={(e) => updateAdminSetting('ads', 'fallbackShortener', e.target.value)}
                     >
                       <option value="">None</option>
+                      <option value="arolinks">AroLinks</option>
                       <option value="earn4link">Earn4Link</option>
-                      <option value="shrinkme">ShrinkMe</option>
                     </select>
                   </label>
                   <small className="admin-settings-note">
-                    Primary: <strong>{adminSettings.ads.primaryShortener === 'earn4link' ? 'Earn4Link' : 'ShrinkMe'}</strong>
-                    {adminSettings.ads.fallbackShortener ? <> → <strong>{adminSettings.ads.fallbackShortener === 'earn4link' ? 'Earn4Link' : 'ShrinkMe'}</strong></> : null}.
-                    Routing is disabled by default. Use only for provider-approved link flows; a shortener redirect is not ad-completion proof.
+                    Primary: <strong>{adminSettings.ads.primaryShortener === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong>
+                    {adminSettings.ads.fallbackShortener ? <> → <strong>{adminSettings.ads.fallbackShortener === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong></> : null}.
+                    Routing is disabled by default. Use only for provider-approved link flows. The provider redirect is treated only as the completion signal because these providers do not expose a completion webhook to HJ GROUPS.
                   </small>
                 </div>
                 <small className="admin-settings-note">Provider secret/API credentials should stay in Vercel/Supabase server environment variables, not browser storage.</small>
