@@ -4,6 +4,7 @@ create or replace function public.is_hj_admin()
 returns boolean
 language sql
 stable
+set search_path = public, pg_temp
 as $func$
   select lower(coalesce(auth.jwt() ->> 'email', '')) = lower('hilalaha1233203@gmail.com')
 $func$;
