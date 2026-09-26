@@ -984,6 +984,12 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     return
   }
 
+  const protectedBook = resolveAccessType(bookAccessType).some((type) => ['ads', 'premium', 'vip'].includes(type))
+  if (protectedBook && !bookTelegramMessageId) {
+    alert('Protected books must use a Telegram document source. Direct uploaded protected books are not supported.')
+    return
+  }
+
   const data = {
     title: bookTitle.trim(),
     author: bookAuthor.trim(),
