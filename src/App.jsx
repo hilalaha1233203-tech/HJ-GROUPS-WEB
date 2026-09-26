@@ -975,7 +975,15 @@ export function App() {
 
         if (mounted) {
           setUnlockedAds(loadUnlockedAds())
-          window.alert('✓ Ad unlock complete. This content is available for 6 hours.')
+          const totalMinutes = Math.max(1, Math.ceil(
+            (new Date(payload.expiresAt).getTime() - Date.now()) / 60000
+          ))
+          const durationLabel = totalMinutes >= 60
+            ? (totalMinutes % 60 === 0
+              ? `${Math.floor(totalMinutes / 60)} hours`
+              : `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`)
+            : `${totalMinutes} minutes`
+          window.alert(`✓ Ad unlock complete. This content is available for ${durationLabel}.`)
         }
       } catch (error) {
         console.warn('Temporary ad unlock completion failed:', error)
@@ -2832,10 +2840,22 @@ export function App() {
   const canAccessContent = (
     item,
     adsKey,
-    storyId
+    storyId,
+    contentType = ''
   ) => {
     // Upload-selected Access Types are primary. Global preview limits are secondary.
     if (isEpisodePreviewFree(item, contentAccessSettings)) return true
+
+    // Books use a page-based preview rule. Opening the reader is allowed when
+    // at least the first configured preview page is free; later pages remain
+    // gated by requestBookPageAccess().
+    if (
+      contentType === 'book' &&
+      isBookPreviewPageFree(1, item, contentAccessSettings)
+    ) {
+      return true
+    }
+
     return canAccess(item, {
       isAdmin,
       loggedIn,
@@ -4522,8 +4542,8 @@ export function App() {
       }
 
       const bookAccessKey = adsKeyFor('book', book.id)
-      if (!canAccessContent(book, bookAccessKey, book.id)) {
-        requestAccess(book, bookAccessKey, () => openReaderForBook(book, { autoRead }), book.id)
+      if (!canAccessContent(book, bookAccessKey, book.id, 'book')) {
+        requestAccess(book, bookAccessKey, () => openReaderForBook(book, { autoRead }), book.id, 'book')
         return
       }
 
