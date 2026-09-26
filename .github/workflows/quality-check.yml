@@ -81,7 +81,7 @@ jobs:
           grep -q "freeVideoEpisodes" src/AdminPanel.jsx
           grep -q "content_access_settings" src/AdminPanel.jsx
           grep -q "isEpisodePreviewFree" src/App.jsx
-          grep -q "isBookPreviewPageFree" src/App.jsx
+          grep -q "isEpisodePreviewFree" src/App.jsx
           ! grep -q "sample.pdf" src/App.jsx
           ! grep -q "sample.epub" src/App.jsx
           grep -q "const protectedTypes = new Set(['premium', 'vip', 'ads'])" src/lib/secureMedia.js
