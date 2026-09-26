@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 import { isTamilText, MAX_CHARS, synthesizeEdgeTts } from './server/edgeTts.mjs'
 import { isSarvamConfigured, synthesizeSarvamTts } from './server/sarvamTts.mjs'
+import { handleShortenerRequest } from './server/shortenerUnlock.mjs'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(ROOT, 'dist')
@@ -239,6 +240,11 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/tts') return handleTts(req, res, 'auto')
   if (url.pathname === '/api/edge-tts') return handleTts(req, res, 'edge')
   if (url.pathname === '/api/sarvam-tts') return handleTts(req, res, 'sarvam')
+
+  if (url.pathname.startsWith('/api/shortener/') || url.pathname.startsWith('/unlock/')) {
+    const handled = await handleShortenerRequest(req, res, url, () => readJson(req))
+    if (handled !== false) return
+  }
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return send(res, 405, 'Method Not Allowed', {
