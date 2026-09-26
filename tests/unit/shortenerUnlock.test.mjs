@@ -384,6 +384,21 @@ test('unlock completion cannot accept arbitrary browser expiry values', () => {
   assert.match(block, /calculateUnlockExpiry\(Date\.now\(\), settings\.unlockDurationMinutes\)/)
 })
 
+test('provider regeneration does not deactivate the existing link before a replacement succeeds', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+  const start = source.indexOf('async function getOrCreateShortLink')
+  const end = source.indexOf('function isReusableShortLink', start)
+  const block = source.slice(start, end)
+  const createIndex = block.indexOf('createShortLinkWithFallback(')
+  const updateIndex = block.indexOf(".from('shortener_links')\n        .update(")
+  assert.ok(createIndex >= 0)
+  assert.ok(updateIndex > createIndex)
+  assert.equal(block.slice(0, createIndex).includes('deactivateExistingShortLink'), false)
+})
+
 test('shortener start re-checks existing server-side access before creating a provider intent', async () => {
   const source = readFileSync(
     resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
