@@ -30,6 +30,7 @@ function normalizeStories(storyRows, episodeRows) {
       : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id, mediaType) || null))
 
     list.push({
+      id: ep.id,
       number: ep.number || ep.episode_number,
       title: ep.title,
       type: mediaType,
@@ -92,6 +93,7 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
         : fileUrlFromId(ep.file_id, 'video'))
 
     list.push({
+      id: ep.id,
       number: ep.number,
       title: ep.title,
       type: 'video',
