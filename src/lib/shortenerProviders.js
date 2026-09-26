@@ -21,8 +21,9 @@ export function normalizeShortenerProvider(value, fallback = '') {
 
 export function normalizeShortenerSettings(value = {}) {
   const source = value && typeof value === 'object' ? value : {}
+  const rawPrimary = source.primaryProvider ?? source.primaryShortener
   const primaryProvider = normalizeShortenerProvider(
-    source.primaryProvider,
+    rawPrimary,
     DEFAULT_SHORTENER_SETTINGS.primaryProvider
   )
 
@@ -49,7 +50,9 @@ export function normalizeShortenerSettings(value = {}) {
     ...DEFAULT_SHORTENER_SETTINGS,
     ...source,
     primaryProvider,
+    primaryShortener: primaryProvider,
     fallbackProvider,
+    fallbackShortener: fallbackProvider,
     enabled: source.enabled === true || source.shortenerEnabled === true,
     shortenerEnabled: source.shortenerEnabled === true || source.enabled === true,
   }
