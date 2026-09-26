@@ -32,7 +32,6 @@ import {
   normalizeContentAccessSettings,
   loadCachedContentAccessSettings,
   isEpisodePreviewFree,
-  isBookPreviewPageFree,
 } from './lib/contentAccessSettings'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -219,30 +218,6 @@ const seedStories = [
   },
 ]
 
-const seedBooks = [
-  {
-    id: 1,
-    title: 'ஆதிஒளி - Chapter 1',
-    type: 'pdf',
-    category: 'Fantasy',
-    cover:
-      'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=400&q=80',
-    file: '/books/sample.pdf',
-    filePath: '',
-    accessType: 'free',
-  },
-  {
-    id: 2,
-    title: 'நியதி - Full Novel',
-    type: 'epub',
-    category: 'Adventure',
-    cover:
-      'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=400&q=80',
-    file: '/books/sample.epub',
-    filePath: '',
-    accessType: 'premium',
-  },
-]
 
 const seedVideoStories = [
   {
@@ -310,6 +285,15 @@ const saveList = (key, value) => {
     localStorage.setItem(key, JSON.stringify(value))
   } catch { }
 }
+const isLegacyTestBook = (book) => {
+  const file = String(book?.file || '').trim().toLowerCase()
+  const title = String(book?.title || '').trim().toLowerCase()
+  return file === '/books/sample.pdf' ||
+    file === '/books/sample.epub' ||
+    title === 'ஆதிஒளி - chapter 1'.toLowerCase() ||
+    title === 'நியதி - full novel'.toLowerCase()
+}
+
 
 /* =========================================================
    HELPERS
@@ -1055,9 +1039,12 @@ export function App() {
     })
 
   const [adminBooks, setAdminBooks] =
-    useState(() =>
-      loadList('hj_admin_books')
-    )
+    useState(() => {
+      const list = loadList('hj_admin_books')
+      const cleaned = list.filter((book) => !isLegacyTestBook(book))
+      if (cleaned.length !== list.length) saveList('hj_admin_books', cleaned)
+      return cleaned
+    })
 
   const [adminVideos, setAdminVideos] =
     useState(() =>
@@ -1105,7 +1092,6 @@ export function App() {
 
   const canReadBookPage = useCallback((pageNumber, book = readerBook) => {
     if (!book) return false
-    if (isBookPreviewPageFree(pageNumber, book, contentAccessSettings)) return true
     return canAccess(book, {
       isAdmin,
       loggedIn,
@@ -1310,7 +1296,6 @@ export function App() {
   ]
 
   const books = [
-    ...seedBooks,
     ...adminBooks,
     ...telegramBooks,
   ]
@@ -2846,15 +2831,8 @@ export function App() {
     // Upload-selected Access Types are primary. Global preview limits are secondary.
     if (isEpisodePreviewFree(item, contentAccessSettings)) return true
 
-    // Books use a page-based preview rule. Opening the reader is allowed when
-    // at least the first configured preview page is free; later pages remain
-    // gated by requestBookPageAccess().
-    if (
-      contentType === 'book' &&
-      isBookPreviewPageFree(1, item, contentAccessSettings)
-    ) {
-      return true
-    }
+    // Protected books require a server-verified entitlement before the reader
+    // receives the full document bytes. Client-only page gating cannot prevent extraction.
 
     return canAccess(item, {
       isAdmin,
