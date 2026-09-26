@@ -6386,3 +6386,62 @@ body:has(.reader-overlay:not(.reader-minimized)),
 .admin-settings-card .admin-settings-form-grid label { color: #b8bfd7; }
 .admin-settings-card .admin-settings-form-grid input,
 .admin-settings-card .admin-settings-form-grid select { color: #fff !important; background: #111421 !important; }
+
+
+.shortener-health-panel {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(124, 131, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(124, 131, 255, 0.05);
+}
+.shortener-health-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.shortener-health-head strong {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.admin-settings-inline-button {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.admin-settings-inline-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.shortener-health-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.shortener-health-grid span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.shortener-health-grid i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.shortener-health-grid .configured i {
+  background: #54d98b;
+  box-shadow: 0 0 0 3px rgba(84, 217, 139, 0.12);
+}
+.shortener-health-grid .not-configured i {
+  background: #f1a23a;
+  box-shadow: 0 0 0 3px rgba(241, 162, 58, 0.11);
+}
+
