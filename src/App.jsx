@@ -888,9 +888,6 @@ export function App() {
   const [adModalOpen, setAdModalOpen] =
     useState(false)
 
-  const [adUnlockError, setAdUnlockError] = useState('')
-  const [adUnlockLoading, setAdUnlockLoading] = useState(false)
-
   const pendingUnlockRef = useRef(null)
 
   useEffect(() => {
@@ -980,7 +977,6 @@ export function App() {
 
         if (mounted) {
           setUnlockedAds(loadUnlockedAds())
-          setAdUnlockError('')
           window.alert('✓ Ad unlock complete. This content is available for 6 hours.')
         }
       } catch (error) {
@@ -2871,9 +2867,6 @@ export function App() {
       throw new Error('Please log in before starting an ad unlock.')
     }
 
-    setAdUnlockLoading(true)
-    setAdUnlockError('')
-
     const returnPath =
       window.location.pathname +
       window.location.search +
@@ -2898,8 +2891,6 @@ export function App() {
 
     if (!response.ok || !payload?.shortUrl) {
       const message = String(payload?.error || 'Ad unlock is temporarily unavailable.')
-      setAdUnlockError(message)
-      setAdUnlockLoading(false)
       throw new Error(message)
     }
 
@@ -2909,7 +2900,6 @@ export function App() {
     }
 
     setAdModalOpen(false)
-    setAdUnlockLoading(false)
     window.location.assign(payload.shortUrl)
   }
 
@@ -2956,8 +2946,6 @@ export function App() {
         onGranted,
         contentType: resolvedContentType,
       }
-      setAdUnlockError('')
-      setAdUnlockLoading(false)
       setAdModalOpen(true)
       return
     }
