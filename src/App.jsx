@@ -32,6 +32,7 @@ import {
   normalizeContentAccessSettings,
   loadCachedContentAccessSettings,
   isEpisodePreviewFree,
+  isBookPreviewPageFree,
 } from './lib/contentAccessSettings'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -1074,6 +1075,9 @@ export function App() {
   const [readerBook, setReaderBook] =
     useState(null)
 
+  const [readerPreviewOnly, setReaderPreviewOnly] =
+    useState(false)
+
   const [readerError, setReaderError] =
     useState('')
 
@@ -1085,11 +1089,20 @@ export function App() {
 
   const BOOK_FREE_PAGES = Number(contentAccessSettings.freeBookPages) || 0
 
+  const pendingFullBookTargetRef = useRef(null)
+  const pendingFullBookActionRef = useRef(null)
+
   const getBookAccessKey = (book) =>
     book ? adsKeyFor('book', book.id) : undefined
 
   const canReadBookPage = useCallback((pageNumber, book = readerBook) => {
     if (!book) return false
+    if (
+      readerPreviewOnly &&
+      isBookPreviewPageFree(pageNumber, book, contentAccessSettings)
+    ) {
+      return true
+    }
     return canAccess(book, {
       isAdmin,
       loggedIn,
@@ -3749,10 +3762,36 @@ export function App() {
     }
 
     if (!readerBook) return false
+
+    const targetPage = Math.max(1, Number(pageNumber) || 1)
+    const completeAccess = () => {
+      if (!readerPreviewOnly || targetPage <= BOOK_FREE_PAGES) {
+        onGranted?.()
+        return
+      }
+
+      pendingFullBookTargetRef.current = targetPage
+      pendingFullBookActionRef.current = onGranted
+
+      void resolveBookSource(readerBook, { previewOnly: false })
+        .then((source) => {
+          setReaderPreviewOnly(false)
+          setReaderLoading(true)
+          setReaderResolvedFile(null)
+          setReaderFile(source)
+        })
+        .catch((error) => {
+          pendingFullBookTargetRef.current = null
+          pendingFullBookActionRef.current = null
+          setReaderError(error?.message || 'Unable to load the unlocked book.')
+          setReaderLoading(false)
+        })
+    }
+
     requestAccess(
       readerBook,
       getBookAccessKey(readerBook),
-      onGranted,
+      completeAccess,
       readerBook.id,
       'book'
     )
@@ -4427,6 +4466,9 @@ export function App() {
 
       setReaderType(null)
       setReaderBook(null)
+      setReaderPreviewOnly(false)
+      pendingFullBookTargetRef.current = null
+      pendingFullBookActionRef.current = null
 
       setReaderError('')
       setReaderLoading(false)
@@ -4532,12 +4574,17 @@ export function App() {
       }
 
       const bookAccessKey = adsKeyFor('book', book.id)
-      if (!canAccessContent(book, bookAccessKey, book.id, 'book')) {
+      const hasFullAccess = canAccessContent(book, bookAccessKey, book.id, 'book')
+      const previewOnly = !hasFullAccess &&
+        isBookPreviewPageFree(1, book, contentAccessSettings)
+
+      if (!hasFullAccess && !previewOnly) {
         requestAccess(book, bookAccessKey, () => openReaderForBook(book, { autoRead }), book.id, 'book')
         return
       }
 
       setReaderBook(book)
+      setReaderPreviewOnly(previewOnly)
 
       setReaderType(
         book.type === 'epub'
@@ -4546,7 +4593,7 @@ export function App() {
       )
 
       setReaderFile('')
-      void resolveBookSource(book).then((source) => {
+      void resolveBookSource(book, { previewOnly }).then((source) => {
         if (source) setReaderFile(source)
       }).catch((error) => {
         console.error('Book media access failed:', error)
@@ -4934,14 +4981,21 @@ export function App() {
         pdf.numPages
       )
 
-      setPdfPage(
-        (current) =>
-          clamp(
-            current,
-            1,
-            pdf.numPages
-          )
-      )
+      const pendingTarget = pendingFullBookTargetRef.current
+      const pendingAction = pendingFullBookActionRef.current
+
+      if (Number.isInteger(Number(pendingTarget)) && Number(pendingTarget) > 0) {
+        setPdfPage(clamp(Number(pendingTarget), 1, pdf.numPages))
+      } else {
+        setPdfPage(
+          (current) =>
+            clamp(
+              current,
+              1,
+              pdf.numPages
+            )
+        )
+      }
 
       setReaderLoading(
         false
@@ -4950,6 +5004,12 @@ export function App() {
       await extractPdfOutline(
         pdf
       )
+
+      if (pendingTarget !== null && pendingTarget !== undefined) {
+        pendingFullBookTargetRef.current = null
+        pendingFullBookActionRef.current = null
+        if (pendingAction) window.setTimeout(() => pendingAction(), 0)
+      }
 
       if (
         pendingAutoReadRef.current
@@ -5410,29 +5470,44 @@ export function App() {
                 setEpubLocationsReady(locationCount > 0)
                 setEpubPages(locationCount)
 
-                try {
-                  const currentCfi =
-                    rendition.currentLocation()
-                      ?.start?.cfi
+                const pendingTarget = pendingFullBookTargetRef.current
+                const pendingAction = pendingFullBookActionRef.current
 
-                  if (currentCfi) {
-                    const index =
-                      locations.locationFromCfi(
-                        currentCfi
-                      )
+                if (Number.isInteger(Number(pendingTarget)) && Number(pendingTarget) > 0 && locations?.cfiFromLocation) {
+                  const target = Math.min(Number(pendingTarget), locationCount || Number(pendingTarget))
+                  const cfi = locations.cfiFromLocation(Math.max(0, target - 1))
+                  Promise.resolve(rendition.display(cfi)).then(() => {
+                    if (cancelled || epubBookRef.current !== book) return
+                    setEpubPage(target)
+                    pendingFullBookTargetRef.current = null
+                    pendingFullBookActionRef.current = null
+                    if (pendingAction) window.setTimeout(() => pendingAction(), 0)
+                  }).catch(() => {})
+                } else {
+                  try {
+                    const currentCfi =
+                      rendition.currentLocation()
+                        ?.start?.cfi
 
-                  if (
-                    Number.isFinite(
-                      index
-                    ) &&
-                    index >= 0
-                  ) {
-                    setEpubPage(
-                      index + 1
-                    )
+                    if (currentCfi) {
+                      const index =
+                        locations.locationFromCfi(
+                          currentCfi
+                        )
+
+                      if (
+                        Number.isFinite(
+                          index
+                        ) &&
+                        index >= 0
+                      ) {
+                        setEpubPage(
+                          index + 1
+                        )
+                      }
                     }
-                  }
-                } catch { }
+                  } catch { }
+                }
               })
               .catch(() => {
                 // Location generation is optional; chapter-relative pagination still works.
@@ -5573,14 +5648,22 @@ export function App() {
       if (isReading) stopReadAloud()
 
       if (readerType === 'pdf') {
-        const target = Math.min(pdfPages || pdfPage + 1, pdfPage + 1)
+        const target = readerPreviewOnly && pdfPage >= BOOK_FREE_PAGES
+          ? pdfPage + 1
+          : Math.min(pdfPages || pdfPage + 1, pdfPage + 1)
         if (target <= pdfPage) return
         requestBookPageAccess(target, () => {
           animateReaderTurn('next', () => setPdfPage(target))
         })
       } else {
-        requestBookPageAccess(epubPage + 1, () => {
-          animateReaderTurn('next', () => epubNext())
+        const targetPage = epubPage + 1
+        requestBookPageAccess(targetPage, () => {
+          animateReaderTurn('next', () => {
+            const locations = epubBookRef.current?.locations
+            const cfi = locations?.cfiFromLocation?.(Math.max(0, targetPage - 1))
+            if (cfi && epubRenditionRef.current) void epubRenditionRef.current.display(cfi)
+            else void epubNext()
+          })
         })
       }
 
@@ -9320,8 +9403,8 @@ export function App() {
                     readerType ===
                       'pdf'
                       ? !pdfPages ||
-                      pdfPage >=
-                      pdfPages
+                      (pdfPage >= pdfPages &&
+                        !(readerPreviewOnly && pdfPage >= BOOK_FREE_PAGES))
                       : !epubReady
                   }
                   onClick={
