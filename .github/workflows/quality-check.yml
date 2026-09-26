@@ -93,7 +93,7 @@ jobs:
             if (!read(file).includes(needle)) throw new Error(`Missing required text: ${file} :: ${needle}`)
           }
           const app = read('src/App.jsx')
-          if (app.includes('seedBooks') || app.includes('sample.pdf') || app.includes('sample.epub')) {
+          if (app.includes('seedBooks') || app.includes('/books/')) {
             throw new Error('Legacy book seed/test references remain in src/App.jsx')
           }
           const template = read('supabase/email-templates/magic_link_otp.html')
