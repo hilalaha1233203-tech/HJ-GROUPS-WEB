@@ -287,11 +287,9 @@ const saveList = (key, value) => {
 }
 const isLegacyTestBook = (book) => {
   const file = String(book?.file || '').trim().toLowerCase()
-  const title = String(book?.title || '').trim().toLowerCase()
-  return file === '/books/sample.pdf' ||
-    file === '/books/sample.epub' ||
-    title === 'ஆதிஒளி - chapter 1'.toLowerCase() ||
-    title === 'நியதி - full novel'.toLowerCase()
+  // Legacy test books were served from the old /books/ static seed path.
+  // Production books use Telegram/streaming or Supabase Storage paths.
+  return file.startsWith('/books/')
 }
 
 
