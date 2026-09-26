@@ -31,6 +31,12 @@ jobs:
       - name: Production build
         run: npm run build
 
+      - name: Server / shortener unit tests
+        run: node --test tests/unit/*.test.mjs
+
+      - name: Verify shortener server syntax
+        run: node --check server.mjs && node --check server/shortenerUnlock.mjs
+
       - name: Verify critical startup exports
         run: |
           test -s src/App.jsx
@@ -63,6 +69,15 @@ jobs:
           grep -q "applyEpubReaderAppearance" src/App.jsx
           grep -q "Read Aloud" src/App.jsx
           grep -q "Management & Settings" src/AdminPanel.jsx
+          grep -q "AroLinks" src/AdminPanel.jsx
+          grep -q "Earn4Link" src/AdminPanel.jsx
+          grep -q "AROLINKS_API_TOKEN" server/shortenerUnlock.mjs
+          grep -q "EARN4LINK_API_TOKEN" server/shortenerUnlock.mjs
+          grep -q "/api/shortener/start" src/App.jsx
+          grep -q "/api/shortener/complete" src/App.jsx
+          grep -q "/api/shortener/access" src/lib/secureMedia.js
+          grep -q "shortener_links" supabase/production-shortener-unlock.sql
+          grep -q "ad_unlocks" supabase/production-shortener-unlock.sql
           grep -q "freeVideoEpisodes" src/AdminPanel.jsx
           grep -q "content_access_settings" src/AdminPanel.jsx
           grep -q "isEpisodePreviewFree" src/App.jsx
