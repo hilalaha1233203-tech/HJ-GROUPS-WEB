@@ -175,6 +175,7 @@ test('unlock return paths cannot become open redirects', () => {
   assert.equal(safeReturnPath('https://evil.example/steal'), '/')
   assert.equal(safeReturnPath('//evil.example/steal'), '/')
   assert.equal(safeReturnPath('/\r\nLocation: https://evil.example'), '/')
+  assert.equal(safeReturnPath('/\\\\evil.example/path'), '/')
 })
 
 test('six-hour expiry uses server-side duration in UTC ISO format', () => {
