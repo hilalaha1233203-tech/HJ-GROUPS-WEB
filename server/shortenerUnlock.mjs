@@ -350,10 +350,6 @@ async function getOrCreateShortLink(contentType, contentId, order) {
       return { link: latest, reused: true }
     }
 
-    if (latest?.id) {
-      await deactivateExistingShortLink(latest.id)
-    }
-
     const destinationPath = contentPath(contentType, contentId)
     const alias = 'hj-' + contentType + '-' + contentId
     let created
@@ -364,7 +360,34 @@ async function getOrCreateShortLink(contentType, contentId, order) {
         order
       )
     } catch {
+      // Keep the currently active link intact if regeneration fails. Users
+      // should never lose a working permanent link because a replacement
+      // provider request timed out or returned an invalid response.
       throw new Error('Ad unlock is temporarily unavailable. Please try again later.')
+    }
+
+    // If a link already exists but its provider chain is stale, replace that
+    // row only after the new provider URL has been successfully generated.
+    // This avoids a period with no active link during provider regeneration.
+    if (latest?.id) {
+      const updated = await getServiceClient()
+        .from('shortener_links')
+        .update({
+          provider: created.provider,
+          short_url: created.shortUrl,
+          destination_path: destinationPath,
+          provider_chain: chain,
+          active: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', latest.id)
+        .select('id, provider, short_url, destination_path, provider_chain, active')
+        .maybeSingle()
+
+      if (updated.error || !updated.data) {
+        throw new Error('Unable to save shortener link.')
+      }
+      return { link: updated.data, reused: false }
     }
 
     const inserted = await getServiceClient()
@@ -378,10 +401,12 @@ async function getOrCreateShortLink(contentType, contentId, order) {
         provider_chain: chain,
         active: true,
       })
-      .select('id, provider, short_url, destination_path, provider_chain')
+      .select('id, provider, short_url, destination_path, provider_chain, active')
       .maybeSingle()
 
     if (inserted.error) {
+      // Another server instance may have won the race. Reuse its active link
+      // if it matches the current provider chain.
       const existing = await getExistingShortLink(contentType, contentId)
       if (!isReusableShortLink(existing, chain)) {
         throw new Error('Unable to save shortener link.')
