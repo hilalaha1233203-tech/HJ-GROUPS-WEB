@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -15,6 +17,10 @@ const {
   safeReturnPath,
   calculateUnlockExpiry,
   isIntentUsable,
+  contentPath,
+  isReusableShortLink,
+  isEntitlementActive,
+  chooseUnlockExpiry,
 } = await import('../../server/shortenerUnlock.mjs')
 
 const shortener = await import('../../src/lib/shortenerProviders.js')
@@ -271,4 +277,108 @@ test('callProvider validates provider-specific URL host', async () => {
   } finally {
     global.fetch = originalFetch
   }
+})
+
+
+test('permanent short-link reuse requires an active matching provider chain', () => {
+  assert.equal(
+    isReusableShortLink({
+      active: true,
+      short_url: 'https://arolinks.com/episode25',
+      destination_path: '/unlock/audio/25',
+      provider_chain: 'arolinks>earn4link',
+    }, 'arolinks>earn4link'),
+    true
+  )
+  assert.equal(
+    isReusableShortLink({
+      active: true,
+      short_url: 'https://arolinks.com/episode25',
+      destination_path: '/unlock/audio/25',
+      provider_chain: 'earn4link',
+    }, 'arolinks>earn4link'),
+    false
+  )
+  assert.equal(
+    isReusableShortLink({
+      active: true,
+      short_url: '',
+      destination_path: '/unlock/audio/25',
+      provider_chain: 'arolinks>earn4link',
+    }, 'arolinks>earn4link'),
+    false
+  )
+})
+
+test('temporary entitlement is active only while server expiry is in the future', () => {
+  const now = Date.parse('2026-09-26T10:00:00.000Z')
+  assert.equal(isEntitlementActive('2026-09-26T10:00:01.000Z', now), true)
+  assert.equal(isEntitlementActive('2026-09-26T10:00:00.000Z', now), false)
+  assert.equal(isEntitlementActive('2026-09-26T09:59:59.000Z', now), false)
+  assert.equal(isEntitlementActive('not-a-date', now), false)
+})
+
+test('duplicate unlock completion never shortens an existing later expiry', () => {
+  assert.equal(
+    chooseUnlockExpiry(
+      '2026-09-26T16:00:00.000Z',
+      '2026-09-26T12:00:00.000Z'
+    ),
+    '2026-09-26T16:00:00.000Z'
+  )
+  assert.equal(
+    chooseUnlockExpiry(
+      '2026-09-26T12:00:00.000Z',
+      '2026-09-26T16:00:00.000Z'
+    ),
+    '2026-09-26T16:00:00.000Z'
+  )
+})
+
+test('unlock routes cover audio, video and book content types', () => {
+  assert.equal(contentPath('audio', 25), '/unlock/audio/25')
+  assert.equal(contentPath('video', 12), '/unlock/video/12')
+  assert.equal(contentPath('book', 7), '/unlock/book/7')
+})
+
+test('a direct unlock route cannot grant abandoned-flow access', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+  const start = source.indexOf('async function startUnlock')
+  const complete = source.indexOf('async function completeUnlock')
+  assert.ok(start >= 0 && complete > start)
+  const startBlock = source.slice(start, complete)
+  assert.equal(startBlock.includes(".from('ad_unlocks')"), false)
+  assert.equal(startBlock.includes("ad_unlocks"), false)
+  assert.equal(startBlock.includes("createIntent"), true)
+})
+
+test('final completion requires the authenticated completion endpoint to consume the one-time session', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+  const completeStart = source.indexOf('async function completeUnlock')
+  const handlerStart = source.indexOf('export async function handleShortenerRequest')
+  assert.ok(completeStart >= 0 && handlerStart > completeStart)
+  const block = source.slice(completeStart, handlerStart)
+  assert.match(block, /await authenticate\(req\)/)
+  assert.match(block, /hj_unlock_code/)
+  assert.match(block, /status !== 'pending'/)
+  assert.match(block, /from\('ad_unlocks'\)/)
+  assert.match(block, /upsert/)
+})
+
+test('unlock completion cannot accept arbitrary browser expiry values', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+  const completeStart = source.indexOf('async function completeUnlock')
+  const block = source.slice(completeStart, source.indexOf('async function unlockLanding'))
+  assert.equal(block.includes("body?.expiresAt"), false)
+  assert.equal(block.includes("body.expiresAt"), false)
+  assert.match(block, /calculateUnlockExpiry\(Date\.now\(\), settings\.unlockDurationMinutes\)/)
 })
