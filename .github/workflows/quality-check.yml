@@ -82,6 +82,9 @@ jobs:
           grep -q "content_access_settings" src/AdminPanel.jsx
           grep -q "isEpisodePreviewFree" src/App.jsx
           grep -q "isBookPreviewPageFree" src/App.jsx
+          ! grep -q "sample.pdf" src/App.jsx
+          ! grep -q "sample.epub" src/App.jsx
+          grep -q "const protectedTypes = new Set(['premium', 'vip', 'ads'])" src/lib/secureMedia.js
           grep -q "create table if not exists public.app_settings" supabase/production-content-repair.sql
           grep -q "{{ .Token }}" supabase/email-templates/magic_link_otp.html
           ! grep -q "{{ .ConfirmationURL }}" supabase/email-templates/magic_link_otp.html
