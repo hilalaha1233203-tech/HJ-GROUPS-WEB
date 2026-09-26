@@ -99,7 +99,7 @@ async function getAdminSettings() {
   if (error) throw new Error('Unable to load shortener settings.')
   const ads = data?.value?.ads
   return {
-    shortenerEnabled: ads?.shortenerEnabled === true || ads?.enabled === true,
+    shortenerEnabled: ads?.shortenerEnabled === true,
     primary: String(ads?.primaryShortener || 'arolinks').trim().toLowerCase(),
     fallback: String(ads?.fallbackShortener || 'earn4link').trim().toLowerCase(),
     unlockDurationMinutes: Math.min(
@@ -298,6 +298,19 @@ function calculateUnlockExpiry(nowMs = Date.now(), durationMinutes = 360) {
   return new Date(nowMs + duration * 60_000).toISOString()
 }
 
+function isIntentUsable(intent, {
+  userId,
+  contentType,
+  contentId,
+  nowMs = Date.now(),
+} = {}) {
+  if (!intent || intent.status !== 'pending') return false
+  if (String(intent.user_id) !== String(userId)) return false
+  if (String(intent.content_type) !== String(contentType)) return false
+  if (Number(intent.content_id) !== Number(contentId)) return false
+  return new Date(intent.expires_at).getTime() > nowMs
+}
+
 function cookieValue(req, name) {
   const raw = String(req.headers.cookie || '')
   for (const part of raw.split(';')) {
@@ -456,9 +469,17 @@ async function completeUnlock(req, res) {
   if (intent.user_id !== user.id) return json(res, 403, { error: 'Unlock session does not belong to this account.' })
   if (intent.status !== 'pending') return json(res, 409, { error: 'This unlock session has already been used.' })
 
-  if (new Date(intent.expires_at).getTime() <= Date.now()) {
-    await getServiceClient().from('ad_unlock_intents').update({ status: 'expired' }).eq('id', intent.id)
-    return json(res, 410, { error: 'Unlock session expired.' })
+  if (!isIntentUsable(intent, {
+    userId: user.id,
+    contentType: intent.content_type,
+    contentId: intent.content_id,
+    nowMs: Date.now(),
+  })) {
+    if (new Date(intent.expires_at).getTime() <= Date.now()) {
+      await getServiceClient().from('ad_unlock_intents').update({ status: 'expired' }).eq('id', intent.id)
+      return json(res, 410, { error: 'Unlock session expired.' })
+    }
+    return json(res, 403, { error: 'Invalid unlock session.' })
   }
 
   try {
@@ -564,9 +585,17 @@ async function unlockLanding(req, res, url) {
   }
   if (intent.status !== 'pending') return redirect(res, '/?unlock_error=already_used')
 
-  if (new Date(intent.expires_at).getTime() <= Date.now()) {
-    await getServiceClient().from('ad_unlock_intents').update({ status: 'expired' }).eq('id', intent.id)
-    return redirect(res, '/?unlock_error=expired')
+  if (!isIntentUsable(intent, {
+    contentType,
+    contentId,
+    nowMs: Date.now(),
+    userId: intent.user_id,
+  })) {
+    if (new Date(intent.expires_at).getTime() <= Date.now()) {
+      await getServiceClient().from('ad_unlock_intents').update({ status: 'expired' }).eq('id', intent.id)
+      return redirect(res, '/?unlock_error=expired')
+    }
+    return redirect(res, '/?unlock_error=invalid_session')
   }
 
   const returnUrl = new URL(safeReturnPath(intent.return_path), PUBLIC_BASE_URL)
@@ -750,6 +779,7 @@ export {
   randomToken,
   safeReturnPath,
   calculateUnlockExpiry,
+  isIntentUsable,
 }
 
 export async function handleShortenerRequest(req, res, url, readBody) {
