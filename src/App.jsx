@@ -34,8 +34,6 @@ import {
   isEpisodePreviewFree,
   isBookPreviewPageFree,
 } from './lib/contentAccessSettings'
-import { getShortenerProviderLabel } from './lib/shortenerProviders'
-
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
@@ -2974,8 +2972,6 @@ export function App() {
         null
 
       setAdModalOpen(false)
-      setAdUnlockError('')
-      setAdUnlockLoading(false)
     }
 
   /* =======================================================
@@ -8594,11 +8590,7 @@ export function App() {
         <AdUnlockModal
           onClose={handleAdCancel}
           onUnlock={startShortenerUnlock}
-          providerLabel={
-            pendingUnlockRef.current?.provider
-              ? getShortenerProviderLabel(pendingUnlockRef.current.provider)
-              : 'AroLinks / Earn4Link'
-          }
+          providerLabel="AroLinks / Earn4Link"
         />
       )}
 
