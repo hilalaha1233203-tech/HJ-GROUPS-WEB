@@ -383,7 +383,7 @@ async function getOrCreateShortLink(contentType, contentId, order) {
   }
 }
 
-async function isReusableShortLink(link, providerChain) {
+function isReusableShortLink(link, providerChain) {
   return Boolean(
     link?.active === true &&
     String(link?.short_url || '').trim() &&
