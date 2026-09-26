@@ -10,7 +10,7 @@ const SUPABASE_URL = String(
 const SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
 const UNLOCK_TOKEN_SECRET = String(process.env.UNLOCK_TOKEN_SECRET || '').trim()
 const PUBLIC_BASE_URL = String(
-  process.env.HJ_PUBLIC_BASE_URL || 'http://localhost:4173'
+  process.env.HJ_PUBLIC_BASE_URL || ''
 ).trim().replace(/\/+$/, '')
 
 const ADMIN_EMAIL = 'hilalaha1233203@gmail.com'
