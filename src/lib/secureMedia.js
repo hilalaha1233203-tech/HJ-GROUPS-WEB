@@ -9,7 +9,7 @@ const isProtected = (item) => {
   const types = resolveAccessType(item)
   // Mixed Premium/VIP + Ads content keeps the existing ad-unlock route.
   // Only content without an Ads fallback requires an authenticated secure
-  // media ticket.
+  // media ticket from the dedicated streaming service.
   return !types.includes('ads') && types.some((type) => protectedTypes.has(type))
 }
 
@@ -18,10 +18,55 @@ const getMessageId = (item) => {
   return Number.isInteger(value) && value > 0 ? value : null
 }
 
+const requiresServerAdCheck = (item, previewFree = false) => {
+  if (!item || previewFree) return false
+  return resolveAccessType(item).includes('ads')
+}
+
+async function assertServerAccess(item, contentType, contentId, previewFree = false) {
+  if (!requiresServerAdCheck(item, previewFree)) return
+
+  const { data: { session } = {} } = await supabase.auth.getSession()
+  if (!session?.access_token) throw new Error('Please sign in to unlock this content.')
+
+  const response = await fetch('/api/shortener/access', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + session.access_token,
+    },
+    body: JSON.stringify({
+      contentType,
+      contentId,
+    }),
+    cache: 'no-store',
+  })
+
+  let payload = null
+  try { payload = await response.json() } catch {}
+
+  if (!response.ok) {
+    throw new Error(
+      String(
+        payload?.error ||
+        (response.status === 403 ? 'Temporary or paid access required.' : 'Unable to verify content access.')
+      )
+    )
+  }
+}
+
 export async function resolveMediaSource(item) {
   if (!item) throw new Error('Content is unavailable.')
+
   const messageId = getMessageId(item)
   const type = item.type === 'video' ? 'video' : 'audio'
+  const previewSettings = loadCachedContentAccessSettings()
+  const previewFree = isEpisodePreviewFree(item, previewSettings)
+
+  // Never return a fallback source for Ads content until the server verifies
+  // the current user's temporary/paid entitlement.
+  await assertServerAccess(item, type, item.id, previewFree)
 
   if (isProtected(item) && (!messageId || !STREAMING_SERVER_URL)) {
     throw new Error('Protected media is not available through a secure streaming source.')
@@ -29,8 +74,7 @@ export async function resolveMediaSource(item) {
 
   if (!messageId || !STREAMING_SERVER_URL) return String(item.src || '')
 
-  const previewSettings = loadCachedContentAccessSettings()
-  if (isEpisodePreviewFree(item, previewSettings)) {
+  if (previewFree) {
     return `${STREAMING_SERVER_URL}/${type}/message/${encodeURIComponent(messageId)}`
   }
 
@@ -44,7 +88,7 @@ export async function resolveMediaSource(item) {
   const response = await fetch(
     `${STREAMING_SERVER_URL}/media-ticket/${type}/message/${encodeURIComponent(messageId)}`,
     {
-      headers: { Authorization: `Bearer ${session.access_token}`, Accept: 'application/json' },
+      headers: { Authorization: 'Bearer ' + session.access_token, Accept: 'application/json' },
       cache: 'no-store',
     }
   )
@@ -58,8 +102,17 @@ export async function resolveMediaSource(item) {
 
 export async function resolveBookSource(book) {
   if (!book) throw new Error('Book is unavailable.')
+
   const messageId = getMessageId(book)
   const isProtectedBook = isProtected(book)
+  const contentSettings = loadCachedContentAccessSettings()
+  const previewFreePages = Number(contentSettings.freeBookPages) || 0
+
+  // The existing reader performs page-level preview gating. The server check
+  // protects fully locked Ads books before returning their document.
+  // A dedicated partial-document route is still required for strong server
+  // enforcement of free-page previews without exposing the whole PDF.
+  await assertServerAccess(book, 'book', book.id, false)
 
   if (isProtectedBook && (!messageId || !STREAMING_SERVER_URL)) {
     throw new Error('Protected books are not available through a secure streaming source.')
@@ -68,8 +121,9 @@ export async function resolveBookSource(book) {
   if (!messageId || !STREAMING_SERVER_URL) return String(book.file || '')
   if (!isProtectedBook) return `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(messageId)}`
 
-  if (Number(loadCachedContentAccessSettings().freeBookPages) > 0) {
-    // The reader enforces the configured free-page window after the document opens.
+  if (previewFreePages > 0) {
+    // Preserve the current reader implementation; page-level gating remains
+    // client-side until the streaming service supports document-aware slicing.
     return `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(messageId)}`
   }
 
@@ -79,7 +133,7 @@ export async function resolveBookSource(book) {
   const response = await fetch(
     `${STREAMING_SERVER_URL}/media-ticket/document/message/${encodeURIComponent(messageId)}`,
     {
-      headers: { Authorization: `Bearer ${session.access_token}`, Accept: 'application/json' },
+      headers: { Authorization: 'Bearer ' + session.access_token, Accept: 'application/json' },
       cache: 'no-store',
     }
   )
