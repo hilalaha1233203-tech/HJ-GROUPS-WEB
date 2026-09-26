@@ -404,7 +404,7 @@ function chooseUnlockExpiry(existingExpiry, newExpiry) {
   return Number.isFinite(existingMs) && existingMs > newMs ? existingExpiry : newExpiry
 }
 
-function getExistingShortLink(contentType, contentId) {
+async function getExistingShortLink(contentType, contentId) {
   const { data, error } = await getServiceClient()
     .from('shortener_links')
     .select('id, provider, short_url, destination_path, provider_chain, active')
