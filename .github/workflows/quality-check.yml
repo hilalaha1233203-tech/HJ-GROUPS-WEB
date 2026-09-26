@@ -51,45 +51,58 @@ jobs:
 
       - name: Auth / settings / metadata sanity check
         run: |
-          grep -q "shouldCreateUser: false" src/Auth.jsx
-          grep -q "signInWithOAuth" src/Auth.jsx
-          grep -q "shouldCreateUser: true" src/Auth.jsx
-          grep -q "Email OTP Sign Up" src/Auth.jsx
-          grep -q "Phone OTP Login" src/Auth.jsx
-          grep -q "Forgot Password" src/Auth.jsx
-          grep -q "finishAuthRedirect" src/App.jsx
-          grep -q "PASSWORD_RECOVERY" src/App.jsx
-          grep -q "AccountSettings" src/App.jsx
-          grep -q "account-settings" src/App.jsx
-          grep -q "reader-theme-paper" src/App.css
-          grep -q "readerPositionRestoredRef" src/App.jsx
-          grep -q "reduced-motion" src/App.jsx
-          grep -q ".app.reduced-motion" src/App.css
-          grep -q "preload={accountSettings.dataSaver ? 'metadata' : 'auto'}" src/App.jsx
-          grep -q "applyEpubReaderAppearance" src/App.jsx
-          grep -q "Read Aloud" src/App.jsx
-          grep -q "Management & Settings" src/AdminPanel.jsx
-          grep -q "AroLinks" src/AdminPanel.jsx
-          grep -q "Earn4Link" src/AdminPanel.jsx
-          grep -q "AROLINKS_API_TOKEN" server/shortenerUnlock.mjs
-          grep -q "EARN4LINK_API_TOKEN" server/shortenerUnlock.mjs
-          grep -q "/api/shortener/start" src/App.jsx
-          grep -q "/api/shortener/complete" src/App.jsx
-          grep -q "/api/shortener/access" src/lib/secureMedia.js
-          grep -q "shortener_links" supabase/production-shortener-unlock.sql
-          grep -q "ad_unlocks" supabase/production-shortener-unlock.sql
-          grep -q "freeVideoEpisodes" src/AdminPanel.jsx
-          grep -q "content_access_settings" src/AdminPanel.jsx
-          grep -q "isEpisodePreviewFree" src/App.jsx
-          grep -q "isEpisodePreviewFree" src/App.jsx
-          ! grep -q "seedBooks" src/App.jsx
-          ! grep -q "sample.pdf" src/App.jsx
-          ! grep -q "sample.epub" src/App.jsx
-          grep -q "const protectedTypes = new Set(['premium', 'vip', 'ads'])" src/lib/secureMedia.js
-          grep -q "create table if not exists public.app_settings" supabase/production-content-repair.sql
-          grep -q "{{ .Token }}" supabase/email-templates/magic_link_otp.html
-          ! grep -q "{{ .ConfirmationURL }}" supabase/email-templates/magic_link_otp.html
-          ! git grep -n "localhost:3000" -- src supabase/email-templates
+          node <<'NODE'
+          const fs = require('fs')
+          const read = (p) => fs.readFileSync(p, 'utf8')
+          const checks = [
+            ['src/Auth.jsx', 'shouldCreateUser: false'],
+            ['src/Auth.jsx', 'signInWithOAuth'],
+            ['src/Auth.jsx', 'shouldCreateUser: true'],
+            ['src/Auth.jsx', 'Email OTP Sign Up'],
+            ['src/Auth.jsx', 'Phone OTP Login'],
+            ['src/Auth.jsx', 'Forgot Password'],
+            ['src/App.jsx', 'finishAuthRedirect'],
+            ['src/App.jsx', 'PASSWORD_RECOVERY'],
+            ['src/App.jsx', 'AccountSettings'],
+            ['src/App.jsx', 'account-settings'],
+            ['src/App.css', 'reader-theme-paper'],
+            ['src/App.jsx', 'readerPositionRestoredRef'],
+            ['src/App.jsx', 'reduced-motion'],
+            ['src/App.css', '.app.reduced-motion'],
+            ['src/App.jsx', 'preload={accountSettings.dataSaver ? \'metadata\' : \'auto\'}'],
+            ['src/App.jsx', 'applyEpubReaderAppearance'],
+            ['src/App.jsx', 'Read Aloud'],
+            ['src/AdminPanel.jsx', 'Management & Settings'],
+            ['src/AdminPanel.jsx', 'AroLinks'],
+            ['src/AdminPanel.jsx', 'Earn4Link'],
+            ['server/shortenerUnlock.mjs', 'AROLINKS_API_TOKEN'],
+            ['server/shortenerUnlock.mjs', 'EARN4LINK_API_TOKEN'],
+            ['src/App.jsx', '/api/shortener/start'],
+            ['src/App.jsx', '/api/shortener/complete'],
+            ['src/lib/secureMedia.js', '/api/shortener/access'],
+            ['supabase/production-shortener-unlock.sql', 'shortener_links'],
+            ['supabase/production-shortener-unlock.sql', 'ad_unlocks'],
+            ['src/AdminPanel.jsx', 'freeVideoEpisodes'],
+            ['src/AdminPanel.jsx', 'content_access_settings'],
+            ['src/App.jsx', 'isEpisodePreviewFree'],
+            ['src/lib/secureMedia.js', "const protectedTypes = new Set(['premium', 'vip', 'ads'])"],
+            ['supabase/production-content-repair.sql', 'create table if not exists public.app_settings'],
+            ['supabase/email-templates/magic_link_otp.html', '{{ .Token }}'],
+          ]
+          for (const [file, needle] of checks) {
+            if (!read(file).includes(needle)) throw new Error(`Missing required text: ${file} :: ${needle}`)
+          }
+          const app = read('src/App.jsx')
+          if (app.includes('seedBooks') || app.includes('sample.pdf') || app.includes('sample.epub')) {
+            throw new Error('Legacy book seed/test references remain in src/App.jsx')
+          }
+          const template = read('supabase/email-templates/magic_link_otp.html')
+          if (template.includes('{{ .ConfirmationURL }}')) throw new Error('Legacy confirmation URL remains in email template')
+          for (const file of ['src/App.jsx','src/Auth.jsx','src/App.css','src/AccountSettings.jsx','src/AdminPanel.jsx','src/lib/secureMedia.js','server/shortenerUnlock.mjs','src/main.jsx','index.html','supabase/production-shortener-unlock.sql','supabase/production-content-repair.sql','supabase/email-templates/magic_link_otp.html']) {
+            if (read(file).includes('localhost:3000')) throw new Error(`localhost:3000 remains in ${file}`)
+          }
+          console.log('Auth/settings/source sanity checks passed')
+          NODE
 
       - name: Final source sanity check
         run: |
