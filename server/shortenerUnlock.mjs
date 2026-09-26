@@ -115,23 +115,73 @@ function getProviderOrder(settings) {
   return [...new Set(valid)]
 }
 
+/*
+ * Server-only provider registry.
+ *
+ * Both adapters expose the same internal contract:
+ *   createShortLink({ destinationUrl, alias, fetchImpl })
+ *
+ * The provider request/response contract is isolated here so another provider
+ * can be added without changing the unlock/entitlement flow. We intentionally
+ * keep the outbound request to the provider's documented-style API parameters
+ * already supported by this code path and do not send HJ secrets other than
+ * the provider's own API token.
+ */
+const PROVIDER_ADAPTERS = Object.freeze({
+  arolinks: {
+    host: 'arolinks.com',
+    tokenEnv: 'AROLINKS_API_TOKEN',
+    apiBase: () => String(process.env.AROLINKS_API_BASE_URL || 'https://arolinks.com/api').trim(),
+    createShortLink: async ({ destinationUrl, alias, fetchImpl = globalThis.fetch }) => {
+      const token = String(process.env.AROLINKS_API_TOKEN || '').trim()
+      if (!token) throw new Error('arolinks API token is not configured.')
+      const endpoint = new URL(String(process.env.AROLINKS_API_BASE_URL || 'https://arolinks.com/api').trim())
+      endpoint.searchParams.set('api', token)
+      endpoint.searchParams.set('url', destinationUrl)
+      return fetchImpl(endpoint, {
+        method: 'GET',
+        headers: { Accept: 'application/json, text/plain;q=0.9, */*;q=0.8' },
+      })
+    },
+  },
+  earn4link: {
+    host: 'earn4link.in',
+    tokenEnv: 'EARN4LINK_API_TOKEN',
+    apiBase: () => 'https://earn4link.in/api',
+    createShortLink: async ({ destinationUrl, alias, fetchImpl = globalThis.fetch }) => {
+      const token = String(process.env.EARN4LINK_API_TOKEN || '').trim()
+      if (!token) throw new Error('earn4link API token is not configured.')
+      const endpoint = new URL('https://earn4link.in/api')
+      endpoint.searchParams.set('api', token)
+      endpoint.searchParams.set('url', destinationUrl)
+      return fetchImpl(endpoint, {
+        method: 'GET',
+        headers: { Accept: 'application/json, text/plain;q=0.9, */*;q=0.8' },
+      })
+    },
+  },
+})
+
+function getProviderAdapter(provider) {
+  return PROVIDER_ADAPTERS[String(provider || '').trim().toLowerCase()] || null
+}
+
 function providerEnvKey(provider) {
-  return provider === 'arolinks' ? 'AROLINKS_API_TOKEN' : 'EARN4LINK_API_TOKEN'
+  return getProviderAdapter(provider)?.tokenEnv || ''
 }
 
 function providerApiBase(provider) {
-  if (provider === 'arolinks') {
-    return String(process.env.AROLINKS_API_BASE_URL || 'https://arolinks.com/api').trim()
-  }
-  return 'https://earn4link.in/api'
+  return getProviderAdapter(provider)?.apiBase?.() || ''
 }
 
 function providerHost(provider) {
-  return provider === 'arolinks' ? 'arolinks.com' : 'earn4link.in'
+  return getProviderAdapter(provider)?.host || ''
 }
 
 function assertProviderCredentials(provider) {
-  const token = String(process.env[providerEnvKey(provider)] || '').trim()
+  const adapter = getProviderAdapter(provider)
+  if (!adapter) throw new Error('Unsupported shortener provider.')
+  const token = String(process.env[adapter.tokenEnv] || '').trim()
   if (!token) throw new Error(provider + ' API token is not configured.')
   return token
 }
@@ -173,38 +223,43 @@ function extractProviderUrl(provider, body) {
 }
 
 async function callProvider(provider, destinationUrl, alias) {
-  const token = assertProviderCredentials(provider)
-  const endpoint = new URL(providerApiBase(provider))
-  endpoint.searchParams.set('api', token)
-  endpoint.searchParams.set('url', destinationUrl)
+  const adapter = getProviderAdapter(provider)
+  if (!adapter) throw new Error('Unsupported shortener provider.')
+  assertProviderCredentials(provider)
 
-  if (provider === 'earn4link' && alias) {
-    endpoint.searchParams.set('alias', alias)
-  }
-
+  const startedAt = Date.now()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS)
 
   try {
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: { Accept: 'application/json, text/plain;q=0.9, */*;q=0.8' },
-      signal: controller.signal,
+    const response = await adapter.createShortLink({
+      destinationUrl,
+      alias,
+      fetchImpl: (endpoint, options = {}) => fetch(endpoint, {
+        ...options,
+        signal: controller.signal,
+      }),
     })
 
     const body = await response.text()
+    const durationMs = Date.now() - startedAt
     if (!response.ok) {
+      console.warn('[shortener]', provider, 'failed:', 'HTTP ' + response.status, durationMs + 'ms')
       throw new Error(provider + ' API returned HTTP ' + response.status)
     }
 
     const shortUrl = extractProviderUrl(provider, body)
-    if (!shortUrl) throw new Error(provider + ' API returned no valid shortened URL.')
+    if (!shortUrl) {
+      console.warn('[shortener]', provider, 'failed:', 'malformed response', durationMs + 'ms')
+      throw new Error(provider + ' API returned no valid shortened URL.')
+    }
 
-    console.info('[shortener]', provider, 'success')
+    console.info('[shortener]', provider, 'success', durationMs + 'ms')
     return shortUrl
   } catch (error) {
+    const durationMs = Date.now() - startedAt
     const message = String(error?.message || provider + ' request failed').slice(0, 220)
-    console.warn('[shortener]', provider, 'failed:', message)
+    console.warn('[shortener]', provider, 'failed:', message, durationMs + 'ms')
     throw new Error(message)
   } finally {
     clearTimeout(timeout)
@@ -262,6 +317,76 @@ async function loadContent(contentType, contentId) {
   const data = await getContentRecord(contentType, contentId)
   if (!isAdsEnabled(data)) throw new Error('This content does not have an ad unlock access path.')
   return data
+}
+
+const shortenerCreationLocks = new Map()
+
+async function getOrCreateShortLink(contentType, contentId, order) {
+  const chain = order.join('>')
+  const key = contentType + ':' + contentId + ':' + chain
+
+  const initial = await getExistingShortLink(contentType, contentId)
+  if (initial && initial.provider_chain === chain) {
+    return { link: initial, reused: true }
+  }
+
+  const existingLock = shortenerCreationLocks.get(key)
+  if (existingLock) return existingLock
+
+  const operation = (async () => {
+    const latest = await getExistingShortLink(contentType, contentId)
+    if (latest && latest.provider_chain === chain) {
+      return { link: latest, reused: true }
+    }
+
+    if (latest?.id) {
+      await deactivateExistingShortLink(latest.id)
+    }
+
+    const destinationPath = contentPath(contentType, contentId)
+    const alias = 'hj-' + contentType + '-' + contentId
+    let created
+    try {
+      created = await createShortLinkWithFallback(
+        new URL(destinationPath, PUBLIC_BASE_URL).toString(),
+        alias,
+        order
+      )
+    } catch {
+      throw new Error('Ad unlock is temporarily unavailable. Please try again later.')
+    }
+
+    const inserted = await getServiceClient()
+      .from('shortener_links')
+      .insert({
+        content_type: contentType,
+        content_id: contentId,
+        provider: created.provider,
+        short_url: created.shortUrl,
+        destination_path: destinationPath,
+        provider_chain: chain,
+        active: true,
+      })
+      .select('id, provider, short_url, destination_path, provider_chain')
+      .maybeSingle()
+
+    if (inserted.error) {
+      const existing = await getExistingShortLink(contentType, contentId)
+      if (!existing || existing.provider_chain !== chain) {
+        throw new Error('Unable to save shortener link.')
+      }
+      return { link: existing, reused: true }
+    }
+
+    return { link: inserted.data, reused: false }
+  })()
+
+  shortenerCreationLocks.set(key, operation)
+  try {
+    return await operation
+  } finally {
+    shortenerCreationLocks.delete(key)
+  }
 }
 
 async function getExistingShortLink(contentType, contentId) {
@@ -374,55 +499,14 @@ async function startUnlock(req, res, body) {
   }
 
   const destinationPath = contentPath(contentType, contentId)
-  const chain = order.join('>')
-  let link = await getExistingShortLink(contentType, contentId)
-  const existingLinkId = link?.id || null
-
-  const previousLink = link
-  if (link && link.provider_chain !== chain) {
-    link = null
+  let linkResult
+  try {
+    linkResult = await getOrCreateShortLink(contentType, contentId, order)
+  } catch {
+    return json(res, 503, { error: 'Ad unlock is temporarily unavailable. Please try again later.' })
   }
 
-  if (!link) {
-    const alias = 'hj-' + contentType + '-' + contentId
-    let created
-    try {
-      created = await createShortLinkWithFallback(
-        new URL(destinationPath, PUBLIC_BASE_URL).toString(),
-        alias,
-        order
-      )
-    } catch {
-      return json(res, 503, { error: 'Ad unlock is temporarily unavailable. Please try again later.' })
-    }
-
-    if (previousLink && previousLink.id) {
-      await deactivateExistingShortLink(previousLink.id)
-    }
-
-    const inserted = await getServiceClient()
-      .from('shortener_links')
-      .insert({
-        content_type: contentType,
-        content_id: contentId,
-        provider: created.provider,
-        short_url: created.shortUrl,
-        destination_path: destinationPath,
-        provider_chain: chain,
-        active: true,
-      })
-      .select('id, provider, short_url, destination_path, provider_chain')
-      .maybeSingle()
-
-    if (inserted.error) {
-      const existing = await getExistingShortLink(contentType, contentId)
-      if (!existing) throw new Error('Unable to save shortener link.')
-      link = existing
-    } else {
-      link = inserted.data
-    }
-  }
-
+  const link = linkResult.link
   const intent = await createIntent({
     user,
     contentType,
@@ -443,7 +527,7 @@ async function startUnlock(req, res, body) {
   res.end(JSON.stringify({
     shortUrl: link.short_url,
     provider: link.provider,
-    reused: Boolean(existingLinkId),
+    reused: Boolean(linkResult.reused),
     expiresAt: intent.expiresAt,
   }))
 }
