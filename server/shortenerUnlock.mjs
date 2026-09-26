@@ -59,7 +59,7 @@ function isAdsEnabled(content) {
 
 function safeReturnPath(value) {
   const raw = String(value || '/').trim()
-  if (!raw.startsWith('/') || raw.startsWith('//') || /[\r\n]/.test(raw)) return '/'
+  if (!raw.startsWith('/') || raw.startsWith('//') || /[\\\r\n]/.test(raw)) return '/'
   return raw || '/'
 }
 
@@ -492,7 +492,7 @@ async function createIntent({ user, contentType, contentId, provider, destinatio
 
 async function startUnlock(req, res, body) {
   const user = await authenticate(req)
-  if (!UNLOCK_TOKEN_SECRET) {
+  if (!UNLOCK_TOKEN_SECRET || !PUBLIC_BASE_URL) {
     return json(res, 503, { error: 'Temporary unlock is not configured.' })
   }
 
@@ -837,6 +837,7 @@ async function status(req, res) {
       earn4link: Boolean(String(process.env.EARN4LINK_API_TOKEN || '').trim()),
       unlockSecret: Boolean(UNLOCK_TOKEN_SECRET),
       supabaseServiceRole: Boolean(SERVICE_ROLE_KEY),
+      publicBaseUrl: Boolean(PUBLIC_BASE_URL),
     },
     unlockDurationMinutes: settings.unlockDurationMinutes,
   })
