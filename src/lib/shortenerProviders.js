@@ -1,6 +1,6 @@
 export const SHORTENER_PROVIDERS = Object.freeze([
+  { value: 'arolinks', label: 'AroLinks' },
   { value: 'earn4link', label: 'Earn4Link' },
-  { value: 'shrinkme', label: 'ShrinkMe' },
 ])
 
 export const SHORTENER_PROVIDER_VALUES = new Set(
@@ -8,8 +8,8 @@ export const SHORTENER_PROVIDER_VALUES = new Set(
 )
 
 export const DEFAULT_SHORTENER_SETTINGS = Object.freeze({
-  primaryProvider: 'earn4link',
-  fallbackProvider: 'shrinkme',
+  primaryProvider: 'arolinks',
+  fallbackProvider: 'earn4link',
   enabled: false,
 })
 
