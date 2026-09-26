@@ -70,3 +70,12 @@ create index if not exists ad_unlocks_expiry_idx
 alter table public.ad_unlocks enable row level security;
 revoke all on public.ad_unlocks from anon, authenticated;
 grant all on public.ad_unlocks to service_role;
+
+
+-- Keep the legacy Ads provider fields aligned with the shortener configuration.
+update public.app_settings
+set value = jsonb_set(
+  jsonb_set(coalesce(value,'{}'::jsonb), '{ads,primaryProvider}', '"arolinks"', true),
+  '{ads,fallbackProvider}', '"earn4link"', true
+)
+where id = 'hj_admin_settings';
