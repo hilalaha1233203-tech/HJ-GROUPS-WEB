@@ -25,10 +25,21 @@ export function normalizeShortenerSettings(value = {}) {
     source.primaryProvider,
     DEFAULT_SHORTENER_SETTINGS.primaryProvider
   )
-  let fallbackProvider = normalizeShortenerProvider(
-    source.fallbackProvider,
-    DEFAULT_SHORTENER_SETTINGS.fallbackProvider
+
+  const hasExplicitFallback =
+    Object.prototype.hasOwnProperty.call(source, 'fallbackProvider') ||
+    Object.prototype.hasOwnProperty.call(source, 'fallbackShortener')
+
+  const rawFallback = source.fallbackProvider ?? source.fallbackShortener
+  let fallbackProvider = hasExplicitFallback && (
+    String(rawFallback ?? '').trim().toLowerCase() === '' ||
+    String(rawFallback ?? '').trim().toLowerCase() === 'none'
   )
+    ? ''
+    : normalizeShortenerProvider(
+        rawFallback,
+        DEFAULT_SHORTENER_SETTINGS.fallbackProvider
+      )
 
   if (fallbackProvider && fallbackProvider === primaryProvider) {
     fallbackProvider = ''
