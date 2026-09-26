@@ -273,7 +273,7 @@ test('callProvider validates provider-specific URL host', async () => {
   try {
     await assert.rejects(
       callProvider('earn4link', 'https://hj-groups.example/unlock/audio/25', ''),
-      /no valid shortened URL/
+      /provider request failed/
     )
   } finally {
     global.fetch = originalFetch
