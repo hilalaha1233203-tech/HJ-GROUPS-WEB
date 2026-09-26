@@ -293,6 +293,11 @@ function randomToken() {
   return crypto.randomBytes(32).toString('base64url')
 }
 
+function calculateUnlockExpiry(nowMs = Date.now(), durationMinutes = 360) {
+  const duration = Math.min(1440, Math.max(1, Number(durationMinutes) || 360))
+  return new Date(nowMs + duration * 60_000).toISOString()
+}
+
 function cookieValue(req, name) {
   const raw = String(req.headers.cookie || '')
   for (const part of raw.split(';')) {
@@ -463,7 +468,7 @@ async function completeUnlock(req, res) {
   }
 
   const settings = await getAdminSettings()
-  const expiresAt = new Date(Date.now() + settings.unlockDurationMinutes * 60_000).toISOString()
+  const expiresAt = calculateUnlockExpiry(Date.now(), settings.unlockDurationMinutes)
 
   const { data: existing } = await getServiceClient()
     .from('ad_unlocks')
@@ -744,6 +749,7 @@ export {
   hmacToken,
   randomToken,
   safeReturnPath,
+  calculateUnlockExpiry,
 }
 
 export async function handleShortenerRequest(req, res, url, readBody) {
