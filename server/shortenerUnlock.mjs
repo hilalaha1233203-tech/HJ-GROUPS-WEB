@@ -59,7 +59,7 @@ function isAdsEnabled(content) {
 
 function safeReturnPath(value) {
   const raw = String(value || '/').trim()
-  if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\\\')) return '/'
+  if (!raw.startsWith('/') || raw.startsWith('//') || /[\\r\\n]/.test(raw)) return '/'
   return raw || '/'
 }
 
@@ -227,7 +227,7 @@ async function createShortLinkWithFallback(destinationUrl, alias, providerOrder)
   throw new Error('All shortener providers failed: ' + failures.join(' | '))
 }
 
-async function loadContent(contentType, contentId) {
+async function getContentRecord(contentType, contentId) {
   const db = getServiceClient()
   let query
 
@@ -255,6 +255,11 @@ async function loadContent(contentType, contentId) {
   if (error) throw new Error('Unable to load requested content.')
   if (!data) throw new Error('Requested content was not found.')
   if (data.available === false) throw new Error('This content is currently unavailable.')
+  return data
+}
+
+async function loadContent(contentType, contentId) {
+  const data = await getContentRecord(contentType, contentId)
   if (!isAdsEnabled(data)) throw new Error('This content does not have an ad unlock access path.')
   return data
 }
@@ -353,9 +358,10 @@ async function startUnlock(req, res, body) {
   const destinationPath = contentPath(contentType, contentId)
   const chain = order.join('>')
   let link = await getExistingShortLink(contentType, contentId)
+  const existingLinkId = link?.id || null
 
+  const previousLink = link
   if (link && link.provider_chain !== chain) {
-    await deactivateExistingShortLink(link.id)
     link = null
   }
 
@@ -370,6 +376,10 @@ async function startUnlock(req, res, body) {
       )
     } catch {
       return json(res, 503, { error: 'Ad unlock is temporarily unavailable. Please try again later.' })
+    }
+
+    if (previousLink && previousLink.id) {
+      await deactivateExistingShortLink(previousLink.id)
     }
 
     const inserted = await getServiceClient()
@@ -415,7 +425,7 @@ async function startUnlock(req, res, body) {
   res.end(JSON.stringify({
     shortUrl: link.short_url,
     provider: link.provider,
-    reused: Boolean(link.id),
+    reused: Boolean(existingLinkId),
     expiresAt: intent.expiresAt,
   }))
 }
@@ -563,11 +573,40 @@ async function unlockLanding(req, res, url) {
       cookieHeader('hj_unlock_intent', '', { maxAge: 0, httpOnly: true }),
       cookieHeader('hj_unlock_code', rawToken, {
         maxAge: UNLOCK_CODE_TTL_MINUTES * 60,
-        httpOnly: false,
+        httpOnly: true,
       }),
     ],
   })
   res.end()
+}
+
+async function hasActivePurchase(userId, content) {
+  const storyCandidates = []
+
+  if (content?.story_id != null) storyCandidates.push(content.story_id)
+  if (content?.video_story_id != null) storyCandidates.push(content.video_story_id)
+  if (content?.id != null) storyCandidates.push(content.id)
+
+  const candidates = [...new Set(
+    storyCandidates
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0)
+  )]
+
+  if (!candidates.length) return false
+
+  const now = new Date().toISOString()
+  const { data, error } = await getServiceClient()
+    .from('purchases')
+    .select('id, story_id, expires_at')
+    .eq('user_id', userId)
+    .in('story_id', candidates)
+
+  if (error) throw new Error('Unable to verify paid access.')
+
+  return (data || []).some((purchase) => (
+    !purchase.expires_at || new Date(purchase.expires_at).getTime() > new Date(now).getTime()
+  ))
 }
 
 async function checkAccess(req, res, body) {
@@ -578,7 +617,13 @@ async function checkAccess(req, res, body) {
     return json(res, 400, { error: 'Invalid content target.' })
   }
 
-  const { data, error } = await getServiceClient()
+  const content = await getContentRecord(contentType, contentId)
+
+  if (String(user.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+    return json(res, 200, { ok: true, source: 'admin' })
+  }
+
+  const { data: adUnlock, error: unlockError } = await getServiceClient()
     .from('ad_unlocks')
     .select('expires_at')
     .eq('user_id', user.id)
@@ -587,10 +632,16 @@ async function checkAccess(req, res, body) {
     .gt('expires_at', new Date().toISOString())
     .maybeSingle()
 
-  if (error) return json(res, 500, { error: 'Unable to verify temporary access.' })
-  if (!data) return json(res, 403, { error: 'Temporary access required.' })
+  if (unlockError) return json(res, 500, { error: 'Unable to verify temporary access.' })
+  if (adUnlock?.expires_at) {
+    return json(res, 200, { ok: true, source: 'ad_unlock', expiresAt: adUnlock.expires_at })
+  }
 
-  return json(res, 200, { ok: true, expiresAt: data.expires_at })
+  if (await hasActivePurchase(user.id, content)) {
+    return json(res, 200, { ok: true, source: 'purchase' })
+  }
+
+  return json(res, 403, { error: 'Temporary or paid access required.' })
 }
 
 async function listEntitlements(req, res) {
@@ -683,6 +734,16 @@ function json(res, statusCode, payload, extraHeaders = {}) {
     ...extraHeaders,
   })
   res.end(JSON.stringify(payload))
+}
+
+export {
+  getProviderOrder,
+  extractProviderUrl,
+  callProvider,
+  createShortLinkWithFallback,
+  hmacToken,
+  randomToken,
+  safeReturnPath,
 }
 
 export async function handleShortenerRequest(req, res, url, readBody) {
