@@ -239,6 +239,47 @@ function AdminPanel({
   const [adminSettings, setAdminSettings] = useState(() => readAdminSettings())
   const [settingsDirty, setSettingsDirty] = useState(false)
   const [settingsLoading, setSettingsLoading] = useState(false)
+  const [shortenerHealth, setShortenerHealth] = useState(null)
+  const [shortenerHealthLoading, setShortenerHealthLoading] = useState(false)
+
+  useEffect(() => {
+    if (tab !== 'settings') return undefined
+
+    let mounted = true
+    const loadShortenerHealth = async () => {
+      setShortenerHealthLoading(true)
+      try {
+        const { data: { session } = {} } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          if (mounted) setShortenerHealth(null)
+          return
+        }
+
+        const response = await fetch('/api/shortener/status', {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Authorization: 'Bearer ' + session.access_token },
+          cache: 'no-store',
+        })
+        const payload = await response.json().catch(() => null)
+        if (mounted && response.ok && payload) {
+          setShortenerHealth(payload)
+        } else if (mounted) {
+          setShortenerHealth(null)
+        }
+      } catch (error) {
+        if (mounted) {
+          setShortenerHealth(null)
+          console.warn('Shortener health check failed:', error)
+        }
+      } finally {
+        if (mounted) setShortenerHealthLoading(false)
+      }
+    }
+
+    loadShortenerHealth()
+    return () => { mounted = false }
+  }, [tab])
 
   useEffect(() => {
     let mounted = true
@@ -1631,7 +1672,31 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     Routing is disabled by default. Use only for provider-approved link flows. The provider redirect is treated only as the completion signal because these providers do not expose a completion webhook to HJ GROUPS.
                   </small>
                 </div>
-                <small className="admin-settings-note">Provider secret/API credentials should stay in Vercel/Supabase server environment variables, not browser storage.</small>
+                <div className="shortener-health-panel" aria-live="polite">
+                  <div className="shortener-health-head">
+                    <strong>Shortener server health</strong>
+                    <button
+                      type="button"
+                      className="admin-settings-inline-button"
+                      onClick={() => setTab((current) => current)}
+                      disabled={shortenerHealthLoading}
+                    >
+                      {shortenerHealthLoading ? 'Checking…' : 'Refresh'}
+                    </button>
+                  </div>
+                  <div className="shortener-health-grid">
+                    <span className={shortenerHealth?.configured?.arolinks ? 'configured' : 'not-configured'}>
+                      <i /> AroLinks: {shortenerHealth?.configured?.arolinks ? 'Configured' : 'Not configured'}
+                    </span>
+                    <span className={shortenerHealth?.configured?.earn4link ? 'configured' : 'not-configured'}>
+                      <i /> Earn4Link: {shortenerHealth?.configured?.earn4link ? 'Configured' : 'Not configured'}
+                    </span>
+                  </div>
+                  {shortenerHealth?.enabled && !shortenerHealth?.configured?.unlockSecret && (
+                    <small className="admin-settings-note">Unlock routing is enabled, but the backend unlock secret is not configured.</small>
+                  )}
+                </div>
+                <small className="admin-settings-note">Provider secret/API credentials stay only in the server environment; the actual tokens are never displayed here.</small>
               </div>
 
               <div className="admin-settings-card">
