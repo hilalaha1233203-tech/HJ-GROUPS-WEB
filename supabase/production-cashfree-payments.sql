@@ -42,3 +42,7 @@ grant select on public.payment_orders to authenticated;
 create unique index if not exists purchases_user_story_product_unique
   on public.purchases(user_id, story_id, product_type)
   where story_id is not null;
+
+-- Purchases are activated only by the verified server payment flow.
+drop policy if exists "Users insert own purchases" on public.purchases;
+revoke insert, update, delete on public.purchases from anon, authenticated;
