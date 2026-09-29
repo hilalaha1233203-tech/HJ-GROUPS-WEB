@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { isTamilText, MAX_CHARS, synthesizeEdgeTts } from './server/edgeTts.mjs'
 import { isSarvamConfigured, synthesizeSarvamTts } from './server/sarvamTts.mjs'
 import { handleShortenerRequest } from './server/shortenerUnlock.mjs'
+import { handlePaymentRequest } from './server/payment.mjs'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(ROOT, 'dist')
@@ -34,12 +35,17 @@ function send(res, status, body, headers = {}) {
   res.end(body)
 }
 
-async function readJson(req) {
+async function readRawBody(req) {
   let body = ''
   for await (const chunk of req) {
     body += chunk
-    if (body.length > 100_000) throw new Error('Request body too large')
+    if (body.length > 200_000) throw new Error('Request body too large')
   }
+  return body
+}
+
+async function readJson(req) {
+  const body = await readRawBody(req)
   return JSON.parse(body || '{}')
 }
 
@@ -240,6 +246,11 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/tts') return handleTts(req, res, 'auto')
   if (url.pathname === '/api/edge-tts') return handleTts(req, res, 'edge')
   if (url.pathname === '/api/sarvam-tts') return handleTts(req, res, 'sarvam')
+
+  if (url.pathname.startsWith('/api/payments/')) {
+    const handled = await handlePaymentRequest(req, res, url, () => readJson(req), () => readRawBody(req))
+    if (handled !== false) return
+  }
 
   if (url.pathname.startsWith('/api/shortener/') || url.pathname.startsWith('/unlock/')) {
     const handled = await handleShortenerRequest(req, res, url, () => readJson(req))
