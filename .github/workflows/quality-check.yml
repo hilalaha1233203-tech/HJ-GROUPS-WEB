@@ -31,7 +31,7 @@ jobs:
       - name: Production build
         run: npm run build
 
-      - name: Server / shortener unit tests
+      - name: Server / payment / shortener unit tests
         run: node --test tests/unit/*.test.mjs
 
       - name: Production server startup smoke check
@@ -110,6 +110,11 @@ jobs:
             ['src/lib/secureMedia.js', "const protectedTypes = new Set(['premium', 'vip', 'ads'])"],
             ['supabase/production-content-repair.sql', 'create table if not exists public.app_settings'],
             ['supabase/email-templates/magic_link_otp.html', '{{ .Token }}'],
+            ['server/payment.mjs', 'CASHFREE_CLIENT_SECRET'],
+            ['server/payment.mjs', '/api/payments/create-order'],
+            ['server/payment.mjs', '/api/payments/webhook'],
+            ['server/payment.mjs', 'PG'],
+            ['supabase/production-cashfree-payments.sql', 'payment_orders'],
           ]
           for (const [file, needle] of checks) {
             if (!read(file).includes(needle)) throw new Error(`Missing required text: ${file} :: ${needle}`)
@@ -120,6 +125,10 @@ jobs:
           }
           const template = read('supabase/email-templates/magic_link_otp.html')
           if (template.includes('{{ .ConfirmationURL }}')) throw new Error('Legacy confirmation URL remains in email template')
+          const paymentSource = read('server/payment.mjs')
+          for (const secret of ['CASHFREE_CLIENT_SECRET', 'SUPABASE_SERVICE_ROLE_KEY']) {
+            if (paymentSource.includes('VITE_' + secret)) throw new Error('Payment secret exposed through VITE_ env: ' + secret)
+          }
           for (const file of ['src/App.jsx','src/Auth.jsx','src/App.css','src/AccountSettings.jsx','src/AdminPanel.jsx','src/lib/secureMedia.js','server/shortenerUnlock.mjs','src/main.jsx','index.html','supabase/production-shortener-unlock.sql','supabase/production-content-repair.sql','supabase/email-templates/magic_link_otp.html']) {
             if (read(file).includes('localhost:3000')) throw new Error(`localhost:3000 remains in ${file}`)
           }
