@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { supabase } from '../supabase'
 
 const CASHFREE_SDK_URL = 'https://sdk.cashfree.com/js/v3/cashfree.js'
 
@@ -49,7 +50,7 @@ export default function PaymentModal({ target, onClose }) {
     setError('')
 
     try {
-      const { data: { session } = {} } = await target.supabase.auth.getSession()
+      const { data: { session } = {} } = await supabase.auth.getSession()
       if (!session?.access_token) throw new Error('Please sign in before making a payment.')
 
       const response = await fetch('/api/payments/create-order', {
