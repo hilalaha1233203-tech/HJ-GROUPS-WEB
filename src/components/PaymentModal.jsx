@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../supabase'
 
 const CASHFREE_SDK_URL = 'https://sdk.cashfree.com/js/v3/cashfree.js'
@@ -36,12 +36,6 @@ function makeRequestId() {
 export default function PaymentModal({ target, onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!target) return
-    setLoading(false)
-    setError('')
-  }, [target])
 
   if (!target) return null
 
