@@ -1114,7 +1114,7 @@ export function App() {
       purchasedStoryIds,
       storyId: book.id,
     })
-  }, [readerBook, isAdmin, loggedIn, unlockedAds, purchasedStoryIds])
+  }, [readerBook, isAdmin, loggedIn, unlockedAds, purchasedStoryIds, contentAccessSettings, readerPreviewOnly])
 
   const [readerPageTurn, setReaderPageTurn] =
     useState('')
