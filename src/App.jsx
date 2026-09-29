@@ -8,6 +8,7 @@ import Auth from './Auth'
 import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
+import PaymentModal from './components/PaymentModal'
 
 import {
   resolveAccessType,
@@ -868,6 +869,8 @@ export function App() {
 
   const [adModalOpen, setAdModalOpen] =
     useState(false)
+
+  const [paymentTarget, setPaymentTarget] = useState(null)
 
   const pendingUnlockRef = useRef(null)
 
@@ -2975,6 +2978,20 @@ export function App() {
       if (!loggedIn) {
         alert('Please log in to access Premium/VIP content.')
         setLoginOpen(true)
+        return
+      }
+
+      // Reuse the existing story-level purchases table. Premium/VIP episode
+      // access is fulfilled by purchasing the parent story for lifetime access.
+      const parentStoryId = Number(storyId)
+      if (Number.isInteger(parentStoryId) && parentStoryId > 0 && types.includes('premium')) {
+        setPaymentTarget({
+          storyId: parentStoryId,
+          title: item?.storyTitle || currentStory?.title || 'this story',
+          onSuccess: () => {
+            window.dispatchEvent(new CustomEvent('hj-payment-complete'))
+          },
+        })
         return
       }
 
@@ -8684,6 +8701,13 @@ export function App() {
           onClose={handleAdCancel}
           onUnlock={startShortenerUnlock}
           providerLabel="AroLinks / Earn4Link"
+        />
+      )}
+
+      {paymentTarget && (
+        <PaymentModal
+          target={paymentTarget}
+          onClose={() => setPaymentTarget(null)}
         />
       )}
 
