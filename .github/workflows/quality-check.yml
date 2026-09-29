@@ -113,7 +113,7 @@ jobs:
             ['server/payment.mjs', 'CASHFREE_CLIENT_SECRET'],
             ['server/payment.mjs', '/api/payments/create-order'],
             ['server/payment.mjs', '/api/payments/webhook'],
-            ['server/payment.mjs', 'PG'],
+            ['server/payment.mjs', 'CASHFREE_API_VERSION'],
             ['supabase/production-cashfree-payments.sql', 'payment_orders'],
           ]
           for (const [file, needle] of checks) {
@@ -129,7 +129,7 @@ jobs:
           for (const secret of ['CASHFREE_CLIENT_SECRET', 'SUPABASE_SERVICE_ROLE_KEY']) {
             if (paymentSource.includes('VITE_' + secret)) throw new Error('Payment secret exposed through VITE_ env: ' + secret)
           }
-          for (const file of ['src/App.jsx','src/Auth.jsx','src/App.css','src/AccountSettings.jsx','src/AdminPanel.jsx','src/lib/secureMedia.js','server/shortenerUnlock.mjs','src/main.jsx','index.html','supabase/production-shortener-unlock.sql','supabase/production-content-repair.sql','supabase/email-templates/magic_link_otp.html']) {
+          for (const file of ['src/App.jsx','src/Auth.jsx','src/App.css','src/AccountSettings.jsx','src/AdminPanel.jsx','src/lib/secureMedia.js','server/shortenerUnlock.mjs','server/payment.mjs','src/components/PaymentModal.jsx','src/main.jsx','index.html','supabase/production-shortener-unlock.sql','supabase/production-content-repair.sql','supabase/email-templates/magic_link_otp.html']) {
             if (read(file).includes('localhost:3000')) throw new Error(`localhost:3000 remains in ${file}`)
           }
           console.log('Auth/settings/source sanity checks passed')
