@@ -47,7 +47,7 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
   },
   payments: {
     enabled: false,
-    provider: '',
+    provider: 'cashfree',
     currency: 'INR',
     merchantId: '',
     publishableKey: '',
