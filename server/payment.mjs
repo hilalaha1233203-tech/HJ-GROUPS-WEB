@@ -277,6 +277,23 @@ async function fulfilPaidOrder(orderId) {
   const now = new Date().toISOString()
 
   if (verified.status === 'PAID') {
+    // Fulfilment is idempotent and happens before marking the payment order
+    // final. If the purchase write fails, a later webhook/status retry can
+    // safely try fulfilment again.
+    if (order.product_key === 'story_lifetime' && order.status !== 'PAID') {
+      const { error: purchaseError } = await db()
+        .from('purchases')
+        .upsert({
+          user_id: order.user_id,
+          story_id: order.content_id,
+          product_type: 'story_lifetime',
+          expires_at: null,
+        }, {
+          onConflict: 'user_id,story_id,product_type',
+        })
+      if (purchaseError) throw new Error('Payment verified, but purchase activation failed.')
+    }
+
     if (order.status !== 'PAID') {
       const { error: updateError } = await db()
         .from('payment_orders')
@@ -290,20 +307,6 @@ async function fulfilPaidOrder(orderId) {
         .eq('id', order.id)
         .neq('status', 'PAID')
       if (updateError) throw new Error('Unable to finalize payment order.')
-
-      if (order.product_key === 'story_lifetime') {
-        const { error: purchaseError } = await db()
-          .from('purchases')
-          .upsert({
-            user_id: order.user_id,
-            story_id: order.content_id,
-            product_type: 'story_lifetime',
-            expires_at: null,
-          }, {
-            onConflict: 'user_id,story_id,product_type',
-          })
-        if (purchaseError) throw new Error('Payment verified, but purchase activation failed.')
-      }
     }
     return { status: 'PAID' }
   }
