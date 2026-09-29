@@ -280,7 +280,7 @@ async function fulfilPaidOrder(orderId) {
     // Fulfilment is idempotent and happens before marking the payment order
     // final. If the purchase write fails, a later webhook/status retry can
     // safely try fulfilment again.
-    if (order.product_key === 'story_lifetime' && order.status !== 'PAID') {
+    if (order.product_key === 'story_lifetime') {
       const { error: purchaseError } = await db()
         .from('purchases')
         .upsert({
