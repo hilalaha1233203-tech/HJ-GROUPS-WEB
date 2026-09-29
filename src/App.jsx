@@ -2321,10 +2321,45 @@ export function App() {
       }
     }
 
+    const verifyReturnedPayment = async () => {
+      const orderId = new URLSearchParams(window.location.search).get('cashfree_order_id')
+      if (!orderId) return
+
+      try {
+        const { data: { session } = {} } = await supabase.auth.getSession()
+        if (!session?.access_token) return
+
+        const response = await fetch('/api/payments/status?order_id=' + encodeURIComponent(orderId), {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Authorization: 'Bearer ' + session.access_token },
+          cache: 'no-store',
+        })
+        const payload = await response.json().catch(() => null)
+
+        if (response.ok && payload?.status === 'PAID') {
+          await fetchPurchases()
+        }
+      } catch (error) {
+        console.warn('Payment verification after return failed:', error)
+      } finally {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('cashfree_order_id')
+        window.history.replaceState({}, document.title, url.pathname + url.search + url.hash)
+      }
+    }
+
+    const handlePaymentComplete = () => {
+      fetchPurchases()
+    }
+
     fetchPurchases()
+    verifyReturnedPayment()
+    window.addEventListener('hj-payment-complete', handlePaymentComplete)
 
     return () => {
       mounted = false
+      window.removeEventListener('hj-payment-complete', handlePaymentComplete)
     }
   }, [user])
 
