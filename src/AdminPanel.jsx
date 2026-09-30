@@ -1710,7 +1710,10 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     </span>
                   </div>
                   {shortenerHealth?.error && (
-                    <small className="admin-settings-note">Health check: {shortenerHealth.error}</small>
+                    <small className="admin-settings-note">Health check: {shortenerHealth.error}{shortenerHealth?.statusCode ? ' (HTTP ' + shortenerHealth.statusCode + ')' : ''}</small>
+                  )}
+                  {shortenerHealth?.settingsError && (
+                    <small className="admin-settings-note">Cloud settings: {shortenerHealth.settingsError}</small>
                   )}
                   {shortenerHealth?.enabled && !shortenerHealth?.configured?.unlockSecret && (
                     <small className="admin-settings-note">Unlock routing is enabled, but the backend unlock secret is not configured.</small>
