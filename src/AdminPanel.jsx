@@ -280,7 +280,7 @@ function AdminPanel({
 
     loadShortenerHealth()
     return () => { mounted = false }
-  }, [tab])
+  }, [tab, shortenerHealthRefresh])
 
   useEffect(() => {
     let mounted = true
