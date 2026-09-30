@@ -1018,7 +1018,11 @@ export async function handleShortenerRequest(req, res, url, readBody) {
   } catch (error) {
     const message = String(error?.message || 'Shortener request failed')
     console.error('[shortener] request failed:', message)
-    const statusCode = /Authentication required|Authentication failed|Admin access required/.test(message) ? 401 : 500
+    const statusCode = /Authentication required|Authentication failed|Admin access required/.test(message)
+      ? 401
+      : /SUPABASE_SERVICE_ROLE_KEY is not configured|not configured/i.test(message)
+        ? 503
+        : 500
     return json(res, statusCode, {
       error: statusCode === 401 ? message : 'Shortener service error.',
     })
