@@ -1705,6 +1705,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                       <i /> Earn4Link: {shortenerHealth?.configured?.earn4link ? 'Configured' : 'Not configured'}
                     </span>
                   </div>
+                  {shortenerHealth?.error && (
+                    <small className="admin-settings-note">Health check: {shortenerHealth.error}</small>
+                  )}
                   {shortenerHealth?.enabled && !shortenerHealth?.configured?.unlockSecret && (
                     <small className="admin-settings-note">Unlock routing is enabled, but the backend unlock secret is not configured.</small>
                   )}
