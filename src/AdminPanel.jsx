@@ -266,7 +266,7 @@ function AdminPanel({
         if (mounted && response.ok && payload) {
           setShortenerHealth(payload)
         } else if (mounted) {
-          setShortenerHealth(null)
+          setShortenerHealth({ error: payload?.error || 'Server health check failed', configured: { arolinks: false, earn4link: false } })
         }
       } catch (error) {
         if (mounted) {
