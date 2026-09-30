@@ -223,6 +223,7 @@ async function serveStatic(req, res, pathname) {
 }
 
 const server = createServer(async (req, res) => {
+  try {
   const url = new URL(req.url || '/', 'http://' + (req.headers.host || 'localhost'))
 
   if (url.pathname === '/health') {
@@ -263,7 +264,17 @@ const server = createServer(async (req, res) => {
     })
   }
 
-  return serveStatic(req, res, url.pathname)
+    return serveStatic(req, res, url.pathname)
+  } catch (error) {
+    const message = String(error?.message || 'Unhandled server request error').slice(0, 300)
+    console.error('[server] unhandled request error:', message)
+    if (!res.headersSent) {
+      return send(res, 500, JSON.stringify({ error: 'Internal server error' }), {
+        'Content-Type': 'application/json; charset=utf-8',
+      })
+    }
+    res.destroy()
+  }
 })
 
 server.listen(PORT, '0.0.0.0', () => {
