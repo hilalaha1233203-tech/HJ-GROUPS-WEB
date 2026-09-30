@@ -909,21 +909,42 @@ async function listEntitlements(req, res) {
 
 async function status(req, res) {
   await authenticateAdmin(req)
-  const settings = await getAdminSettings()
+
+  const configured = {
+    arolinks: Boolean(String(process.env.AROLINKS_API_TOKEN || '').trim()),
+    earn4link: Boolean(String(process.env.EARN4LINK_API_TOKEN || '').trim()),
+    unlockSecret: Boolean(UNLOCK_TOKEN_SECRET),
+    supabaseServiceRole: Boolean(SERVICE_ROLE_KEY),
+    publicBaseUrl: isValidPublicBaseUrl(),
+  }
+
+  // Health must report provider/runtime configuration even when the optional
+  // cloud settings row is unavailable. Otherwise every provider is incorrectly
+  // shown as "Not configured" for an unrelated database/configuration failure.
+  let settings = {
+    shortenerEnabled: false,
+    primary: 'arolinks',
+    fallback: 'earn4link',
+    unlockDurationMinutes: 360,
+  }
+  let settingsError = ''
+
+  try {
+    settings = await getAdminSettings()
+  } catch (error) {
+    settingsError = String(error?.message || 'Unable to load shortener settings.')
+  }
+
   const providers = getProviderOrder(settings)
   return json(res, 200, {
+    ok: !settingsError && configured.supabaseServiceRole && configured.publicBaseUrl,
     enabled: settings.shortenerEnabled,
     primary: settings.primary,
     fallback: settings.fallback,
     chain: providers,
-    configured: {
-      arolinks: Boolean(String(process.env.AROLINKS_API_TOKEN || '').trim()),
-      earn4link: Boolean(String(process.env.EARN4LINK_API_TOKEN || '').trim()),
-      unlockSecret: Boolean(UNLOCK_TOKEN_SECRET),
-      supabaseServiceRole: Boolean(SERVICE_ROLE_KEY),
-      publicBaseUrl: isValidPublicBaseUrl(),
-    },
+    configured,
     unlockDurationMinutes: settings.unlockDurationMinutes,
+    settingsError: settingsError || null,
   })
 }
 
