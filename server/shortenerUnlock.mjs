@@ -661,7 +661,10 @@ async function startUnlock(req, res, body) {
 async function completeUnlock(req, res) {
   const user = await authenticate(req)
   const rawToken = cookieValue(req, 'hj_unlock_code')
-  if (!rawToken) return json(res, 400, { error: 'Unlock completion session is missing.' })
+  // Completion is polled after login, including normal page loads where no
+  // provider-return cookie exists. That state is a successful no-op, not a
+  // client error, so it must not generate a 4xx console/network failure.
+  if (!rawToken) return json(res, 200, { ok: false, reason: 'no_completion_session' })
 
   let tokenHash
   try { tokenHash = hmacToken(rawToken) } catch {
