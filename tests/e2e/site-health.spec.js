@@ -349,6 +349,10 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
 
     await latestPlay.click()
 
+    await expect(page.locator('.media-loading-toast')).toContainText(
+      'This episode will load in a few seconds depending on your network.'
+    )
+
     const mediaResponse = await mediaResponsePromise
     expect([200, 206]).toContain(
       mediaResponse.status(),
