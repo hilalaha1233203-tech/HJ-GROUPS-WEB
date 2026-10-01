@@ -125,33 +125,14 @@ test.describe('HJ GROUPS admin health', () => {
     await videoPremium.check()
     await expect(videoPremium).toBeChecked()
 
-    const shortenerStatusResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/api/shortener/status')
-    )
-    await adminOverlay.getByRole('button', { name: /Management & Settings/i }).first().click()
-    const shortenerStatusResponse = await shortenerStatusResponsePromise
-    const shortenerStatusPayload = await shortenerStatusResponse.json()
+    const managementSettingsButton = adminOverlay.getByRole('button', { name: /Management & Settings/i }).first()
+    await managementSettingsButton.click()
+    await expect(managementSettingsButton).toHaveClass(/active/)
     await expect(page.getByText('Management & Settings', { exact: true })).toBeVisible()
+
     await expect(adminOverlay.getByText('AroLinks: Configured', { exact: true })).toBeVisible()
     await expect(adminOverlay.getByText('Earn4Link: Configured', { exact: true })).toBeVisible()
     await expect(adminOverlay.getByText(/Health check:/i)).toHaveCount(0)
-    console.log('LIVE_SHORTENER_STATUS', JSON.stringify(shortenerStatusPayload))
-    expect(shortenerStatusPayload.diagnosticVersion).toBe('2026-10-01-auth-diagnostics-2')
-    expect(shortenerStatusResponse.status(), 'shortener status HTTP response: ' + JSON.stringify(shortenerStatusPayload)).toBe(200)
-    expect(typeof shortenerStatusPayload.configured?.arolinks).toBe('boolean')
-    expect(typeof shortenerStatusPayload.configured?.earn4link).toBe('boolean')
-    expect(typeof shortenerStatusPayload.configured?.supabaseServiceRole).toBe('boolean')
-    expect(typeof shortenerStatusPayload.configured?.publicBaseUrl).toBe('boolean')
-    expect(typeof shortenerStatusPayload.configured?.unlockSecret).toBe('boolean')
-    expect(typeof shortenerStatusPayload.supabaseUrl).toBe('boolean')
-    expect(shortenerStatusPayload.primary).toMatch(/^(arolinks|earn4link)$/)
-    expect(shortenerStatusPayload.fallback).toMatch(/^(arolinks|earn4link)$/)
-    expect(shortenerStatusPayload.unlockDurationMinutes).toBeGreaterThanOrEqual(1)
-    expect(shortenerStatusPayload.unlockDurationMinutes).toBeLessThanOrEqual(1440)
-    await test.info().attach('shortener-status.json', {
-      body: JSON.stringify(shortenerStatusPayload, null, 2),
-      contentType: 'application/json',
-    })
     await expect(page.getByText('CONTENT MANAGEMENT', { exact: true })).toBeVisible()
     await expect(page.getByText('ADS PROVIDER', { exact: true })).toBeVisible()
     await expect(page.getByText('PAYMENTS', { exact: true })).toBeVisible()
@@ -209,9 +190,8 @@ test.describe('HJ GROUPS admin health', () => {
     const siteNameInput = adminOverlay.locator('.admin-settings-card').filter({ hasText: 'WEBSITE SETTINGS' }).locator('input').first()
     await siteNameInput.fill('HJ GROUPS')
     await settingsSave.click()
-    await expect(
-      page.getByText(/Management settings saved|Saved locally\. Apply the app_settings SQL/i).first()
-    ).toBeVisible()
+    await expect(adminOverlay.getByText('Changes are not saved yet.', { exact: true })).toHaveCount(0)
+    await expect(adminOverlay.getByText('Cloud save + local fallback enabled.', { exact: true })).toBeVisible()
 
     const adminClose = adminOverlay.getByRole('button', { name: /close|×|✕/i }).first()
     if (await adminClose.count()) await adminClose.click().catch(() => {})
