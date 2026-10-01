@@ -59,6 +59,24 @@ jobs:
       - name: Verify shortener server syntax
         run: node --check server.mjs && node --check server/shortenerUnlock.mjs
 
+      - name: Verify Supabase migration filenames
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+          const dir = path.join(process.cwd(), 'supabase', 'migrations')
+          const files = fs.existsSync(dir)
+            ? fs.readdirSync(dir).filter((name) => name.endsWith('.sql'))
+            : []
+          for (const file of files) {
+            if (!/^\\d{14}_[A-Za-z0-9._-]+\\.sql$/.test(file)) {
+              throw new Error('Supabase migration filename must use <14-digit-timestamp>_<name>.sql: ' + file)
+            }
+          }
+          if (!files.length) throw new Error('No Supabase migrations found')
+          console.log('Supabase migration filename checks passed:', files.length)
+          NODE
+
       - name: Verify critical startup exports
         run: |
           test -s src/App.jsx
