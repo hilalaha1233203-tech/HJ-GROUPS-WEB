@@ -2,7 +2,7 @@ import { supabase } from '../supabase'
 
 // The streaming service is deployed separately. Use its stable Vercel project URL
 // instead of pinning the website to an immutable deployment URL.
-import { STREAMING_SERVER_URL } from './lib/streamingUrl'
+import { STREAMING_SERVER_URL } from './streamingUrl'
 
 export function fileUrlFromId(fileId, mediaType = 'audio') {
   if (!fileId) return ''
