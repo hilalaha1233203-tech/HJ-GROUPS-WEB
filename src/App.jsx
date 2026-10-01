@@ -10,6 +10,7 @@ import Auth from './Auth'
 import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
+import { trackUserActivity } from './lib/analytics'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
 
@@ -775,6 +776,7 @@ export function App() {
     useState(null)
 
   const [currentMediaSrc, setCurrentMediaSrc] = useState('')
+  const analyticsPlaybackSessionRef = useRef(null)
   const mediaResolveRunRef = useRef(0)
   const mediaLoadTimerRef = useRef(null)
 
@@ -1025,6 +1027,15 @@ export function App() {
         const payload = await response.json()
         if (!payload?.ok || !payload.expiresAt) return
 
+        void trackUserActivity('ad_unlock_completed', {
+          story_id: payload?.storyId ?? null,
+          episode_id: payload?.contentType === 'audio' ? payload?.contentId ?? null : null,
+          video_episode_id: payload?.contentType === 'video' ? payload?.contentId ?? null : null,
+          book_id: payload?.contentType === 'book' ? payload?.contentId ?? null : null,
+          access_type: 'ads',
+          metadata: { source: 'shortener_completion' },
+        }, `ad-complete:${payload?.contentType}:${payload?.contentId}:${payload?.expiresAt}`)
+
         cacheServerAdUnlock({
           content_type: payload.contentType,
           content_id: payload.contentId,
@@ -1202,6 +1213,7 @@ export function App() {
 
   const [pdfPage, setPdfPage] =
     useState(1)
+  const analyticsReaderPageRef = useRef(null)
 
   const [pdfInputPage, setPdfInputPage] =
     useState('')
@@ -3322,6 +3334,15 @@ export function App() {
       throw new Error('Please log in before starting an ad unlock.')
     }
 
+    void trackUserActivity('ad_unlock_started', {
+      story_id: pending.item?.story_id ?? pending.item?.storyId ?? pending.storyId ?? null,
+      episode_id: pending.contentType === 'audio' ? pending.item?.id : null,
+      video_episode_id: pending.contentType === 'video' ? pending.item?.id : null,
+      book_id: pending.contentType === 'book' ? pending.item?.id : null,
+      access_type: 'ads',
+      metadata: { provider: 'shortener', content_type: pending.contentType },
+    }, `ad-start:${pending.contentType}:${pending.item?.id}:${pending.storyId ?? ''}`)
+
     const returnPath =
       window.location.pathname +
       window.location.search +
@@ -3682,6 +3703,7 @@ export function App() {
     if (readerBook) teardownReader()
     const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', story.id, episode.number)
     requestAccess(episode, adsKey, () => {
+      analyticsPlaybackSessionRef.current = `${Date.now()}_${Math.random().toString(36).slice(2)}`
       if (isReading) stopReadAloud()
       setActivePlayerKind('episode')
       setCurrentStory(story)
@@ -3698,6 +3720,7 @@ export function App() {
     if (!currentStory) return
     const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', currentStory.id, episode.number)
     requestAccess(episode, adsKey, () => {
+      analyticsPlaybackSessionRef.current = `${Date.now()}_${Math.random().toString(36).slice(2)}`
       setCurrentEpisode(episode)
       setCurrentTime(0)
       setDuration(0)
@@ -3830,6 +3853,21 @@ export function App() {
       }
     }
 
+  const handleMediaPlay = () => {
+    if (!currentEpisode) return
+    const playbackSession = analyticsPlaybackSessionRef.current
+    if (!playbackSession) return
+    const isVideo = currentEpisode.type === 'video'
+    void trackUserActivity(isVideo ? 'video_play' : 'episode_play', {
+      story_id: Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null,
+      episode_id: isVideo ? null : (Number.isFinite(Number(currentEpisode.id)) ? Number(currentEpisode.id) : null),
+      video_story_id: isVideo ? (Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null) : null,
+      video_episode_id: isVideo ? (Number.isFinite(Number(currentEpisode.id)) ? Number(currentEpisode.id) : null) : null,
+      access_type: currentEpisode.accessType ?? currentEpisode.access_type ?? null,
+      metadata: { episode_number: currentEpisode.number ?? currentEpisode.episode_number ?? null },
+    }, `play:${playbackSession}`)
+  }
+
   const handleLoadedMetadata =
     () => {
       const media =
@@ -3849,6 +3887,20 @@ export function App() {
 
   const handleEnded =
     () => {
+      if (currentEpisode) {
+        const playbackSession = analyticsPlaybackSessionRef.current
+        const isVideo = currentEpisode.type === 'video'
+        if (playbackSession) {
+          void trackUserActivity(isVideo ? 'video_complete' : 'episode_complete', {
+            story_id: Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null,
+            episode_id: isVideo ? null : (Number.isFinite(Number(currentEpisode.id)) ? Number(currentEpisode.id) : null),
+            video_story_id: isVideo ? (Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null) : null,
+            video_episode_id: isVideo ? (Number.isFinite(Number(currentEpisode.id)) ? Number(currentEpisode.id) : null) : null,
+            metadata: { episode_number: currentEpisode.number ?? currentEpisode.episode_number ?? null },
+          }, `complete:${playbackSession}`)
+        }
+      }
+
       setIsPlaying(false)
 
       try {
@@ -4067,6 +4119,11 @@ export function App() {
 
   const openStoryDetails =
     (story) => {
+      void trackUserActivity('story_view', {
+        story_id: Number.isFinite(Number(story?.id)) ? Number(story.id) : null,
+        metadata: { source: 'story_details' },
+      }, `story:${story?.id}`)
+
       setSelectedStory(
         story
       )
@@ -5092,6 +5149,20 @@ export function App() {
      OPEN BOOK
   ======================================================= */
 
+  useEffect(() => {
+    if (!readerOpen || !readerBook?.id) return undefined
+    const page = readerType === 'epub' ? epubPage : pdfPage
+    if (!Number.isInteger(Number(page)) || Number(page) < 1) return undefined
+    const pageKey = `${readerBook.id}:${readerType}:${page}`
+    if (analyticsReaderPageRef.current === pageKey) return undefined
+    analyticsReaderPageRef.current = pageKey
+    void trackUserActivity('book_page', {
+      book_id: Number.isFinite(Number(readerBook.id)) ? Number(readerBook.id) : null,
+      metadata: { page: Number(page), reader_type: readerType },
+    }, `book-page:${pageKey}`)
+    return undefined
+  }, [readerOpen, readerBook?.id, readerType, pdfPage, epubPage])
+
   const openReaderForBook =
     (
       book,
@@ -5124,6 +5195,12 @@ export function App() {
       }
 
       showMediaLoadingNotice('This book will load in a few seconds depending on your network.')
+
+      void trackUserActivity('book_open', {
+        book_id: Number.isFinite(Number(book?.id)) ? Number(book.id) : null,
+        access_type: book?.accessType ?? book?.access_type ?? null,
+        metadata: { type: book?.type || null },
+      }, `book-open:${book?.id}`)
 
       setReaderBook(book)
       setReaderPreviewOnly(previewOnly)
@@ -7045,6 +7122,7 @@ export function App() {
             onLoadedMetadata={
               handleLoadedMetadata
             }
+            onPlay={handleMediaPlay}
             onTimeUpdate={
               handleTimeUpdate
             }
