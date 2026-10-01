@@ -342,6 +342,11 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     const latestPlay = page.locator('.latest-list .latest-item .latest-play').first()
     await expect(latestPlay).toBeVisible()
 
+    await page.route(/\/audio\/message\//i, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      await route.continue()
+    })
+
     const mediaResponsePromise = page.waitForResponse(
       (response) => /\/audio\/message\//i.test(response.url()),
       { timeout: 20_000 }
