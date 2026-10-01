@@ -384,27 +384,51 @@ async function getExistingEpisodeNumbers(contentType, storyId, startEpisode, end
   if (!storyId || !Number.isInteger(startEpisode) || !Number.isInteger(endEpisode)) return []
 
   const db = getServiceClient()
-  const query = contentType === 'audio'
-    ? db
-      .from('episodes')
-      .select('number, episode_number, available')
-      .eq('story_id', storyId)
-      .gte('number', startEpisode)
-      .lte('number', endEpisode)
-    : db
-      .from('video_episodes')
-      .select('number, available')
-      .eq('video_story_id', storyId)
-      .gte('number', startEpisode)
-      .lte('number', endEpisode)
 
-  const { data, error } = await query
+  if (contentType === 'audio') {
+    // Production Telegram imports may have either `number` or the legacy
+    // `episode_number` populated. Query both identities and merge them so
+    // temporary range unlocks include every real episode in the story.
+    const [numberResult, episodeNumberResult] = await Promise.all([
+      db
+        .from('episodes')
+        .select('number, episode_number, available')
+        .eq('story_id', storyId)
+        .gte('number', startEpisode)
+        .lte('number', endEpisode),
+      db
+        .from('episodes')
+        .select('number, episode_number, available')
+        .eq('story_id', storyId)
+        .gte('episode_number', startEpisode)
+        .lte('episode_number', endEpisode),
+    ])
+
+    if (numberResult.error || episodeNumberResult.error) {
+      throw new Error('Unable to determine the existing episodes for temporary access.')
+    }
+
+    return [...new Set(
+      [...(numberResult.data || []), ...(episodeNumberResult.data || [])]
+        .filter((row) => row?.available !== false)
+        .map((row) => Number(row?.number ?? row?.episode_number))
+        .filter((number) => Number.isInteger(number) && number >= startEpisode && number <= endEpisode)
+    )].sort((a, b) => a - b)
+  }
+
+  const { data, error } = await db
+    .from('video_episodes')
+    .select('number, available')
+    .eq('video_story_id', storyId)
+    .gte('number', startEpisode)
+    .lte('number', endEpisode)
+
   if (error) throw new Error('Unable to determine the existing episodes for temporary access.')
 
   return [...new Set(
     (data || [])
       .filter((row) => row?.available !== false)
-      .map((row) => Number(row?.number ?? row?.episode_number))
+      .map((row) => Number(row?.number))
       .filter((number) => Number.isInteger(number) && number >= startEpisode && number <= endEpisode)
   )].sort((a, b) => a - b)
 }
