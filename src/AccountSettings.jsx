@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { getAuthRedirectUrl } from './lib/authRedirect'
+import { PASSWORD_RESET_PATH } from './lib/authRecovery'
+import PasswordInput from './components/PasswordInput'
 
 const DEFAULTS = Object.freeze({
   sleepTimer: 0,
@@ -112,7 +114,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     }
 
     setBusy(true)
-    const redirectTo = getAuthRedirectUrl({ productionSafe: true })
+    const redirectTo = getAuthRedirectUrl({ productionSafe: true, path: PASSWORD_RESET_PATH })
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     })
@@ -381,7 +383,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
         </div>
 
         <form className="account-settings-form" onSubmit={savePassword}>
-          <label><span>New password</span><input type="password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" /></label>
+          <label><span>New password</span><PasswordInput minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" autoComplete="new-password" /></label>
           <button className="primary-btn" type="submit" disabled={busy}>Change Password</button>
         </form>
       </section>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { getAuthRedirectUrl } from './lib/authRedirect'
+import { PASSWORD_RESET_PATH } from './lib/authRecovery'
+import PasswordInput from './components/PasswordInput'
 
 function Auth({ onBack }) {
   const [mode, setMode] = useState('login')
@@ -366,7 +368,7 @@ function Auth({ onBack }) {
 
     setLoading(true)
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: getRedirectUrl(),
+      redirectTo: getAuthRedirectUrl({ productionSafe: true, path: PASSWORD_RESET_PATH }),
     })
 
     if (resetError) {
@@ -452,7 +454,7 @@ function Auth({ onBack }) {
 
                 <div className="auth-field">
                   <label>Password</label>
-                  <input type="password" placeholder="Create password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <PasswordInput placeholder="Create password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={6} />
                 </div>
 
                 <button type="submit" className="auth-submit" disabled={loading}>
@@ -574,7 +576,7 @@ function Auth({ onBack }) {
 
                 <div className="auth-field">
                   <label>Password</label>
-                  <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <PasswordInput placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
                 </div>
 
                 <button type="submit" className="auth-submit" disabled={loading}>

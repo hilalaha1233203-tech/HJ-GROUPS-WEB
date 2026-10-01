@@ -6700,3 +6700,116 @@ canvas {
     scroll-behavior: auto !important;
   }
 }
+
+/* =========================================================
+   HJ GROUPS — ACCOUNT SETTINGS + PASSWORD ACCESSIBILITY
+========================================================= */
+
+.password-input{position:relative;display:block;width:100%;min-width:0}
+.password-input>input{width:100%!important;box-sizing:border-box;padding-right:50px!important}
+.password-visibility-toggle{
+  position:absolute;top:50%;right:6px;transform:translateY(-50%);
+  width:36px;height:36px;min-width:36px;padding:0;display:grid;place-items:center;
+  border:1px solid transparent;border-radius:9px;background:transparent;color:#cbd2e4;
+  line-height:1;z-index:1;transition:background .18s ease,border-color .18s ease,color .18s ease
+}
+.password-visibility-toggle:hover{color:#fff;background:rgba(124,131,255,.12);border-color:rgba(124,131,255,.24)}
+.password-visibility-toggle:focus-visible{outline:2px solid #7c83ff;outline-offset:2px;color:#fff;background:rgba(124,131,255,.12)}
+.password-visibility-toggle:disabled{color:#737b90;opacity:.75;cursor:not-allowed}
+.password-visibility-toggle svg{display:block;flex:0 0 auto}
+.sr-only{
+  position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
+  overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important
+}
+
+.auth-heading p{color:#c7ccdc!important}
+.auth-field label,.login-box-title,.otp-message{color:#d2d7e6!important}
+.method-description{color:#c0c7d8!important;opacity:1!important}
+.method-title{color:#fff!important}
+.method-icon{opacity:1!important;color:#edf0f8}
+.login-method-card{border-color:rgba(255,255,255,.12);background:rgba(16,21,35,.82)}
+.login-method-card:hover,.login-method-card:focus-visible{color:#fff;border-color:rgba(124,131,255,.36);background:rgba(124,131,255,.11)}
+.login-method-card:focus-visible{outline:2px solid #7c83ff;outline-offset:2px}
+.method-back,.auth-switch,.auth-switch button{opacity:1!important}
+.method-back{color:#aeb7ff!important}
+.method-back:hover,.auth-switch button:hover{color:#fff!important;text-decoration:underline}
+.auth-switch{color:#c2c8d8!important}
+
+.account-settings-header p{color:#d1d6e4!important;font-size:13px}
+.account-settings-card{border-color:rgba(124,131,255,.23);background:linear-gradient(145deg,rgba(18,23,39,.96),rgba(8,11,19,.98))}
+.account-settings-card-head small{color:#aeb5ff!important;opacity:1!important}
+.account-settings-card-head h2{color:#fff!important}
+.account-settings-icon{color:#eef1fb!important;opacity:1!important}
+.account-settings-form label,.account-settings-grid label,.account-settings-mini label,.account-recovery-card form label,.password-reset-form label,.password-reset-request-form label{color:#d4d9e7!important}
+.account-settings-form label>span,.account-settings-grid label>span,.account-settings-mini label>span,.account-recovery-card form label>span,.password-reset-form label>span,.password-reset-request-form label>span{color:#d4d9e7!important;opacity:1!important}
+.account-settings-form input,.account-settings-grid input,.account-settings-grid select,.account-settings-mini input,.account-recovery-card input,.password-reset-request-form input{
+  color:#fff!important;background:rgba(17,22,36,.92)!important;border-color:rgba(255,255,255,.14)!important
+}
+.account-settings-form input::placeholder,.account-settings-grid input::placeholder,.account-settings-mini input::placeholder,.account-recovery-card input::placeholder,.password-reset-request-form input::placeholder,.auth-field input::placeholder{color:#9fa8bc!important;opacity:1!important}
+.account-settings-form input:focus,.account-settings-grid input:focus,.account-settings-grid select:focus,.account-settings-mini input:focus,.account-recovery-card input:focus,.password-reset-request-form input:focus,.auth-field input:focus{
+  border-color:rgba(124,131,255,.72)!important;box-shadow:0 0 0 3px rgba(124,131,255,.12)!important;outline:none
+}
+.account-settings-form input:disabled,.account-settings-grid input:disabled,.account-settings-grid select:disabled,.account-settings-mini input:disabled{
+  color:#aeb5c6!important;background:rgba(18,22,33,.72)!important;border-color:rgba(255,255,255,.08)!important;opacity:1!important
+}
+.settings-check,.account-settings-check{color:#eef1f8!important}
+.settings-check span,.account-settings-check span{color:#eef1f8!important;opacity:1!important}
+.settings-check input[type=checkbox],.account-settings-check input[type=checkbox]{accent-color:#7c83ff;opacity:1!important}
+.settings-check input[type=checkbox]:focus-visible,.account-settings-check input[type=checkbox]:focus-visible{outline:2px solid #7c83ff;outline-offset:2px}
+.account-settings-note{color:#c7cedf!important;background:rgba(124,131,255,.08)!important;border-color:rgba(124,131,255,.22)!important}
+.account-settings-mini{border-color:rgba(255,255,255,.105);background:rgba(18,23,38,.72)}
+.account-settings-mini strong{color:#fff!important}
+.account-settings-mini p{color:#bcc4d6!important}
+.account-settings-ok{color:#9ff1c8!important;opacity:1!important}
+.account-settings-status{color:#a8f5ce!important;background:rgba(80,220,150,.10);border-color:rgba(80,220,150,.24)}
+.account-settings-error{color:#ffc0c0!important;background:rgba(255,80,80,.09);border-color:rgba(255,80,80,.24)}
+.account-settings-recovery-flow strong{color:#fff!important}
+.account-recovery-status-list span{color:#d7dcea;opacity:1}
+.account-recovery-status-list .is-ok{color:#9ff1c8!important}
+.account-recovery-status-list .is-warn{color:#ffd0d0!important}
+.account-settings-support-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#fff!important}
+.secondary-btn{color:#fff!important;background:rgba(124,131,255,.10);border-color:rgba(124,131,255,.30)}
+.secondary-btn:hover,.secondary-btn:focus-visible{color:#fff!important;background:rgba(124,131,255,.16);border-color:rgba(124,131,255,.50)}
+.primary-btn{color:#fff!important}
+
+.password-reset-page{
+  position:relative;z-index:2;min-height:100vh;width:min(100% - 28px,560px);margin:0 auto;
+  display:grid;place-items:center;box-sizing:border-box;padding:32px 0 110px
+}
+.password-reset-card{
+  width:100%;box-sizing:border-box;padding:clamp(22px,5vw,34px);border:1px solid rgba(124,131,255,.25);
+  border-radius:22px;background:linear-gradient(145deg,rgba(18,23,39,.97),rgba(7,10,18,.985));
+  box-shadow:0 28px 90px rgba(0,0,0,.48)
+}
+.password-reset-card .auth-logo{margin:0 0 8px;text-align:center}
+.password-reset-card .auth-logo img{width:118px}
+.password-reset-card>.eyebrow{margin-top:12px;color:#aeb5ff}
+.password-reset-card h1{margin:7px 0 8px;color:#fff;font-size:clamp(28px,6vw,38px);letter-spacing:-.8px}
+.password-reset-intro{margin:0;color:#c5ccdd;font-size:13px;line-height:1.65}
+.password-reset-state{display:grid;gap:7px;margin-top:18px;padding:14px;border-radius:13px;border:1px solid rgba(124,131,255,.20);background:rgba(124,131,255,.075)}
+.password-reset-state strong,.password-reset-state span{color:#eef1fa}
+.password-reset-state span{color:#c0c7d8;font-size:12px;line-height:1.55}
+.password-reset-processing{text-align:center}
+.password-reset-success{border-color:rgba(80,220,150,.25);background:rgba(80,220,150,.08)}
+.password-reset-success strong{color:#a8f5ce}
+.password-reset-success .primary-btn{margin-top:10px}
+.password-reset-form,.password-reset-request-form{display:grid;gap:13px;margin-top:18px}
+.password-reset-submit{width:100%;margin-top:2px;background:linear-gradient(135deg,#7c83ff,#6972ee);border:1px solid rgba(255,255,255,.15);color:#fff!important}
+.password-reset-helper{margin:14px 0 0;color:#c2cadb;font-size:12px;line-height:1.55}
+.password-reset-exit{width:100%;margin-top:14px}
+
+@media (max-width:750px){
+  .account-settings-card{padding:17px}
+  .account-settings-grid,.account-settings-recovery-grid{grid-template-columns:1fr}
+  .account-settings-form{grid-template-columns:1fr;align-items:stretch}
+  .account-settings-form button{width:100%}
+  .password-reset-page{width:calc(100% - 20px);padding:18px 0 96px;align-items:start}
+  .password-reset-card{border-radius:18px}
+  .password-reset-card .auth-logo img{width:102px}
+  .password-visibility-toggle{width:38px;height:38px;min-width:38px;right:5px}
+}
+@media (hover:none),(pointer:coarse){
+  .account-settings-form button,.account-settings-grid select,.account-settings-mini button,.settings-check,.password-visibility-toggle,.password-reset-card button{-webkit-tap-highlight-color:rgba(124,131,255,.18)}
+  .account-settings-card,.account-settings-mini,.login-method-card{-webkit-tap-highlight-color:transparent}
+  .method-description,.account-settings-mini p,.account-settings-note,.account-settings-form label,.account-settings-grid label,.settings-check span{opacity:1!important}
+}

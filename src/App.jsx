@@ -4,11 +4,14 @@ import ePub from 'epubjs'
 
 import { supabase } from './supabase'
 import { resolveMediaSource, resolveBookSource } from './lib/secureMedia'
+import { getAuthRedirectUrl } from './lib/authRedirect'
+import { PASSWORD_RESET_PATH, getAuthRecoveryParams, cleanAuthCallbackUrl } from './lib/authRecovery'
 import Auth from './Auth'
 import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
 import PaymentModal from './components/PaymentModal'
+import PasswordInput from './components/PasswordInput'
 
 import {
   resolveAccessType,
@@ -63,6 +66,24 @@ const PDF_OPTIONS = Object.freeze({
 })
 
 const ADMIN_EMAIL = 'hilalaha1233203@gmail.com'
+const PASSWORD_RECOVERY_SESSION_KEY = 'hj_password_recovery_active_v1'
+
+const hasPasswordRecoveryMarker = () => {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.sessionStorage.getItem(PASSWORD_RECOVERY_SESSION_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const setPasswordRecoveryMarker = (active) => {
+  if (typeof window === 'undefined') return
+  try {
+    if (active) window.sessionStorage.setItem(PASSWORD_RECOVERY_SESSION_KEY, '1')
+    else window.sessionStorage.removeItem(PASSWORD_RECOVERY_SESSION_KEY)
+  } catch {}
+}
 
 const ACCOUNT_SETTINGS_KEY = 'hj_account_settings_v2'
 const DEFAULT_ACCOUNT_SETTINGS = Object.freeze({
@@ -809,10 +830,21 @@ export function App() {
   const [accountSettings, setAccountSettings] = useState(DEFAULT_ACCOUNT_SETTINGS)
   const [accountSettingsReadyFor, setAccountSettingsReadyFor] = useState('')
   const accountSettingsSaveTimerRef = useRef(null)
-  const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false)
+  const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const callback = getAuthRecoveryParams(window.location)
+    return callback.isResetPath || callback.isRecoveryFlow
+  })
+  const [passwordRecoveryStatus, setPasswordRecoveryStatus] = useState(() => {
+    if (typeof window === 'undefined') return 'idle'
+    const callback = getAuthRecoveryParams(window.location)
+    return callback.isResetPath || callback.isRecoveryFlow ? 'processing' : 'idle'
+  })
   const [recoveryPassword, setRecoveryPassword] = useState('')
   const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('')
+  const [recoveryEmail, setRecoveryEmail] = useState('')
   const [recoverySaving, setRecoverySaving] = useState(false)
+  const [recoveryRequestSaving, setRecoveryRequestSaving] = useState(false)
   const [recoveryError, setRecoveryError] = useState('')
   const [recoveryMessage, setRecoveryMessage] = useState('')
 
@@ -2088,96 +2120,214 @@ export function App() {
   useEffect(() => {
     let mounted = true
 
-    const finishAuthRedirect = async () => {
-      try {
-        const hash = String(window.location.hash || '').replace(/^#/, '')
-        const hashParams = new URLSearchParams(hash)
-        const accessToken = hashParams.get('access_token')
-        const refreshToken = hashParams.get('refresh_token')
-        const authType = hashParams.get('type')
-        const authError = hashParams.get('error')
-        const authErrorCode = hashParams.get('error_code')
-        const authErrorDescription = hashParams.get('error_description')
-        const code = new URLSearchParams(window.location.search).get('code')
+    const markRecoveryReady = (session) => {
+      if (!mounted || !session?.user) return
+      setUser(session.user)
+      setRecoveryEmail(String(session.user.email || ''))
+      setPasswordRecoveryOpen(true)
+      setPasswordRecoveryStatus('ready')
+      setRecoveryError('')
+      setRecoveryMessage('')
+      setPasswordRecoveryMarker(true)
+    }
 
-        if (authError || authErrorCode) {
-          const friendly = authErrorCode === 'otp_expired'
-            ? 'This password-reset link has expired or was already used. Request a new reset email and open the newest message directly.'
-            : String(authErrorDescription || 'Authentication link could not be completed.')
-          setRecoveryError(friendly)
-          if (authErrorCode === 'otp_expired' || authType === 'recovery') {
-            setPasswordRecoveryOpen(true)
+    const markRecoveryFailure = (message) => {
+      if (!mounted) return
+      setPasswordRecoveryOpen(true)
+      setPasswordRecoveryStatus('error')
+      setRecoveryError(message)
+      setRecoveryMessage('')
+      setRecoveryPassword('')
+      setRecoveryPasswordConfirm('')
+      setPasswordRecoveryMarker(false)
+    }
+
+    const {
+      data: listener,
+    } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          if (session?.user) {
+            markRecoveryReady(session)
+          } else {
+            markRecoveryFailure('The password-recovery session could not be established. Request a new reset email.')
           }
-          window.history.replaceState({}, document.title, window.location.pathname)
+          return
         }
 
-        if (authType === 'recovery') {
+        setUser(session?.user ?? null)
+      }
+    )
+
+    const finishAuthRedirect = async () => {
+      try {
+        const callback = getAuthRecoveryParams(window.location)
+        const recoverySignal = callback.isRecoveryFlow || (callback.isResetPath && hasPasswordRecoveryMarker())
+        const recoveryPage = callback.isResetPath || callback.isRecoveryFlow
+
+        if (recoveryPage) {
           setPasswordRecoveryOpen(true)
+          setPasswordRecoveryStatus('processing')
           setRecoveryError('')
           setRecoveryMessage('')
         }
 
-        if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
+        if (callback.isRecoveryFlow && !callback.isResetPath) {
+          window.history.replaceState(
+            {},
+            document.title,
+            PASSWORD_RESET_PATH + window.location.search + window.location.hash
+          )
+        }
+
+        if (callback.authError || callback.authErrorCode || callback.authErrorDescription) {
+          const isExpired = callback.authErrorCode === 'otp_expired' ||
+            /expired|already.?used|invalid.*(token|otp|link)/i.test(
+              String(callback.authErrorDescription || '')
+            )
+          const friendly = isExpired
+            ? 'This password-reset link has expired or was already used. Enter your email below to request a new reset link.'
+            : String(callback.authErrorDescription || 'Authentication link could not be completed.')
+
+          if (recoverySignal || recoveryPage) {
+            markRecoveryFailure(friendly)
+            window.history.replaceState(
+              {},
+              document.title,
+              cleanAuthCallbackUrl({
+                preserveSearch: false,
+                path: PASSWORD_RESET_PATH,
+              })
+            )
+            return
+          }
+
+          setUser(null)
+          window.history.replaceState(
+            {},
+            document.title,
+            cleanAuthCallbackUrl({ preserveSearch: true })
+          )
+          return
+        }
+
+        let callbackSession = null
+
+        if (callback.accessToken && callback.refreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: callback.accessToken,
+            refresh_token: callback.refreshToken,
           })
 
           if (error) {
+            if (recoverySignal || callback.isResetPath) {
+              markRecoveryFailure('This password-reset link could not be verified. Request a new reset email and open the newest link.')
+              window.history.replaceState(
+                {},
+                document.title,
+                cleanAuthCallbackUrl({
+                  preserveSearch: false,
+                  path: PASSWORD_RESET_PATH,
+                })
+              )
+              return
+            }
             console.warn('Supabase email link session restore failed:', error.message)
           } else {
-            window.history.replaceState(
-              {},
-              document.title,
-              window.location.pathname + window.location.search
-            )
+            callbackSession = data?.session ?? null
           }
-        } else if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code)
+        } else if (callback.code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(callback.code)
 
           if (error) {
+            if (recoverySignal || callback.isResetPath) {
+              markRecoveryFailure('This password-reset link could not be verified on this device. Request a new reset email and open the newest link.')
+              window.history.replaceState(
+                {},
+                document.title,
+                cleanAuthCallbackUrl({
+                  preserveSearch: false,
+                  path: PASSWORD_RESET_PATH,
+                })
+              )
+              return
+            }
             console.warn('Supabase email callback exchange failed:', error.message)
           } else {
+            callbackSession = data?.session ?? null
+          }
+        }
+
+        const {
+          data: { session: currentSession } = {},
+        } = await supabase.auth.getSession()
+        if (!mounted) return
+
+        const effectiveSession = callbackSession || currentSession || null
+
+        if (recoverySignal || callback.isResetPath) {
+          if (effectiveSession?.user && recoverySignal) {
+            markRecoveryReady(effectiveSession)
             window.history.replaceState(
               {},
               document.title,
-              window.location.pathname
+              cleanAuthCallbackUrl({
+                preserveSearch: false,
+                path: PASSWORD_RESET_PATH,
+              })
+            )
+          } else if (callback.isResetPath && hasPasswordRecoveryMarker() && effectiveSession?.user) {
+            markRecoveryReady(effectiveSession)
+            window.history.replaceState(
+              {},
+              document.title,
+              cleanAuthCallbackUrl({
+                preserveSearch: false,
+                path: PASSWORD_RESET_PATH,
+              })
+            )
+          } else {
+            markRecoveryFailure(
+              'This reset page does not have a valid recovery session. Open the newest password-reset email link, or request a new one below.'
+            )
+            window.history.replaceState(
+              {},
+              document.title,
+              cleanAuthCallbackUrl({
+                preserveSearch: false,
+                path: PASSWORD_RESET_PATH,
+              })
+            )
+          }
+        } else {
+          setUser(effectiveSession?.user ?? null)
+          if (callback.accessToken || callback.refreshToken || callback.code) {
+            window.history.replaceState(
+              {},
+              document.title,
+              cleanAuthCallbackUrl({ preserveSearch: true })
             )
           }
         }
       } catch (error) {
-        console.warn('Supabase auth callback handling failed:', error)
+        console.warn('Supabase auth callback handling failed:', String(error?.message || error))
+        if (getAuthRecoveryParams(window.location).isResetPath || hasPasswordRecoveryMarker()) {
+          markRecoveryFailure('We could not complete the password-recovery link. Request a new reset email and open the newest link.')
+          window.history.replaceState(
+            {},
+            document.title,
+            cleanAuthCallbackUrl({
+              preserveSearch: false,
+              path: PASSWORD_RESET_PATH,
+            })
+          )
+        }
       }
     }
 
-    finishAuthRedirect().finally(() => {
-      supabase.auth
-        .getSession()
-        .then(({ data }) => {
-          if (mounted) {
-            setUser(
-              data.session?.user ??
-              null
-            )
-          }
-        })
+    finishAuthRedirect().catch((error) => {
+      console.warn('Supabase auth callback finalization failed:', String(error?.message || error))
     })
-
-    const {
-      data: listener,
-    } =
-      supabase.auth.onAuthStateChange(
-        (event, session) => {
-          if (event === 'PASSWORD_RECOVERY') {
-            setPasswordRecoveryOpen(true)
-            setRecoveryError('')
-            setRecoveryMessage('')
-          }
-          setUser(
-            session?.user ?? null
-          )
-        }
-      )
 
     return () => {
       mounted = false
@@ -6374,6 +6524,230 @@ export function App() {
     }
   }
 
+  const submitPasswordRecovery = async (event) => {
+    event.preventDefault()
+    setRecoveryError('')
+    setRecoveryMessage('')
+
+    if (recoveryPassword.length < 6) {
+      setRecoveryError('New password must be at least 6 characters.')
+      return
+    }
+
+    if (recoveryPassword !== recoveryPasswordConfirm) {
+      setRecoveryError('Passwords do not match.')
+      return
+    }
+
+    if (!hasPasswordRecoveryMarker() && !user) {
+      setRecoveryError('The password-recovery session is no longer active. Request a new reset email.')
+      setPasswordRecoveryStatus('error')
+      return
+    }
+
+    setRecoverySaving(true)
+    const { error } = await supabase.auth.updateUser({
+      password: recoveryPassword,
+    })
+    setRecoverySaving(false)
+
+    if (error) {
+      setRecoveryError(error.message)
+      return
+    }
+
+    setRecoveryPassword('')
+    setRecoveryPasswordConfirm('')
+    setRecoveryError('')
+    setRecoveryMessage('Password updated successfully. For security, this recovery session has been signed out.')
+    setPasswordRecoveryStatus('success')
+    setPasswordRecoveryMarker(false)
+
+    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
+    if (signOutError) {
+      setRecoveryMessage('Password updated successfully. You can now continue to the login screen.')
+      console.warn('Password recovery session cleanup failed:', signOutError.message)
+    }
+  }
+
+  const requestNewRecoveryEmail = async (event) => {
+    event.preventDefault()
+    setRecoveryError('')
+    setRecoveryMessage('')
+
+    const email = recoveryEmail.trim().toLowerCase()
+    if (!email || !email.includes('@')) {
+      setRecoveryError('Enter the email address linked to your HJ GROUPS account.')
+      setPasswordRecoveryStatus('error')
+      return
+    }
+
+    setRecoveryRequestSaving(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: getAuthRedirectUrl({
+        productionSafe: true,
+        path: PASSWORD_RESET_PATH,
+      }),
+    })
+    setRecoveryRequestSaving(false)
+
+    if (error) {
+      setRecoveryError(error.message)
+      setPasswordRecoveryStatus('error')
+      return
+    }
+
+    setPasswordRecoveryStatus('email-sent')
+    setRecoveryMessage('A new password-reset email has been sent. Open the newest email link directly to continue.')
+    setRecoveryError('')
+  }
+
+  const exitPasswordRecovery = () => {
+    setPasswordRecoveryMarker(false)
+    setPasswordRecoveryOpen(false)
+    setPasswordRecoveryStatus('idle')
+    setRecoveryPassword('')
+    setRecoveryPasswordConfirm('')
+    setRecoveryError('')
+    setRecoveryMessage('')
+    setRecoverySaving(false)
+    setRecoveryRequestSaving(false)
+
+    window.history.replaceState({}, document.title, '/')
+
+    if (user) {
+      setLoginOpen(false)
+      setPage('account')
+      return
+    }
+
+    setPage('home')
+    setLoginOpen(true)
+  }
+
+  if (passwordRecoveryOpen) {
+    const recoveryReady = passwordRecoveryStatus === 'ready'
+    const recoveryProcessing = passwordRecoveryStatus === 'processing'
+    const recoverySuccess = passwordRecoveryStatus === 'success'
+    const canRequestNewLink = passwordRecoveryStatus === 'error' || passwordRecoveryStatus === 'email-sent'
+
+    return (
+      <div className={accountSettings.reducedMotion ? 'app reduced-motion' : 'app'}>
+        <canvas
+          ref={particleCanvasRef}
+          className="particle-canvas"
+        />
+
+        <main className="password-reset-page">
+          <section className="password-reset-card" aria-live="polite">
+            <div className="auth-logo">
+              <img src="/hj-groups-logo.png" alt="HJ GROUPS" />
+            </div>
+
+            <div className="eyebrow">ACCOUNT RECOVERY</div>
+            <h1>Reset Your Password</h1>
+            <p className="password-reset-intro">
+              Use the secure recovery session from your newest HJ GROUPS password-reset email to set a new password.
+            </p>
+
+            {recoveryProcessing && (
+              <div className="password-reset-state password-reset-processing">
+                <strong>Checking your recovery link…</strong>
+                <span>Please keep this page open while the secure session is being established.</span>
+              </div>
+            )}
+
+            {recoveryReady && (
+              <form className="password-reset-form" onSubmit={submitPasswordRecovery}>
+                <label>
+                  <span>New Password</span>
+                  <PasswordInput
+                    minLength={6}
+                    value={recoveryPassword}
+                    onChange={(event) => setRecoveryPassword(event.target.value)}
+                    placeholder="At least 6 characters"
+                    autoComplete="new-password"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span>Confirm New Password</span>
+                  <PasswordInput
+                    minLength={6}
+                    value={recoveryPasswordConfirm}
+                    onChange={(event) => setRecoveryPasswordConfirm(event.target.value)}
+                    placeholder="Repeat your new password"
+                    autoComplete="new-password"
+                    required
+                  />
+                </label>
+
+                {recoveryError && (
+                  <div className="account-settings-error" role="alert">{recoveryError}</div>
+                )}
+
+                <button className="primary-btn password-reset-submit" type="submit" disabled={recoverySaving}>
+                  {recoverySaving ? 'Updating Password…' : 'Update Password'}
+                </button>
+              </form>
+            )}
+
+            {recoverySuccess && (
+              <div className="password-reset-state password-reset-success">
+                {recoveryMessage && <strong>{recoveryMessage}</strong>}
+                <span>You can now sign in with your new password.</span>
+                <button className="primary-btn" type="button" onClick={exitPasswordRecovery}>
+                  Continue to Login
+                </button>
+              </div>
+            )}
+
+            {canRequestNewLink && (
+              <>
+                {recoveryError && (
+                  <div className="account-settings-error" role="alert">{recoveryError}</div>
+                )}
+                {recoveryMessage && (
+                  <div className="account-settings-status" role="status">{recoveryMessage}</div>
+                )}
+
+                <form className="password-reset-request-form" onSubmit={requestNewRecoveryEmail}>
+                  <label>
+                    <span>Email Address</span>
+                    <input
+                      type="email"
+                      value={recoveryEmail}
+                      onChange={(event) => setRecoveryEmail(event.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      required
+                    />
+                  </label>
+                  <button className="primary-btn" type="submit" disabled={recoveryRequestSaving}>
+                    {recoveryRequestSaving ? 'Sending…' : 'Request New Reset Email'}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {!recoveryProcessing && !recoverySuccess && passwordRecoveryStatus === 'error' && (
+              <p className="password-reset-helper">
+                Use the newest reset email. Older or already-used links cannot be reused.
+              </p>
+            )}
+
+            {!recoveryProcessing && (
+              <button className="secondary-btn password-reset-exit" type="button" onClick={exitPasswordRecovery}>
+                {user ? 'Back to Account' : 'Back to Login'}
+              </button>
+            )}
+          </section>
+        </main>
+      </div>
+    )
+  }
+
   /* =======================================================
      RENDER
   ======================================================= */
@@ -7940,61 +8314,6 @@ export function App() {
         />
       )}
 
-      {passwordRecoveryOpen && (
-        <div className="modal-overlay account-recovery-overlay" role="dialog" aria-modal="true" aria-label="Set new password">
-          <div className="account-recovery-card">
-            <div className="eyebrow">ACCOUNT RECOVERY</div>
-            <h2>Set a New Password</h2>
-            <p>This recovery session is for the same HJ GROUPS account. Your purchases remain tied to this account.</p>
-
-            {recoveryMessage && <div className="account-settings-status">{recoveryMessage}</div>}
-            {recoveryError && <div className="account-settings-error">{recoveryError}</div>}
-
-            <form onSubmit={async (event) => {
-              event.preventDefault()
-              setRecoveryError('')
-              setRecoveryMessage('')
-
-              if (recoveryPassword.length < 6) {
-                setRecoveryError('Password must be at least 6 characters.')
-                return
-              }
-              if (recoveryPassword !== recoveryPasswordConfirm) {
-                setRecoveryError('Passwords do not match.')
-                return
-              }
-
-              setRecoverySaving(true)
-              const { error } = await supabase.auth.updateUser({ password: recoveryPassword })
-              setRecoverySaving(false)
-
-              if (error) {
-                setRecoveryError(error.message)
-                return
-              }
-
-              setRecoveryPassword('')
-              setRecoveryPasswordConfirm('')
-              setRecoveryMessage('Password updated successfully.')
-              window.setTimeout(() => setPasswordRecoveryOpen(false), 900)
-            }}>
-              <label>
-                <span>New password</span>
-                <input type="password" minLength={6} value={recoveryPassword} onChange={(event) => setRecoveryPassword(event.target.value)} placeholder="At least 6 characters" autoComplete="new-password" />
-              </label>
-              <label>
-                <span>Confirm new password</span>
-                <input type="password" minLength={6} value={recoveryPasswordConfirm} onChange={(event) => setRecoveryPasswordConfirm(event.target.value)} placeholder="Repeat password" autoComplete="new-password" />
-              </label>
-              <button className="primary-btn" type="submit" disabled={recoverySaving}>
-                {recoverySaving ? 'Saving…' : 'Save New Password'}
-              </button>
-            </form>
-
-            <button className="secondary-btn" type="button" onClick={() => setPasswordRecoveryOpen(false)}>Close</button>
-          </div>
-        </div>
-      )}
 
       {/* =====================================================
          FOOTER
