@@ -20,6 +20,7 @@ import {
   adsKeyFor,
   loadUnlockedAds,
   saveUnlockedAd,
+  saveUnlockedAdUntil,
 } from './lib/accessControl'
 
 import {
@@ -911,12 +912,11 @@ export function App() {
 
   const cacheServerAdUnlock = (unlock) => {
     const expiresAt = unlock?.expires_at || unlock?.expiresAt
-    const remainingMs = new Date(expiresAt || '').getTime() - Date.now()
-    const remainingMinutes = Math.ceil(remainingMs / 60000)
-    if (!Number.isFinite(remainingMinutes) || remainingMinutes < 1) return
+    const exactExpiry = new Date(expiresAt || '').getTime()
+    if (!Number.isFinite(exactExpiry) || exactExpiry <= Date.now()) return
 
     if (unlock?.content_type === 'book' && unlock?.content_id != null) {
-      saveUnlockedAd(adsKeyFor('book', unlock.content_id), remainingMinutes)
+      saveUnlockedAdUntil(adsKeyFor('book', unlock.content_id), exactExpiry)
       return
     }
 
