@@ -3843,7 +3843,8 @@ body:has(.reader-overlay:not(.reader-minimized)),
   width: min(1320px, calc(100% - 40px));
   box-sizing: border-box;
   margin: 28px auto 10px;
-  min-height: clamp(420px, 52vh, 560px);
+  height: clamp(420px, 52vh, 560px);
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr);
   gap: clamp(24px, 4vw, 56px);
@@ -3866,9 +3867,19 @@ body:has(.reader-overlay:not(.reader-minimized)),
   pointer-events: none;
 }
 
-.hero-copy { position: relative; z-index: 2; }
+.hero-copy {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
 .hero-copy h1 {
   max-width: 720px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
   margin: 10px 0 18px;
   font-size: clamp(38px, 4.5vw, 64px);
   line-height: .96;
@@ -3878,6 +3889,10 @@ body:has(.reader-overlay:not(.reader-minimized)),
 .hero-copy p {
   max-width: 650px;
   color: var(--hj-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
   font-size: clamp(15px, 1.4vw, 19px);
   line-height: 1.6;
 }
@@ -4121,6 +4136,7 @@ body:has(.reader-overlay:not(.reader-minimized)),
 
   .hero-section {
     width: calc(100% - 24px);
+    height: auto;
     min-height: 0;
     grid-template-columns: 1fr;
     gap: 14px;
