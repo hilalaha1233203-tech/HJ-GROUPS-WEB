@@ -125,3 +125,9 @@ test('rules are normalized into deterministic ascending order before save', () =
     { startEpisode: 1501, endEpisode: null, unlockCount: 3 },
   ])
 })
+
+test('an explicitly empty rule list is rejected instead of silently restoring defaults', () => {
+  const result = validateAdUnlockRules([])
+  assert.equal(result.valid, false)
+  assert.match(result.errors.join(' '), /at least one/i)
+})
