@@ -6438,15 +6438,15 @@ export function App() {
             <span>🎬</span><small>Videos</small>
           </button>
 
-          <button className={page === 'vip' ? 'active' : ''} onClick={() => setPage('vip')}>
+          <button type="button" className={page === 'vip' ? 'active' : ''} aria-current={page === 'vip' ? 'page' : undefined} onClick={() => setPage('vip')}>
             <span>♛</span><small>VIP</small>
           </button>
 
-          <button className={page === 'library' ? 'active' : ''} onClick={() => setPage('library')}>
+          <button type="button" className={page === 'library' ? 'active' : ''} aria-current={page === 'library' ? 'page' : undefined} onClick={() => setPage('library')}>
             <span>♡</span><small>Library</small>
           </button>
 
-          <button className={page === 'account' ? 'active' : ''} onClick={() => {
+          <button type="button" className={page === 'account' ? 'active' : ''} aria-current={page === 'account' ? 'page' : undefined} onClick={() => {
             if (loggedIn) setPage('account')
             else setLoginOpen(true)
           }}>
@@ -9653,7 +9653,7 @@ export function App() {
         className={`bottom-nav ${isAdmin ? 'admin-bottom-nav' : ''}`}
         aria-label="Mobile navigation"
       >
-        <button className={page === 'home' ? 'active' : ''} onClick={() => {
+        <button type="button" className={page === 'home' ? 'active' : ''} aria-current={page === 'home' ? 'page' : undefined} onClick={() => {
           setPage('home')
           setSelectedStory(null)
           window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -9661,19 +9661,22 @@ export function App() {
           <span>⌂</span><small>Home</small>
         </button>
 
-        <button className={page === 'home' ? 'active' : ''} onClick={() => {
-          setPage('home')
-          setSelectedStory(null)
-          requestAnimationFrame(() => document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-        }}>
+        <button
+          type="button"
+          onClick={() => {
+            setPage('home')
+            setSelectedStory(null)
+            requestAnimationFrame(() => document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+          }}
+        >
           <span>🎧</span><small>Audio Stories</small>
         </button>
 
-        <button onClick={() => { setBooksModalOpen(false); setPage('books'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+        <button type="button" aria-current={page === 'books' ? 'page' : undefined} className={page === 'books' ? 'active' : ''} onClick={() => { setBooksModalOpen(false); setPage('books'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
           <span>📚</span><small>Books</small>
         </button>
 
-        <button onClick={() => { setVideoModalOpen(false); setPage('videos'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+        <button type="button" aria-current={page === 'videos' ? 'page' : undefined} className={page === 'videos' ? 'active' : ''} onClick={() => { setVideoModalOpen(false); setPage('videos'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
           <span>🎬</span><small>Videos</small>
         </button>
 
@@ -9693,7 +9696,7 @@ export function App() {
         </button>
 
         {isAdmin && (
-          <button className={adminOpen ? 'active' : ''} onClick={() => setAdminOpen(true)}>
+          <button type="button" className={adminOpen ? 'active' : ''} aria-current={adminOpen ? 'page' : undefined} onClick={() => setAdminOpen(true)}>
             <span>⚙</span><small>Admin</small>
           </button>
         )}
