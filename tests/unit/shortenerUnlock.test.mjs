@@ -478,6 +478,20 @@ test('server unlock flow is range-aware and keeps secure access on the existing 
   assert.match(source, /episodeNumbers/)
 })
 
+test('audio Ads range lookup supports both number and legacy episode_number columns', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+
+  assert.match(source, /const \[numberResult, episodeNumberResult\]/)
+  assert.match(source, /\.gte\('number', startEpisode\)/)
+  assert.match(source, /\.lte\('number', endEpisode\)/)
+  assert.match(source, /\.gte\('episode_number', startEpisode\)/)
+  assert.match(source, /\.lte\('episode_number', endEpisode\)/)
+  assert.match(source, /\[\.\.\.\(numberResult\.data \|\| \[\]\), \.\.\.\(episodeNumberResult\.data \|\| \[\]\)\]/)
+})
+
 test('legacy single-episode entitlements remain readable alongside range entitlements', () => {
   const source = readFileSync(
     resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
