@@ -3826,6 +3826,7 @@ export function App() {
       const media =
         getMediaElement()
 
+      clearMediaLoadingNotice()
       if (!media) return
 
       setDuration(
@@ -5125,6 +5126,7 @@ export function App() {
         if (source) setReaderFile(source)
       }).catch((error) => {
         console.error('Book media access failed:', error)
+        clearMediaLoadingNotice()
         setReaderError(error?.message || 'Unable to open this book.')
         setReaderLoading(false)
       })
