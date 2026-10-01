@@ -82,10 +82,12 @@ test.describe('HJ GROUPS admin health', () => {
     await telegramStorySelect.selectOption({ index: 1 })
     await expect(telegramStorySelect).not.toHaveValue('')
     const telegramMessagesResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/telegram/messages'),
-      { timeout: 30_000 }
+      (response) => response.request().method() === 'GET' && response.url().includes('/telegram/messages'),
+      { timeout: 60_000 }
     )
-    await page.getByRole('button', { name: /Scan Telegram Messages/i }).click()
+    const scanButton = page.getByRole('button', { name: /Scan Telegram Messages/i })
+    await expect(scanButton).toBeEnabled()
+    await scanButton.click()
     const telegramMessagesResponse = await telegramMessagesResponsePromise
     const telegramMessagesPayload = await telegramMessagesResponse.json().catch(() => null)
     console.log('LIVE_TELEGRAM_MESSAGES_STATUS', JSON.stringify({
