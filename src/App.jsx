@@ -3724,7 +3724,8 @@ export function App() {
     if (!currentStory) return
     const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', currentStory.id, episode.number)
     requestAccess(episode, adsKey, () => {
-      analyticsPlaybackSessionRef.current = `${Date.now()}_${Math.random().toString(36).slice(2)}`
+      analyticsPlaybackSessionCounterRef.current += 1
+      analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
       setCurrentEpisode(episode)
       setCurrentTime(0)
       setDuration(0)
