@@ -115,7 +115,7 @@ test.describe('HJ GROUPS admin health', () => {
     const shortenerStatusResponse = await shortenerStatusResponsePromise
     const shortenerStatusPayload = await shortenerStatusResponse.json()
     await expect(page.getByText('Management & Settings', { exact: true })).toBeVisible()
-    expect(shortenerStatusResponse.status(), 'shortener status HTTP response').toBe(200)
+    expect(shortenerStatusResponse.status(), 'shortener status HTTP response: ' + JSON.stringify(shortenerStatusPayload)).toBe(200)
     expect(typeof shortenerStatusPayload.configured?.arolinks).toBe('boolean')
     expect(typeof shortenerStatusPayload.configured?.earn4link).toBe('boolean')
     expect(typeof shortenerStatusPayload.configured?.supabaseServiceRole).toBe('boolean')
