@@ -23,6 +23,16 @@ function normalizeStories(storyRows, episodeRows) {
     const list = episodesByStory.get(ep.story_id) || []
     const messageId = ep.telegram_message_id
     const mediaType = ep.type === 'video' ? 'video' : 'audio'
+    const importKey = String(ep.telegram_import_key || '').trim()
+    const canonicalImportKey = messageId
+      ? String(ep.story_id) + ':' + String(messageId)
+      : ''
+    const isTelegramDuplicate = Boolean(
+      messageId &&
+      importKey &&
+      canonicalImportKey &&
+      importKey !== canonicalImportKey
+    )
 
     const src = messageId && STREAMING_SERVER_URL
       ? `${STREAMING_SERVER_URL}/${mediaType}/message/${encodeURIComponent(messageId)}`
@@ -34,6 +44,7 @@ function normalizeStories(storyRows, episodeRows) {
       title: ep.title,
       type: mediaType,
       telegram_message_id: messageId || null,
+      isTelegramDuplicate,
       src: ep.file_url || src,
       filePath: ep.file_path || '',
       language: ep.language || 'Tamil',
