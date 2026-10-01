@@ -13,6 +13,7 @@ const {
   moneyEquals,
   safeProductPrice,
   verifyWebhookSignature,
+  isPaymentsRuntimeEnabled,
 } = await import('../../server/payment.mjs')
 
 test('payment amount validation rejects zero, negative and non-numeric values', () => {
@@ -77,4 +78,9 @@ test('Cashfree webhook signature requires timestamp + raw body HMAC', () => {
   assert.equal(verifyWebhookSignature(signature, timestamp, rawBody + 'x'), false)
   assert.equal(verifyWebhookSignature(signature, '1720000000001', rawBody), false)
   assert.equal(verifyWebhookSignature('bad', timestamp, rawBody), false)
+})
+
+
+test('payment runtime gate stays disabled unless explicitly enabled', () => {
+  assert.equal(isPaymentsRuntimeEnabled(), false)
 })
