@@ -734,6 +734,87 @@ main {
   gap: 8px;
 }
 
+.details-episode-tools {
+  margin-top: 28px;
+}
+
+.episode-range-nav {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 2px 1px 8px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.episode-range-nav button {
+  flex: 0 0 auto;
+  min-width: 58px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #8b91aa;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.episode-range-nav button:hover {
+  border-color: rgba(124, 131, 255, 0.45);
+  color: #dfe2ff;
+}
+
+.episode-range-nav button.active {
+  border-color: rgba(124, 131, 255, 0.72);
+  background: rgba(124, 131, 255, 0.16);
+  color: #fff;
+}
+
+.episode-range-caption {
+  margin: 6px 1px 12px;
+  color: #656b84;
+  font-size: 10px;
+}
+
+.episode-load-more {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px 14px;
+  border: 1px solid rgba(124, 131, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(124, 131, 255, 0.09);
+  color: #dfe2ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.episode-load-more:hover {
+  border-color: rgba(124, 131, 255, 0.55);
+  background: rgba(124, 131, 255, 0.14);
+}
+
+@media (max-width: 700px) {
+  .details-episode-tools {
+    margin-top: 22px;
+  }
+
+  .episode-range-nav {
+    gap: 6px;
+    padding-bottom: 7px;
+  }
+
+  .episode-range-nav button {
+    min-width: 54px;
+    padding: 7px 9px;
+    font-size: 10px;
+  }
+
+  .episode-range-caption {
+    margin-bottom: 10px;
+  }
+}
+
+
 .details-episodes button {
   width: 100%;
 
