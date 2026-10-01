@@ -43,10 +43,9 @@ import './App.css'
 // Keep a failed optional reader dependency from taking down the entire shell.
 const safeWindow = typeof window !== 'undefined' ? window : null
 
-// The streaming service is deployed separately. Configure its public URL in VITE_STREAMING_SERVER_URL.
-const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL || '')
-  .trim()
-  .replace(/\/+$/, '')
+// The streaming service is deployed separately. Use its stable Vercel project URL
+// instead of pinning the website to an immutable deployment URL.
+import { STREAMING_SERVER_URL } from './lib/streamingUrl'
 
 try {
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
