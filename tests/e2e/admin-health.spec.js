@@ -93,6 +93,10 @@ test.describe('HJ GROUPS admin health', () => {
       'Telegram messages request failed: ' + JSON.stringify(telegramMessagesPayload)
     ).toBe(200)
     expect(Array.isArray(telegramMessagesPayload)).toBe(true)
+    expect(
+      telegramMessagesResponse.headers()['x-hj-telegram-runtime'],
+      'Telegram Vercel endpoint must proxy to the verified Render runtime'
+    ).toBe('render-proxy')
 
     await expect(page.getByText('Access Types', { exact: true }).first()).toBeVisible()
     const audioVip = page.locator('input[name="bulk-audio-default-access_vip"]').first()
