@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
+import PasswordInput from './components/PasswordInput'
 
 const ADMIN_PASSWORD = 'Kalam@2003'
 
@@ -236,13 +237,11 @@ function Admin({ onBack }) {
               Password
             </label>
 
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Enter admin password"
               value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
             />
 
             <button
