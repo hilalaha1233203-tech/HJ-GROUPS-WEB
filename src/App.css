@@ -6445,3 +6445,258 @@ body:has(.reader-overlay:not(.reader-minimized)),
   box-shadow: 0 0 0 3px rgba(241, 162, 58, 0.11);
 }
 
+
+
+/* HJ GROUPS — VERIFIED UX POLISH 2026-10-01 */
+:root {
+  color-scheme: dark;
+  --hj-accent: #7c83ff;
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--hj-accent);
+  outline-offset: 2px;
+}
+
+.app > main {
+  padding-bottom: 104px;
+}
+
+.bottom-nav {
+  bottom: calc(14px + env(safe-area-inset-bottom));
+}
+
+.bottom-nav button {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.bottom-nav button[aria-current="page"] {
+  color: #fff;
+  background: rgba(124, 131, 255, 0.13);
+}
+
+.mini-player {
+  bottom: calc(90px + env(safe-area-inset-bottom));
+  min-width: 0;
+}
+
+.player-overlay,
+.full-player,
+.reader-overlay {
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+.login-overlay,
+.library-overlay,
+.ad-unlock-overlay,
+.modal-overlay {
+  min-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  box-sizing: border-box;
+}
+
+.auth-page,
+.library-window,
+.ad-unlock-card,
+.account-recovery-card {
+  max-height: calc(100dvh - 32px);
+  overscroll-behavior: contain;
+}
+
+.reader-window {
+  height: 100dvh;
+}
+
+.reader-header {
+  padding-top: env(safe-area-inset-top);
+  box-sizing: border-box;
+}
+
+.reader-bottom {
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+.reader-tools button,
+.reader-header > button,
+.reader-navigation button,
+.reader-zoom button,
+.reader-theme-picker button {
+  min-width: 40px;
+  min-height: 40px;
+  touch-action: manipulation;
+}
+
+.reader-lock-badge {
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+}
+
+.reader-body-full {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.story-grid {
+  min-width: 0;
+}
+
+.story-card,
+.library-card,
+.media-catalog-card,
+.media-catalog-hero,
+.hero-art {
+  min-width: 0;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+@media (max-width: 750px) {
+  .top-header {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .bottom-nav {
+    left: max(6px, env(safe-area-inset-left));
+    right: max(6px, env(safe-area-inset-right));
+    width: auto;
+    transform: none;
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
+    bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .admin-bottom-nav {
+    grid-template-columns: repeat(8, minmax(56px, 1fr));
+    overflow-x: auto;
+    justify-content: start;
+  }
+
+  .admin-bottom-nav button {
+    min-width: 56px;
+  }
+
+  .mini-player {
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .story-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .story-card .story-image {
+    height: auto;
+    aspect-ratio: 0.72;
+  }
+
+  .account-page {
+    padding-top: 44px;
+  }
+
+  .auth-page {
+    width: min(430px, calc(100vw - 24px));
+    padding: 24px;
+  }
+
+  .reader-tools button,
+  .reader-header > button,
+  .reader-navigation button,
+  .reader-zoom button,
+  .reader-theme-picker button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 430px) {
+  .story-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .story-card .story-image {
+    aspect-ratio: 0.72;
+  }
+
+  .mini-player {
+    gap: 5px;
+  }
+
+  .mini-cover {
+    width: 50px;
+    height: 50px;
+  }
+
+  .mini-info {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mini-progress {
+    display: none;
+  }
+
+  .mini-control,
+  .mini-expand,
+  .mini-close {
+    width: 36px;
+    height: 36px;
+  }
+
+  .ad-unlock-actions {
+    flex-direction: column-reverse;
+  }
+
+  .ad-unlock-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
