@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { getAuthRedirectUrl } from './lib/authRedirect'
 
 function Auth({ onBack }) {
   const [mode, setMode] = useState('login')
@@ -26,15 +27,7 @@ function Auth({ onBack }) {
     setError('')
   }
 
-  const getRedirectUrl = () => {
-    const configured = String(
-      import.meta.env.VITE_PUBLIC_SITE_URL || ''
-    ).trim().replace(/\/+$/, '')
-
-    return configured
-      ? `${configured}/`
-      : `${window.location.origin}/`
-  }
+  const getRedirectUrl = getAuthRedirectUrl
 
 
   const startGoogleBackupLogin = async () => {
