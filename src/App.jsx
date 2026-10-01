@@ -6,6 +6,7 @@ import { supabase } from './supabase'
 import { resolveMediaSource, resolveBookSource } from './lib/secureMedia'
 import Auth from './Auth'
 import AccountSettings from './AccountSettings'
+import { getAuthRedirectUrl } from './lib/authRedirect'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
 import PaymentModal from './components/PaymentModal'
@@ -802,6 +803,7 @@ export function App() {
 
   const [user, setUser] =
     useState(null)
+  const [supportTelegramUrl, setSupportTelegramUrl] = useState('')
 
   const [purchasedStoryIds, setPurchasedStoryIds] = useState(new Set())
   const [contentAccessSettings, setContentAccessSettings] = useState(() => loadCachedContentAccessSettings())
@@ -2094,7 +2096,21 @@ export function App() {
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
         const authType = hashParams.get('type')
+        const authError = hashParams.get('error')
+        const authErrorCode = hashParams.get('error_code')
+        const authErrorDescription = hashParams.get('error_description')
         const code = new URLSearchParams(window.location.search).get('code')
+
+        if (authError || authErrorCode) {
+          const friendly = authErrorCode === 'otp_expired'
+            ? 'This password-reset link has expired or was already used. Request a new reset email and open the newest message directly.'
+            : String(authErrorDescription || 'Authentication link could not be completed.')
+          setRecoveryError(friendly)
+          if (authErrorCode === 'otp_expired' || authType === 'recovery') {
+            setPasswordRecoveryOpen(true)
+          }
+          window.history.replaceState({}, document.title, window.location.pathname)
+        }
 
         if (authType === 'recovery') {
           setPasswordRecoveryOpen(true)
@@ -2168,6 +2184,23 @@ export function App() {
       mounted = false
       listener.subscription.unsubscribe()
     }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const loadPublicSettings = async () => {
+      try {
+        const response = await fetch('/api/public-settings', { cache: 'no-store' })
+        if (!response.ok) return
+        const payload = await response.json()
+        const value = String(payload?.website?.supportTelegramUrl || '').trim()
+        if (mounted) setSupportTelegramUrl(value)
+      } catch (error) {
+        console.warn('Public settings load failed:', error)
+      }
+    }
+    loadPublicSettings()
+    return () => { mounted = false }
   }, [])
 
   useEffect(() => {
@@ -7904,6 +7937,7 @@ export function App() {
           onSleepTimer={startSleepTimer}
           onApplyPlayerSettings={applyAccountPlayerSettings}
           isAdmin={isAdmin}
+          supportTelegramUrl={supportTelegramUrl}
         />
       )}
 
