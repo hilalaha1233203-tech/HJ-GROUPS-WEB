@@ -21,9 +21,17 @@ const {
   isReusableShortLink,
   isEntitlementActive,
   chooseUnlockExpiry,
+  extractBearer,
 } = await import('../../server/shortenerUnlock.mjs')
 
 const shortener = await import('../../src/lib/shortenerProviders.js')
+
+test('Bearer authentication header is parsed correctly', () => {
+  assert.equal(extractBearer({ headers: { authorization: 'Bearer abc123' } }), 'abc123')
+  assert.equal(extractBearer({ headers: { authorization: 'bearer xyz789' } }), 'xyz789')
+  assert.equal(extractBearer({ headers: { authorization: 'Basic abc123' } }), '')
+  assert.equal(extractBearer({ headers: {} }), '')
+})
 
 test('provider normalization defaults to AroLinks primary and Earn4Link fallback', () => {
   const settings = shortener.normalizeShortenerSettings({})
