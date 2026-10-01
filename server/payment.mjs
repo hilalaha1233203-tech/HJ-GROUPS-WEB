@@ -429,10 +429,11 @@ export async function handlePaymentRequest(req, res, url, readBody, readRawBody)
   }
 }
 
+export const isPaymentsRuntimeEnabled = () => PAYMENT_RUNTIME_ENABLED
+
 export {
   isFinitePositiveAmount,
   moneyEquals,
   safeProductPrice,
   verifyWebhookSignature,
-  isPaymentsRuntimeEnabled: () => PAYMENT_RUNTIME_ENABLED,
 }
