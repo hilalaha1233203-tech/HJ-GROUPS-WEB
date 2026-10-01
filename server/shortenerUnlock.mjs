@@ -1,11 +1,26 @@
 import crypto from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = String(
-  process.env.SUPABASE_URL ||
-  process.env.VITE_SUPABASE_URL ||
-  'https://yajkfglagnyvenddyvok.supabase.co'
-).trim().replace(/\/+$/, '')
+function resolveSupabaseUrl() {
+  const candidates = [
+    process.env.SUPABASE_URL,
+    process.env.VITE_SUPABASE_URL,
+    'https://yajkfglagnyvenddyvok.supabase.co',
+  ]
+
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim().replace(/\/+$/, '')
+    try {
+      const parsed = new URL(value)
+      if (parsed.protocol === 'https:' && parsed.hostname) return value
+    } catch {}
+  }
+
+  return ''
+}
+
+const SUPABASE_URL = resolveSupabaseUrl()
+const SHORTENER_STATUS_VERSION = '2026-10-01-auth-diagnostics-1'
 
 const SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
 const UNLOCK_TOKEN_SECRET = String(process.env.UNLOCK_TOKEN_SECRET || '').trim()
@@ -23,14 +38,20 @@ let serviceClient = null
 
 function getServiceClient() {
   if (!SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured.')
+  if (!SUPABASE_URL) throw new Error('Supabase server URL is not configured.')
   if (!serviceClient) {
-    serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    try {
+      serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
         detectSessionInUrl: false,
       },
-    })
+      })
+    } catch {
+      serviceClient = null
+      throw new Error('Supabase server client configuration is invalid.')
+    }
   }
   return serviceClient
 }
@@ -87,7 +108,13 @@ function extractBearer(req) {
 async function authenticate(req) {
   const token = extractBearer(req)
   if (!token) throw new Error('Authentication required.')
-  const { data, error } = await getServiceClient().auth.getUser(token)
+  let result
+  try {
+    result = await getServiceClient().auth.getUser(token)
+  } catch {
+    throw new Error('Supabase auth verification failed.')
+  }
+  const { data, error } = result
   if (error || !data?.user) throw new Error('Authentication failed.')
   return data.user
 }
@@ -939,6 +966,7 @@ async function status(req, res) {
   return json(res, 200, {
     ok: !settingsError && configured.supabaseServiceRole && configured.publicBaseUrl,
     supabaseUrl: Boolean(SUPABASE_URL),
+    diagnosticVersion: SHORTENER_STATUS_VERSION,
     enabled: settings.shortenerEnabled,
     primary: settings.primary,
     fallback: settings.fallback,
@@ -1040,6 +1068,7 @@ export async function handleShortenerRequest(req, res, url, readBody) {
         : 500
     return json(res, statusCode, {
       error: statusCode === 401 ? message : 'Shortener service error.',
+      code: statusCode === 503 ? 'SHORTENER_CONFIGURATION_ERROR' : statusCode === 502 ? 'SUPABASE_AUTH_ERROR' : 'SHORTENER_INTERNAL_ERROR',
     }, corsHeaders(req))
   }
 }
