@@ -97,8 +97,14 @@ export function loadUnlockedAds() {
 export function saveUnlockedAd(key, durationMinutes = 360) {
   if (!key || typeof window === 'undefined') return null
   const duration = Math.min(1440, Math.max(1, Number(durationMinutes) || 360))
-  const expiresAt = Date.now() + duration * 60 * 1000
+  const requestedExpiry = Date.now() + duration * 60 * 1000
   const expiries = readAdUnlockExpiries()
+  const existingExpiry = Number(expiries[String(key)])
+  // Never let a later server entitlement get shortened by a second sync row
+  // arriving with a smaller remaining duration.
+  const expiresAt = Number.isFinite(existingExpiry) && existingExpiry > requestedExpiry
+    ? existingExpiry
+    : requestedExpiry
   expiries[String(key)] = expiresAt
   writeAdUnlockExpiries(expiries)
   localStorage.setItem(
