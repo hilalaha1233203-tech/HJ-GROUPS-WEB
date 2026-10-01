@@ -364,6 +364,19 @@ test('a direct unlock route cannot grant abandoned-flow access', () => {
   assert.equal(startBlock.includes("createIntent"), true)
 })
 
+test('completion polling without a return cookie is a successful no-op', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+  const completeStart = source.indexOf('async function completeUnlock')
+  const block = source.slice(completeStart, source.indexOf('async function unlockLanding'))
+  assert.match(
+    block,
+    /if \(!rawToken\) return json\(res, 200, \{ ok: false, reason: 'no_completion_session' \}\)/
+  )
+})
+
 test('final completion requires the authenticated completion endpoint to consume the one-time session', () => {
   const source = readFileSync(
     resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
