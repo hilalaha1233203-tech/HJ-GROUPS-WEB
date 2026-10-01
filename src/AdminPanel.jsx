@@ -776,7 +776,10 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     if (bulkSelectedIds.length === bulkMessages.length) {
       setBulkSelectedIds([])
     } else {
-      setBulkSelectedIds(bulkMessages.map(m => m.messageId))
+      // Telegram scan normally returns newest-first. Select All imports from
+      // the bottom of that list first so auto-numbered episodes become 1, 2,
+      // 3 ... in chronological/message order.
+      setBulkSelectedIds([...bulkMessages].reverse().map(m => m.messageId))
     }
   }
 
