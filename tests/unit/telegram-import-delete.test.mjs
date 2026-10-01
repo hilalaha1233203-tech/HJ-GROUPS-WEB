@@ -26,6 +26,14 @@ test('Telegram import is protected by database identity and a unique import key'
   assert.match(migration, /PARTITION BY story_id, telegram_message_id/)
 })
 
+test('Telegram Select All reverses scan order so auto-numbered episodes import 1 to N from the bottom up', () => {
+  const panel = read('src/AdminPanel.jsx')
+  assert.match(
+    panel,
+    /setBulkSelectedIds\(\[\.\.\.bulkMessages\]\.reverse\(\)\.map\(m => m\.messageId\)\)/
+  )
+})
+
 test('Admin delete awaits the database operation and deletes by primary-key identity', () => {
   const panel = read('src/AdminPanel.jsx')
   const app = read('src/App.jsx')
