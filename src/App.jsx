@@ -752,6 +752,7 @@ export function App() {
 
   const [currentMediaSrc, setCurrentMediaSrc] = useState('')
   const mediaResolveRunRef = useRef(0)
+  const mediaLoadTimerRef = useRef(null)
 
   const [activePlayerKind, setActivePlayerKind] =
     useState(null)
@@ -2243,6 +2244,10 @@ export function App() {
   useEffect(() => () => {
     if (accountSettingsSaveTimerRef.current) clearTimeout(accountSettingsSaveTimerRef.current)
     if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current)
+    if (mediaLoadTimerRef.current) {
+      window.clearTimeout(mediaLoadTimerRef.current)
+      mediaLoadTimerRef.current = null
+    }
   }, [])
 
   const applyAccountPlayerSettings = (next) => {
@@ -2440,6 +2445,10 @@ export function App() {
     let particles = []
     let ready = false
     let scrollPhase = 0
+    let lastFrameTime = 0
+    const reduceWatermarkMotion =
+      Boolean(accountSettings.reducedMotion || accountSettings.dataSaver) ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 
     const resize = () => {
       const previousWidth = width
@@ -2570,9 +2579,9 @@ export function App() {
         targetHeight / 2
 
       const step =
-        targetWidth > 220
-          ? 3
-          : 2
+        reduceWatermarkMotion
+          ? 4
+          : (targetWidth > 220 ? 4 : 3)
 
       for (
         let y = 0;
@@ -2622,14 +2631,13 @@ export function App() {
       ready = true
     }
 
-    const animate =
-      () => {
-        ctx.clearRect(
-          0,
-          0,
-          width,
-          height
-        )
+    const drawFrame = () => {
+      ctx.clearRect(
+        0,
+        0,
+        width,
+        height
+      )
 
         if (ready) {
           const mouse =
@@ -2785,11 +2793,24 @@ export function App() {
             0.25
         }
 
-        animationId =
-          requestAnimationFrame(
-            animate
-          )
+    }
+
+    const animate = (timestamp = 0) => {
+      if (document.hidden) {
+        animationId = requestAnimationFrame(animate)
+        return
       }
+
+      if (timestamp - lastFrameTime < 32) {
+        animationId = requestAnimationFrame(animate)
+        return
+      }
+
+      lastFrameTime = timestamp
+      drawFrame()
+
+      animationId = requestAnimationFrame(animate)
+    }
 
     const handleScroll = () => {
       // Bounded phase shift: scrolling moves the particles subtly while
@@ -2838,7 +2859,11 @@ export function App() {
     )
 
     handleScroll()
-    animate()
+    if (reduceWatermarkMotion) {
+      drawFrame()
+    } else {
+      animate()
+    }
 
     return () => {
       cancelAnimationFrame(
@@ -2865,7 +2890,7 @@ export function App() {
         handleScroll
       )
     }
-  }, [])
+  }, [accountSettings.dataSaver, accountSettings.reducedMotion])
 
   /* =======================================================
      ACCESS CONTROL
@@ -3129,7 +3154,13 @@ export function App() {
     }
 
   const loadAndPlay = (episode, story = currentStory, mediaSrc = '') => {
-    window.setTimeout(() => {
+    if (mediaLoadTimerRef.current) {
+      window.clearTimeout(mediaLoadTimerRef.current)
+    }
+
+    const timerId = window.setTimeout(() => {
+      if (mediaLoadTimerRef.current !== timerId) return
+      mediaLoadTimerRef.current = null
       const media = episode.type === 'video' ? videoRef.current : audioRef.current
       if (!media) return setIsPlaying(false)
       const adsKey = story ? adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', story.id, episode.number) : undefined
@@ -3180,10 +3211,16 @@ export function App() {
         setIsPlaying(false)
       }
     }, 80)
+
+    mediaLoadTimerRef.current = timerId
   }
 
   const prepareEpisodePlayback = async (episode, story) => {
     const runId = ++mediaResolveRunRef.current
+    if (mediaLoadTimerRef.current) {
+      window.clearTimeout(mediaLoadTimerRef.current)
+      mediaLoadTimerRef.current = null
+    }
     setIsPlaying(false)
     setCurrentMediaSrc('')
     try {
@@ -3567,6 +3604,10 @@ export function App() {
       setFullPlayer(false)
       setIsPlaying(false)
       mediaResolveRunRef.current += 1
+      if (mediaLoadTimerRef.current) {
+        window.clearTimeout(mediaLoadTimerRef.current)
+        mediaLoadTimerRef.current = null
+      }
       setCurrentMediaSrc('')
 
       setActivePlayerKind(
