@@ -67,6 +67,43 @@ create unique index if not exists ad_unlocks_user_content_idx
 create index if not exists ad_unlocks_expiry_idx
   on public.ad_unlocks (expires_at);
 
+alter table public.ad_unlocks
+  add column if not exists story_id bigint,
+  add column if not exists start_episode_number integer,
+  add column if not exists end_episode_number integer;
+
+do $
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'ad_unlocks_episode_range_check'
+      and conrelid = 'public.ad_unlocks'::regclass
+  ) then
+    alter table public.ad_unlocks
+      add constraint ad_unlocks_episode_range_check
+      check (
+        (start_episode_number is null and end_episode_number is null)
+        or (
+          story_id is not null
+          and start_episode_number is not null
+          and end_episode_number is not null
+          and start_episode_number >= 1
+          and end_episode_number >= start_episode_number
+        )
+      );
+  end if;
+end $;
+
+create index if not exists ad_unlocks_user_story_range_idx
+  on public.ad_unlocks (
+    user_id,
+    content_type,
+    story_id,
+    start_episode_number,
+    end_episode_number,
+    expires_at
+  );
+
 alter table public.ad_unlocks enable row level security;
 revoke all on public.ad_unlocks from anon, authenticated;
 grant all on public.ad_unlocks to service_role;
