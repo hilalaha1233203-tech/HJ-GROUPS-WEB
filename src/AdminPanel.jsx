@@ -1955,11 +1955,35 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     </button>
                   </div>
                   <div className="shortener-health-grid">
-                    <span className={shortenerHealth?.configured?.arolinks ? 'configured' : 'not-configured'}>
-                      <i /> AroLinks: {shortenerHealth?.configured?.arolinks ? 'Configured' : 'Not configured'}
+                    <span className={
+                      shortenerHealth?.configured?.arolinks === true
+                        ? 'configured'
+                        : shortenerHealth?.configured?.arolinks === false
+                          ? 'not-configured'
+                          : 'unknown'
+                    }>
+                      <i /> AroLinks: {
+                        shortenerHealth?.configured?.arolinks === true
+                          ? 'Configured'
+                          : shortenerHealth?.configured?.arolinks === false
+                            ? 'Not configured'
+                            : 'Unavailable'
+                      }
                     </span>
-                    <span className={shortenerHealth?.configured?.earn4link ? 'configured' : 'not-configured'}>
-                      <i /> Earn4Link: {shortenerHealth?.configured?.earn4link ? 'Configured' : 'Not configured'}
+                    <span className={
+                      shortenerHealth?.configured?.earn4link === true
+                        ? 'configured'
+                        : shortenerHealth?.configured?.earn4link === false
+                          ? 'not-configured'
+                          : 'unknown'
+                    }>
+                      <i /> Earn4Link: {
+                        shortenerHealth?.configured?.earn4link === true
+                          ? 'Configured'
+                          : shortenerHealth?.configured?.earn4link === false
+                            ? 'Not configured'
+                            : 'Unavailable'
+                      }
                     </span>
                   </div>
                   {shortenerHealth?.error && (
