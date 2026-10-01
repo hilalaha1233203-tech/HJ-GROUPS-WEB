@@ -3,7 +3,7 @@ import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
 import { normalizeShortenerSettings } from './lib/shortenerProviders'
 import { supabase } from './supabase'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
 
@@ -484,6 +484,19 @@ function AdminPanel({
   const [bulkMessages, setBulkMessages] = useState([])
   const [bulkSelectedIds, setBulkSelectedIds] = useState([])
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkImporting, setBulkImporting] = useState(false)
+  const bulkImportRunningRef = useRef(false)
+  const [bulkImportProgress, setBulkImportProgress] = useState({
+    status: 'idle',
+    processed: 0,
+    total: 0,
+    imported: 0,
+    skipped: 0,
+    duplicates: 0,
+    failed: 0,
+    currentItem: '',
+    error: '',
+  })
   const [bulkTitleOverrides, setBulkTitleOverrides] = useState({})
   const [bulkNumberOverrides, setBulkNumberOverrides] = useState({})
   const [bulkAccessTypes, setBulkAccessTypes] = useState({})
@@ -685,6 +698,10 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   }
 
   const handleBulkImport = async () => {
+    if (bulkImportRunningRef.current) {
+      showToast('Telegram import is already running. Please wait for it to finish.', 'error')
+      return
+    }
     if (!bulkStoryId) {
       showToast('Select a story first', 'error')
       return
@@ -700,32 +717,66 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       return
     }
 
-    const existingMsgIds = new Set(
-      (story.episodes || [])
-        .map((episode) => episode.telegram_message_id || extractStreamingMessageId(episode.src))
-        .filter((id) => Number.isFinite(Number(id)))
-        .map(Number)
-    )
-
-    let maxEpisodeNumber = (story.episodes || []).reduce(
-      (max, episode) => Math.max(max, Number(episode.number) || 0),
-      0
-    )
-
     const selectedMsgs = bulkSelectedIds
       .map((id) => bulkMessages.find((message) => String(message.messageId) === String(id)))
       .filter(Boolean)
 
+    bulkImportRunningRef.current = true
+    setBulkImporting(true)
+    setBulkImportProgress({
+      status: 'running',
+      processed: 0,
+      total: selectedMsgs.length,
+      imported: 0,
+      skipped: selectedMsgs.length !== bulkSelectedIds.length ? bulkSelectedIds.length - selectedMsgs.length : 0,
+      duplicates: 0,
+      failed: 0,
+      currentItem: selectedMsgs.length ? String(selectedMsgs[0].fileName || selectedMsgs[0].caption || `Telegram message ${selectedMsgs[0].messageId}`) : '',
+      error: '',
+    })
+
+    let processedCount = 0
     let importedCount = 0
-    let skippedCount = 0
+    let skippedCount = selectedMsgs.length !== bulkSelectedIds.length ? bulkSelectedIds.length - selectedMsgs.length : 0
+    let duplicateCount = 0
     let failedCount = 0
 
     try {
-      for (const msg of selectedMsgs) {
-        const messageId = Number(msg.messageId)
+      let maxEpisodeNumber = (story.episodes || []).reduce(
+        (max, episode) => Math.max(max, Number(episode.number) || 0),
+        0
+      )
 
-        if (!Number.isFinite(messageId) || existingMsgIds.has(messageId)) {
+      for (const [index, msg] of selectedMsgs.entries()) {
+        const messageId = Number(msg.messageId)
+        const label = String(
+          bulkTitleOverrides[msg.messageId] ??
+          msg.caption ??
+          msg.fileName ??
+          `Telegram message ${msg.messageId}`
+        ).trim()
+
+        setBulkImportProgress((prev) => ({
+          ...prev,
+          currentItem: label || `Telegram message ${msg.messageId}`,
+          processed: processedCount,
+          imported: importedCount,
+          skipped: skippedCount,
+          duplicates: duplicateCount,
+          failed: failedCount,
+        }))
+
+        if (!Number.isFinite(messageId)) {
           skippedCount++
+          processedCount++
+          setBulkImportProgress((prev) => ({
+            ...prev,
+            processed: processedCount,
+            skipped: skippedCount,
+            currentItem: index + 1 < selectedMsgs.length
+              ? String(selectedMsgs[index + 1].fileName || selectedMsgs[index + 1].caption || `Telegram message ${selectedMsgs[index + 1].messageId}`)
+              : '',
+          }))
           continue
         }
 
@@ -734,16 +785,11 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
           ? overrideNumber
           : maxEpisodeNumber + 1
 
-        const finalTitle = String(
-          bulkTitleOverrides[msg.messageId] ??
-          msg.caption ??
-          msg.fileName ??
-          'Untitled Episode'
-        ).trim()
+        const finalTitle = label || 'Untitled Episode'
 
         const episode = {
           number: finalNumber,
-          title: finalTitle || 'Untitled Episode',
+          title: finalTitle,
           type: 'audio',
           src: '',
           telegram_message_id: messageId,
@@ -752,13 +798,13 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         }
 
         try {
-          // Always go through App.jsx's persistence callback. This correctly
-          // converts tg-story-<id> into the real Supabase story id and also
-          // refreshes the Telegram catalogue after a successful insert.
-          await onAddEpisode(story.id, episode)
-          importedCount++
-          existingMsgIds.add(messageId)
-          maxEpisodeNumber = Math.max(maxEpisodeNumber, finalNumber)
+          const result = await onAddEpisode(story.id, episode)
+          if (result?.status === 'duplicate') {
+            duplicateCount++
+          } else {
+            importedCount++
+            maxEpisodeNumber = Math.max(maxEpisodeNumber, finalNumber)
+          }
         } catch (error) {
           failedCount++
           console.error('Telegram episode import failed:', {
@@ -767,25 +813,68 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
             error,
           })
         }
+
+        processedCount++
+        setBulkImportProgress({
+          status: 'running',
+          processed: processedCount,
+          total: selectedMsgs.length,
+          imported: importedCount,
+          skipped: skippedCount,
+          duplicates: duplicateCount,
+          failed: failedCount,
+          currentItem: index + 1 < selectedMsgs.length
+            ? String(selectedMsgs[index + 1].fileName || selectedMsgs[index + 1].caption || `Telegram message ${selectedMsgs[index + 1].messageId}`).trim()
+            : '',
+          error: '',
+        })
       }
 
       setBulkSelectedIds([])
+      const finalStatus = failedCount > 0 ? 'failed' : 'completed'
+      setBulkImportProgress({
+        status: finalStatus,
+        processed: processedCount,
+        total: selectedMsgs.length,
+        imported: importedCount,
+        skipped: skippedCount,
+        duplicates: duplicateCount,
+        failed: failedCount,
+        currentItem: '',
+        error: failedCount > 0
+          ? `${failedCount} Telegram item(s) failed to import. Check the error details and retry the failed item(s).`
+          : '',
+      })
 
       if (failedCount > 0) {
         showToast(
-          `${importedCount} imported, ${failedCount} failed. Check the console for details.`,
+          `${importedCount} imported, ${duplicateCount} duplicates, ${skippedCount} skipped, ${failedCount} failed.`,
           'error'
         )
-      } else if (skippedCount > 0) {
+      } else if (duplicateCount > 0 || skippedCount > 0) {
         showToast(
-          `${importedCount} episodes imported successfully. ${skippedCount} duplicates skipped.`
+          `${importedCount} episodes imported. ${duplicateCount} duplicates skipped and ${skippedCount} invalid selections skipped.`
         )
       } else {
         showToast(`${importedCount} episodes imported successfully`)
       }
     } catch (error) {
       console.error('Error during bulk Telegram import:', error)
-      showToast('Telegram import failed. Check console.', 'error')
+      setBulkImportProgress({
+        status: 'failed',
+        processed: processedCount,
+        total: selectedMsgs.length,
+        imported: importedCount,
+        skipped: skippedCount,
+        duplicates: duplicateCount,
+        failed: failedCount + 1,
+        currentItem: '',
+        error: String(error?.message || 'Telegram import failed.'),
+      })
+      showToast(`Telegram import failed: ${error?.message || error}`, 'error')
+    } finally {
+      bulkImportRunningRef.current = false
+      setBulkImporting(false)
     }
   }
 
@@ -863,7 +952,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   }
 
   const startEditEpisode = (story, episode) => {
-    setEditingEpisode({ storyId: story.id, originalNumber: episode.number })
+    setEditingEpisode({ storyId: story.id, originalId: episode.id ?? null, originalNumber: episode.number })
     setEpisodeStoryId(String(story.id))
     setEpisodeNumber(String(episode.number))
     setEpisodeTitle(episode.title || '')
@@ -919,7 +1008,12 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       }
 
       if (editingEpisode) {
-        await onUpdateEpisode(editingEpisode.storyId, Number(editingEpisode.originalNumber), data)
+        await onUpdateEpisode(
+          editingEpisode.storyId,
+          Number(editingEpisode.originalNumber),
+          data,
+          editingEpisode.originalId
+        )
         showToast('Episode updated successfully')
       } else {
         await onAddEpisode(episodeStoryId, data)
@@ -1448,14 +1542,18 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     }
   }
 
-  const handleDeleteEpisode = (storyId, episodeNumber) => {
+  const handleDeleteEpisode = async (storyId, episodeId) => {
+    if (!episodeId) {
+      showToast('This episode is missing its database ID and cannot be safely deleted.', 'error')
+      return
+    }
     if (window.confirm('Are you sure you want to delete this episode?')) {
       try {
-        onDeleteEpisode(storyId, episodeNumber)
+        await onDeleteEpisode(storyId, episodeId)
         showToast('Episode deleted successfully')
       } catch (error) {
-        console.error(error)
-        showToast('Error deleting episode', 'error')
+        console.error('Error deleting episode:', error)
+        showToast(`Error deleting episode: ${error?.message || error}`, 'error')
       }
     }
   }
@@ -1964,8 +2062,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <AccessTypeSelect groupName="bulk-audio-default-access" value={bulkDefaultAccessType} onChange={setBulkDefaultAccessType} />
                 </div>
 
-                <button type="button" className="admin-submit" style={{ backgroundColor: '#7C83FF' }} onClick={handleScanTelegram} disabled={bulkLoading}>
-                  {bulkLoading ? '🔄 Scanning...' : '🔄 Scan Telegram Messages'}
+                <button type="button" className="admin-submit" style={{ backgroundColor: '#7C83FF' }} onClick={handleScanTelegram} disabled={bulkLoading || bulkImporting}>
+                  {bulkLoading ? '🔄 Scanning...' : bulkImporting ? '⏳ Importing...' : '🔄 Scan Telegram Messages'}
                 </button>
 
                 {bulkMessages.length > 0 && (
@@ -2028,8 +2126,82 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                       })}
                     </div>
 
-                    <button type="button" className="admin-submit" style={{ marginTop: '20px' }} onClick={handleBulkImport} disabled={bulkSelectedIds.length === 0}>
-                      ⬆️ Import Selected
+                    {bulkImportProgress.status !== 'idle' && (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        style={{
+                          marginTop: '16px',
+                          padding: '14px',
+                          borderRadius: '10px',
+                          background: 'rgba(0,0,0,0.34)',
+                          border: `1px solid ${bulkImportProgress.status === 'failed' ? 'rgba(244,67,54,0.5)' : 'rgba(124,131,255,0.35)'}`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <strong style={{ color: '#fff' }}>
+                            {bulkImportProgress.status === 'running'
+                              ? '⏳ Importing Telegram...'
+                              : bulkImportProgress.status === 'completed'
+                                ? '✅ Telegram import completed'
+                                : '❌ Telegram import failed'}
+                          </strong>
+                          {bulkImportProgress.total > 0 && (
+                            <span style={{ color: '#cfd2ff', fontSize: '13px' }}>
+                              {bulkImportProgress.processed} / {bulkImportProgress.total} processed
+                            </span>
+                          )}
+                        </div>
+
+                        {bulkImportProgress.total > 0 ? (
+                          <div style={{ marginTop: '10px' }}>
+                            <div
+                              aria-label="Telegram import progress"
+                              role="progressbar"
+                              aria-valuemin="0"
+                              aria-valuemax={bulkImportProgress.total}
+                              aria-valuenow={bulkImportProgress.processed}
+                              style={{ height: '8px', borderRadius: '999px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}
+                            >
+                              <div
+                                style={{
+                                  height: '100%',
+                                  width: `${Math.max(0, Math.min(100, (bulkImportProgress.processed / bulkImportProgress.total) * 100))}%`,
+                                  transition: 'width 180ms ease',
+                                  background: '#7C83FF',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: '10px', color: '#bbb', fontSize: '13px' }}>
+                            Processing Telegram items… total count is not available.
+                          </div>
+                        )}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px', marginTop: '12px' }}>
+                          <span style={{ color: '#ddd', fontSize: '13px' }}>Imported: <b>{bulkImportProgress.imported}</b></span>
+                          <span style={{ color: '#ddd', fontSize: '13px' }}>Skipped: <b>{bulkImportProgress.skipped}</b></span>
+                          <span style={{ color: '#ddd', fontSize: '13px' }}>Duplicates: <b>{bulkImportProgress.duplicates}</b></span>
+                          <span style={{ color: '#ddd', fontSize: '13px' }}>Failed: <b>{bulkImportProgress.failed}</b></span>
+                        </div>
+
+                        {bulkImportProgress.currentItem && bulkImportProgress.status === 'running' && (
+                          <div style={{ marginTop: '10px', color: '#aaa', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            Current: {bulkImportProgress.currentItem}
+                          </div>
+                        )}
+
+                        {bulkImportProgress.error && (
+                          <div style={{ marginTop: '10px', color: '#ffb0b0', fontSize: '12px' }}>
+                            {bulkImportProgress.error}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <button type="button" className="admin-submit" style={{ marginTop: '20px' }} onClick={handleBulkImport} disabled={bulkSelectedIds.length === 0 || bulkImporting || bulkLoading}>
+                      {bulkImporting ? '⏳ Importing...' : '⬆️ Import Selected'}
                     </button>
                   </div>
                 )}
@@ -2057,17 +2229,18 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
                       {story.episodes?.length ? (
                         story.episodes.slice().sort((a, b) => a.number - b.number).map((episode) => (
-                          <div key={episode.number} className="admin-episode-item">
+                          <div key={episode.id ?? `${story.id}-episode-${episode.number}`} className="admin-episode-item">
                             <div>
                               <b>{String(episode.number).padStart(2, '0')}</b>
                               <span>{episode.title}</span>
                               <small>
                                 {episode.type === 'video' ? '🎬' : '🎧'} {resolveAccessType(episode).join(', ').toUpperCase()}
                                 {episode.available === false ? ' · Coming Soon' : ''}
+                                {episode.isTelegramDuplicate ? ' · ⚠️ Duplicate Telegram record' : ''}
                               </small>
                             </div>
                             <button className="admin-edit" onClick={() => startEditEpisode(story, episode)}>✏️</button>
-                            <button className="admin-delete" onClick={() => handleDeleteEpisode(story.id, episode.number)}>🗑</button>
+                            <button className="admin-delete" onClick={() => handleDeleteEpisode(story.id, episode.id)}>🗑</button>
                           </div>
                         ))
                       ) : (
