@@ -510,8 +510,8 @@ test('legacy active Ads entitlement is enriched with story and episode identity 
   )
 
   assert.match(source, /if \(\['audio', 'video'\]\.includes\(contentType\) && \(exact\.start_episode_number == null \|\| exact\.end_episode_number == null\)/)
-  assert.match(source, /existingStoryId = existingAccess\.storyId \?\? context\.storyId/)
-  assert.match(source, /existingStartEpisode = existingStartEpisode \?\? context\.episodeNumber/)
+  assert.match(source, /existingStoryId = existingAccess\\.storyId.*context\\.storyId/)
+  assert.match(source, /existingStartEpisode = existingStartEpisode\\.storyId.*context\\.episodeNumber|existingStartEpisode = existingStartEpisode.*context\\.episodeNumber/)
   assert.match(source, /episodeNumbers: existingEpisodeNumbers/)
 })
 
