@@ -946,7 +946,7 @@ async function status(req, res) {
     configured,
     unlockDurationMinutes: settings.unlockDurationMinutes,
     settingsError: settingsError || null,
-  })
+  }, corsHeaders(req))
 }
 
 function clearCookie(res, name) {
@@ -1039,6 +1039,6 @@ export async function handleShortenerRequest(req, res, url, readBody) {
         : 500
     return json(res, statusCode, {
       error: statusCode === 401 ? message : 'Shortener service error.',
-    })
+    }, corsHeaders(req))
   }
 }
