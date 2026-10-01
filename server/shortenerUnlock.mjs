@@ -137,6 +137,11 @@ async function getAdminSettings() {
 
   if (error) throw new Error('Unable to load shortener settings.')
   const ads = data?.value?.ads
+  const ruleValidation = validateAdUnlockRules(ads?.episodeUnlockRules)
+  if (!ruleValidation.valid) {
+    throw new Error('Ads episode unlock rules are invalid: ' + ruleValidation.errors.join(' '))
+  }
+
   return {
     shortenerEnabled: ads?.shortenerEnabled === true,
     primary: String(ads?.primaryShortener || 'arolinks').trim().toLowerCase(),
@@ -145,6 +150,7 @@ async function getAdminSettings() {
       1440,
       Math.max(1, Number(ads?.unlockDurationMinutes) || 360)
     ),
+    episodeUnlockRules: ruleValidation.normalizedRules,
   }
 }
 
@@ -350,6 +356,112 @@ async function getContentRecord(contentType, contentId) {
   if (!data) throw new Error('Requested content was not found.')
   if (data.available === false) throw new Error('This content is currently unavailable.')
   return data
+}
+
+async function getEpisodeUnlockContext(contentType, content) {
+  if (contentType === 'audio') {
+    const episodeNumber = Number(content?.number ?? content?.episode_number)
+    const storyId = Number(content?.story_id)
+    if (!Number.isInteger(storyId) || storyId < 1 || !Number.isInteger(episodeNumber) || episodeNumber < 1) {
+      throw new Error('Ads unlock target is missing a valid story or episode number.')
+    }
+    return { storyId, episodeNumber }
+  }
+
+  if (contentType === 'video') {
+    const episodeNumber = Number(content?.number)
+    const storyId = Number(content?.video_story_id)
+    if (!Number.isInteger(storyId) || storyId < 1 || !Number.isInteger(episodeNumber) || episodeNumber < 1) {
+      throw new Error('Ads unlock target is missing a valid story or episode number.')
+    }
+    return { storyId, episodeNumber }
+  }
+
+  return { storyId: null, episodeNumber: null }
+}
+
+async function getExistingEpisodeNumbers(contentType, storyId, startEpisode, endEpisode) {
+  if (!storyId || !Number.isInteger(startEpisode) || !Number.isInteger(endEpisode)) return []
+
+  const db = getServiceClient()
+  const query = contentType === 'audio'
+    ? db
+      .from('episodes')
+      .select('number, episode_number, available')
+      .eq('story_id', storyId)
+      .gte('number', startEpisode)
+      .lte('number', endEpisode)
+    : db
+      .from('video_episodes')
+      .select('number, available')
+      .eq('video_story_id', storyId)
+      .gte('number', startEpisode)
+      .lte('number', endEpisode)
+
+  const { data, error } = await query
+  if (error) throw new Error('Unable to determine the existing episodes for temporary access.')
+
+  return [...new Set(
+    (data || [])
+      .filter((row) => row?.available !== false)
+      .map((row) => Number(row?.number ?? row?.episode_number))
+      .filter((number) => Number.isInteger(number) && number >= startEpisode && number <= endEpisode)
+  )].sort((a, b) => a - b)
+}
+
+async function findActiveAdUnlock(userId, contentType, contentId, content) {
+  const db = getServiceClient()
+  const nowIso = new Date().toISOString()
+
+  const { data: exact, error: exactError } = await db
+    .from('ad_unlocks')
+    .select('id, content_id, expires_at, story_id, start_episode_number, end_episode_number')
+    .eq('user_id', userId)
+    .eq('content_type', contentType)
+    .eq('content_id', contentId)
+    .gt('expires_at', nowIso)
+    .maybeSingle()
+
+  if (exactError) throw new Error('Unable to verify existing temporary access.')
+  if (exact?.expires_at) return exact
+
+  if (!isAdsEnabled(content) || !['audio', 'video'].includes(contentType)) return null
+
+  const { storyId, episodeNumber } = await getEpisodeUnlockContext(contentType, content)
+
+  const { data: range, error: rangeError } = await db
+    .from('ad_unlocks')
+    .select('id, content_id, expires_at, story_id, start_episode_number, end_episode_number')
+    .eq('user_id', userId)
+    .eq('content_type', contentType)
+    .eq('story_id', storyId)
+    .lte('start_episode_number', episodeNumber)
+    .gte('end_episode_number', episodeNumber)
+    .gt('expires_at', nowIso)
+    .order('expires_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (rangeError) throw new Error('Unable to verify existing temporary access.')
+  return range || null
+}
+
+async function markIntentCompleted(intentId) {
+  const { error } = await getServiceClient()
+    .from('ad_unlock_intents')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('id', intentId)
+    .eq('status', 'pending')
+
+  if (error) throw new Error('Unable to finalize unlock session.')
+}
+
+async function loadContentForPreview(contentType, contentId) {
+  const content = await getContentRecord(contentType, contentId)
+  if (!isAdsEnabled(content)) {
+    throw new Error('This content does not have an ad unlock access path.')
+  }
+  return content
 }
 
 async function loadContent(contentType, contentId) {
@@ -587,6 +699,43 @@ async function getExistingAccess(user, contentType, contentId, content) {
   return null
 }
 
+async function previewUnlock(req, res, body) {
+  const user = await authenticate(req)
+  const contentType = String(body?.contentType || '').trim().toLowerCase()
+  const contentId = parsePositiveId(body?.contentId)
+  if (!['audio', 'video'].includes(contentType) || !contentId) {
+    return json(res, 400, { error: 'Invalid unlock target.' })
+  }
+
+  const content = await loadContentForPreview(contentType, contentId)
+  const settings = await getAdminSettings()
+  const { storyId, episodeNumber } = await getEpisodeUnlockContext(contentType, content)
+  const plan = resolveAdUnlockPlan(episodeNumber, settings.episodeUnlockRules)
+  const episodeNumbers = await getExistingEpisodeNumbers(
+    contentType,
+    storyId,
+    plan.startEpisode,
+    plan.endEpisode
+  )
+  const existingAccess = await getExistingAccess(user, contentType, contentId, content)
+
+  return json(res, 200, {
+    ok: true,
+    contentType,
+    contentId,
+    storyId,
+    episodeNumber,
+    unlockCount: plan.unlockCount,
+    unlockStartEpisode: plan.startEpisode,
+    unlockEndEpisode: plan.endEpisode,
+    episodeNumbers,
+    durationMinutes: settings.unlockDurationMinutes,
+    alreadyGranted: Boolean(existingAccess),
+    source: existingAccess?.source || null,
+    expiresAt: existingAccess?.expiresAt || null,
+  })
+}
+
 async function startUnlock(req, res, body) {
   const user = await authenticate(req)
   if (!UNLOCK_TOKEN_SECRET || !isValidPublicBaseUrl()) {
@@ -662,9 +811,6 @@ async function startUnlock(req, res, body) {
 async function completeUnlock(req, res) {
   const user = await authenticate(req)
   const rawToken = cookieValue(req, 'hj_unlock_code')
-  // Completion is polled after login, including normal page loads where no
-  // provider-return cookie exists. That state is a successful no-op, not a
-  // client error, so it must not generate a 4xx console/network failure.
   if (!rawToken) return json(res, 200, { ok: false, reason: 'no_completion_session' })
 
   let tokenHash
@@ -696,16 +842,150 @@ async function completeUnlock(req, res) {
     return json(res, 403, { error: 'Invalid unlock session.' })
   }
 
+  let content
   try {
-    await loadContent(intent.content_type, intent.content_id)
+    content = await loadContent(intent.content_type, intent.content_id)
   } catch {
     return json(res, 403, { error: 'Unlock target is no longer eligible.' })
   }
 
   const settings = await getAdminSettings()
-  const expiresAt = calculateUnlockExpiry(Date.now(), settings.unlockDurationMinutes)
+  const existingAccess = await getExistingAccess(user, intent.content_type, intent.content_id, content)
+  if (existingAccess) {
+    await markIntentCompleted(intent.id)
+    clearCookie(res, 'hj_unlock_code')
+    return json(res, 200, {
+      ok: true,
+      contentType: intent.content_type,
+      contentId: intent.content_id,
+      expiresAt: existingAccess.expiresAt,
+      storyId: null,
+      episodeNumber: null,
+      episodeNumbers: [],
+      alreadyGranted: true,
+      source: existingAccess.source,
+    })
+  }
 
-  const { data: existing } = await getServiceClient()
+  const newExpiry = calculateUnlockExpiry(Date.now(), settings.unlockDurationMinutes)
+  let storyId = null
+  let episodeNumber = null
+  let episodeNumbers = []
+  let unlockStartEpisode = null
+  let unlockEndEpisode = null
+
+  if (intent.content_type === 'audio' || intent.content_type === 'video') {
+    const context = await getEpisodeUnlockContext(intent.content_type, content)
+    storyId = context.storyId
+    episodeNumber = context.episodeNumber
+
+    const plan = resolveAdUnlockPlan(episodeNumber, settings.episodeUnlockRules)
+    unlockStartEpisode = plan.startEpisode
+    unlockEndEpisode = plan.endEpisode
+    episodeNumbers = await getExistingEpisodeNumbers(
+      intent.content_type,
+      storyId,
+      plan.startEpisode,
+      plan.endEpisode
+    )
+
+    const existingRange = await findActiveAdUnlock(
+      user.id,
+      intent.content_type,
+      intent.content_id,
+      content
+    )
+
+    if (existingRange) {
+      const finalExpiry = chooseUnlockExpiry(existingRange.expires_at, newExpiry)
+      const updates = {
+        expires_at: finalExpiry,
+        updated_at: new Date().toISOString(),
+      }
+
+      // A legacy single-episode row can be upgraded in-place to the new
+      // range representation without creating a second entitlement row.
+      if (!existingRange.start_episode_number || existingRange.content_id === intent.content_id) {
+        updates.story_id = storyId
+        updates.start_episode_number = unlockStartEpisode
+        updates.end_episode_number = unlockEndEpisode
+      }
+
+      const { error: updateError } = await getServiceClient()
+        .from('ad_unlocks')
+        .update(updates)
+        .eq('id', existingRange.id)
+
+      if (updateError) return json(res, 500, { error: 'Unable to update temporary access.' })
+
+      episodeNumbers = existingRange.start_episode_number && existingRange.end_episode_number
+        ? await getExistingEpisodeNumbers(
+          intent.content_type,
+          existingRange.story_id,
+          existingRange.start_episode_number,
+          existingRange.end_episode_number
+        )
+        : episodeNumbers
+
+      await markIntentCompleted(intent.id)
+      clearCookie(res, 'hj_unlock_code')
+      return json(res, 200, {
+        ok: true,
+        contentType: intent.content_type,
+        contentId: existingRange.content_id,
+        expiresAt: finalExpiry,
+        storyId: existingRange.story_id ?? storyId,
+        episodeNumber: existingRange.start_episode_number ?? episodeNumber,
+        unlockCount: existingRange.start_episode_number
+          ? (existingRange.end_episode_number - existingRange.start_episode_number + 1)
+          : plan.unlockCount,
+        unlockStartEpisode: existingRange.start_episode_number ?? unlockStartEpisode,
+        unlockEndEpisode: existingRange.end_episode_number ?? unlockEndEpisode,
+        episodeNumbers,
+        reusedExisting: true,
+      })
+    }
+
+    if (!episodeNumbers.includes(episodeNumber)) {
+      episodeNumbers.push(episodeNumber)
+      episodeNumbers.sort((a, b) => a - b)
+    }
+
+    const { error: insertError } = await getServiceClient()
+      .from('ad_unlocks')
+      .upsert({
+        user_id: user.id,
+        content_type: intent.content_type,
+        content_id: intent.content_id,
+        expires_at: newExpiry,
+        story_id: storyId,
+        start_episode_number: unlockStartEpisode,
+        end_episode_number: unlockEndEpisode,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id,content_type,content_id',
+      })
+
+    if (insertError) return json(res, 500, { error: 'Unable to save temporary access.' })
+
+    await markIntentCompleted(intent.id)
+    clearCookie(res, 'hj_unlock_code')
+    return json(res, 200, {
+      ok: true,
+      contentType: intent.content_type,
+      contentId: intent.content_id,
+      expiresAt: newExpiry,
+      storyId,
+      episodeNumber,
+      unlockCount: plan.unlockCount,
+      unlockStartEpisode,
+      unlockEndEpisode,
+      episodeNumbers,
+      reusedExisting: false,
+    })
+  }
+
+  const { data: existingBook } = await getServiceClient()
     .from('ad_unlocks')
     .select('expires_at')
     .eq('user_id', user.id)
@@ -713,56 +993,32 @@ async function completeUnlock(req, res) {
     .eq('content_id', intent.content_id)
     .maybeSingle()
 
-  const finalExpiry = chooseUnlockExpiry(existing?.expires_at, expiresAt)
-
-  const { error: upsertError } = await getServiceClient()
+  const finalBookExpiry = chooseUnlockExpiry(existingBook?.expires_at, newExpiry)
+  const { error: bookUpsertError } = await getServiceClient()
     .from('ad_unlocks')
     .upsert({
       user_id: user.id,
       content_type: intent.content_type,
       content_id: intent.content_id,
-      expires_at: finalExpiry,
+      expires_at: finalBookExpiry,
       updated_at: new Date().toISOString(),
     }, {
       onConflict: 'user_id,content_type,content_id',
     })
 
-  if (upsertError) return json(res, 500, { error: 'Unable to save temporary access.' })
+  if (bookUpsertError) return json(res, 500, { error: 'Unable to save temporary access.' })
 
-  await getServiceClient()
-    .from('ad_unlock_intents')
-    .update({ status: 'completed', completed_at: new Date().toISOString() })
-    .eq('id', intent.id)
-    .eq('status', 'pending')
-
-  let storyId = null
-  let episodeNumber = null
-  if (intent.content_type === 'audio') {
-    const { data } = await getServiceClient()
-      .from('episodes')
-      .select('story_id, episode_number, number')
-      .eq('id', intent.content_id)
-      .maybeSingle()
-    storyId = data?.story_id ?? null
-    episodeNumber = data?.number ?? data?.episode_number ?? null
-  } else if (intent.content_type === 'video') {
-    const { data } = await getServiceClient()
-      .from('video_episodes')
-      .select('video_story_id, number')
-      .eq('id', intent.content_id)
-      .maybeSingle()
-    storyId = data?.video_story_id ?? null
-    episodeNumber = data?.number ?? null
-  }
-
+  await markIntentCompleted(intent.id)
   clearCookie(res, 'hj_unlock_code')
   return json(res, 200, {
     ok: true,
     contentType: intent.content_type,
     contentId: intent.content_id,
-    expiresAt: finalExpiry,
-    storyId,
-    episodeNumber,
+    expiresAt: finalBookExpiry,
+    storyId: null,
+    episodeNumber: null,
+    episodeNumbers: [],
+    unlockCount: 1,
   })
 }
 
@@ -868,18 +1124,17 @@ async function checkAccess(req, res, body) {
     return json(res, 200, { ok: true, source: 'admin' })
   }
 
-  const { data: adUnlock, error: unlockError } = await getServiceClient()
-    .from('ad_unlocks')
-    .select('expires_at')
-    .eq('user_id', user.id)
-    .eq('content_type', contentType)
-    .eq('content_id', contentId)
-    .gt('expires_at', new Date().toISOString())
-    .maybeSingle()
-
-  if (unlockError) return json(res, 500, { error: 'Unable to verify temporary access.' })
-  if (adUnlock?.expires_at) {
-    return json(res, 200, { ok: true, source: 'ad_unlock', expiresAt: adUnlock.expires_at })
+  if (isAdsEnabled(content)) {
+    const adUnlock = await findActiveAdUnlock(user.id, contentType, contentId, content)
+    if (adUnlock?.expires_at) {
+      return json(res, 200, {
+        ok: true,
+        source: 'ad_unlock',
+        expiresAt: adUnlock.expires_at,
+        unlockStartEpisode: adUnlock.start_episode_number ?? null,
+        unlockEndEpisode: adUnlock.end_episode_number ?? null,
+      })
+    }
   }
 
   if (await hasActivePurchase(user.id, content)) {
@@ -893,15 +1148,15 @@ async function listEntitlements(req, res) {
   const user = await authenticate(req)
   const { data, error } = await getServiceClient()
     .from('ad_unlocks')
-    .select('content_type, content_id, expires_at')
+    .select('id, content_type, content_id, expires_at, story_id, start_episode_number, end_episode_number')
     .eq('user_id', user.id)
     .gt('expires_at', new Date().toISOString())
 
   if (error) return json(res, 500, { error: 'Unable to load temporary access.' })
 
   const rows = data || []
-  const episodeIds = rows.filter((row) => row.content_type === 'audio').map((row) => row.content_id)
-  const videoIds = rows.filter((row) => row.content_type === 'video').map((row) => row.content_id)
+  const episodeIds = rows.filter((row) => row.content_type === 'audio' && row.start_episode_number == null).map((row) => row.content_id)
+  const videoIds = rows.filter((row) => row.content_type === 'video' && row.start_episode_number == null).map((row) => row.content_id)
 
   const [episodes, videos] = await Promise.all([
     episodeIds.length
@@ -915,27 +1170,49 @@ async function listEntitlements(req, res) {
   const episodeMap = new Map((episodes.data || []).map((row) => [String(row.id), row]))
   const videoMap = new Map((videos.data || []).map((row) => [String(row.id), row]))
 
-  return json(res, 200, {
-    unlocks: rows.map((row) => {
-      if (row.content_type === 'audio') {
-        const info = episodeMap.get(String(row.content_id))
-        return {
-          ...row,
-          storyId: info?.story_id ?? null,
-          episodeNumber: info?.number ?? info?.episode_number ?? null,
-        }
+  const unlocks = await Promise.all(rows.map(async (row) => {
+    if (row.content_type === 'audio') {
+      const info = episodeMap.get(String(row.content_id))
+      const storyId = row.story_id ?? info?.story_id ?? null
+      const episodeNumber = row.start_episode_number ?? info?.number ?? info?.episode_number ?? null
+      const episodeNumbers = row.start_episode_number != null && row.end_episode_number != null && storyId != null
+        ? await getExistingEpisodeNumbers('audio', storyId, row.start_episode_number, row.end_episode_number)
+        : (episodeNumber != null ? [episodeNumber] : [])
+      return {
+        ...row,
+        storyId,
+        episodeNumber,
+        unlockStartEpisode: row.start_episode_number ?? episodeNumber,
+        unlockEndEpisode: row.end_episode_number ?? episodeNumber,
+        unlockCount: row.start_episode_number != null && row.end_episode_number != null
+          ? row.end_episode_number - row.start_episode_number + 1
+          : 1,
+        episodeNumbers,
       }
-      if (row.content_type === 'video') {
-        const info = videoMap.get(String(row.content_id))
-        return {
-          ...row,
-          storyId: info?.video_story_id ?? null,
-          episodeNumber: info?.number ?? null,
-        }
+    }
+    if (row.content_type === 'video') {
+      const info = videoMap.get(String(row.content_id))
+      const storyId = row.story_id ?? info?.video_story_id ?? null
+      const episodeNumber = row.start_episode_number ?? info?.number ?? null
+      const episodeNumbers = row.start_episode_number != null && row.end_episode_number != null && storyId != null
+        ? await getExistingEpisodeNumbers('video', storyId, row.start_episode_number, row.end_episode_number)
+        : (episodeNumber != null ? [episodeNumber] : [])
+      return {
+        ...row,
+        storyId,
+        episodeNumber,
+        unlockStartEpisode: row.start_episode_number ?? episodeNumber,
+        unlockEndEpisode: row.end_episode_number ?? episodeNumber,
+        unlockCount: row.start_episode_number != null && row.end_episode_number != null
+          ? row.end_episode_number - row.start_episode_number + 1
+          : 1,
+        episodeNumbers,
       }
-      return row
-    }),
-  })
+    }
+    return { ...row, episodeNumbers: [] }
+  }))
+
+  return json(res, 200, { unlocks })
 }
 
 async function status(req, res) {
@@ -1033,6 +1310,10 @@ function corsHeaders(req) {
 
 export async function handleShortenerRequest(req, res, url, readBody) {
   try {
+    if (url.pathname === '/api/shortener/preview' && req.method === 'POST') {
+      return previewUnlock(req, res, await readBody())
+    }
+
     if (url.pathname === '/api/shortener/start' && req.method === 'POST') {
       return startUnlock(req, res, await readBody())
     }
