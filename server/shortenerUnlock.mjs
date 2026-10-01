@@ -106,9 +106,17 @@ function extractBearer(req) {
   return header.replace(/^Bearer\s+/i, '').trim()
 }
 
+function isLikelyJwt(token) {
+  const value = String(token || '').trim()
+  if (!value) return false
+  const parts = value.split('.')
+  return parts.length === 3 && parts.every((part) => part.length > 0)
+}
+
 async function authenticate(req) {
   const token = extractBearer(req)
   if (!token) throw new Error('Authentication required.')
+  if (!isLikelyJwt(token)) throw new Error('Authentication failed.')
   let result
   try {
     result = await getServiceClient().auth.getUser(token)
@@ -1350,6 +1358,7 @@ function json(res, statusCode, payload, extraHeaders = {}) {
 
 export {
   extractBearer,
+  isLikelyJwt,
   getProviderOrder,
   extractProviderUrl,
   callProvider,
