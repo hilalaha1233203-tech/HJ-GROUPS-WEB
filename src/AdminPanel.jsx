@@ -279,7 +279,7 @@ function AdminPanel({
           setShortenerHealth({
             error: payload?.error || 'Server health check failed',
             statusCode: response.status,
-            configured: payload?.configured || { arolinks: false, earn4link: false },
+            configured: payload?.configured ?? null,
           })
         }
       } catch (error) {
