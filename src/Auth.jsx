@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { getAuthRedirectUrl } from './lib/authRedirect'
+import { PASSWORD_RESET_PATH } from './lib/authRecovery'
 import PasswordInput from './components/PasswordInput'
 
 function Auth({ onBack }) {
@@ -367,7 +368,7 @@ function Auth({ onBack }) {
 
     setLoading(true)
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: getAuthRedirectUrl({ productionSafe: true, path: '/reset-password' }),
+      redirectTo: getAuthRedirectUrl({ productionSafe: true, path: PASSWORD_RESET_PATH }),
     })
 
     if (resetError) {
