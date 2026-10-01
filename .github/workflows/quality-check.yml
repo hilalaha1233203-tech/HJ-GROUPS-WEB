@@ -78,7 +78,14 @@ jobs:
           const read = (p) => fs.readFileSync(p, 'utf8')
           const checks = [
             ['src/lib/authRedirect.js', 'PRODUCTION_SITE_URL'],
+            ['src/lib/authRecovery.js', 'PASSWORD_RESET_PATH'],
+            ['src/lib/authRecovery.js', 'getAuthRecoveryParams'],
+            ['src/lib/authRecovery.js', 'cleanAuthCallbackUrl'],
+            ['src/components/PasswordInput.jsx', 'Show password'],
+            ['src/components/PasswordInput.jsx', 'Hide password'],
             ['src/Auth.jsx', 'getAuthRedirectUrl'],
+            ['src/Auth.jsx', 'productionSafe: true'],
+            ['src/Auth.jsx', 'PASSWORD_RESET_PATH'],
             ['src/AccountSettings.jsx', 'supportTelegramUrl'],
             ['src/AdminPanel.jsx', 'supportTelegramUrl'],
             ['src/App.jsx', '/api/public-settings'],
@@ -91,8 +98,16 @@ jobs:
             ['src/Auth.jsx', 'Email OTP Sign Up'],
             ['src/Auth.jsx', 'Phone OTP Login'],
             ['src/Auth.jsx', 'Forgot Password'],
-            ['src/App.jsx', 'finishAuthRedirect'],
+            ['src/AccountSettings.jsx', 'productionSafe: true'],
+            ['src/AccountSettings.jsx', 'PASSWORD_RESET_PATH'],
+            ['src/App.jsx', 'getAuthRecoveryParams'],
+            ['src/App.jsx', 'cleanAuthCallbackUrl'],
             ['src/App.jsx', 'PASSWORD_RECOVERY'],
+            ['src/App.jsx', 'passwordRecoveryStatus'],
+            ['src/App.jsx', 'requestNewRecoveryEmail'],
+            ['src/App.jsx', 'updateUser({
+      password: recoveryPassword'],
+            ['src/App.jsx', 'signOut({ scope: \'local\' })'],
             ['src/App.jsx', 'AccountSettings'],
             ['src/App.jsx', 'account-settings'],
             ['src/App.css', 'reader-theme-paper'],
@@ -133,6 +148,22 @@ jobs:
           }
           const template = read('supabase/email-templates/magic_link_otp.html')
           if (template.includes('{{ .ConfirmationURL }}')) throw new Error('Legacy confirmation URL remains in email template')
+          const passwordSources = ['src/Auth.jsx', 'src/AccountSettings.jsx', 'src/App.jsx', 'src/Admin.jsx']
+          for (const file of passwordSources) {
+            const source = read(file)
+            if (/<input\\b[^>]*\\btype=(["'])password\\1/i.test(source)) {
+              throw new Error('Raw password input remains outside PasswordInput component: ' + file)
+            }
+          }
+          const appSource = read('src/App.jsx')
+          const recoveryListenerIndex = appSource.indexOf("supabase.auth.onAuthStateChange")
+          const recoveryStartIndex = appSource.indexOf("const finishAuthRedirect = async")
+          if (recoveryListenerIndex < 0 || recoveryStartIndex < 0 || recoveryListenerIndex > recoveryStartIndex) {
+            throw new Error('PASSWORD_RECOVERY listener must be registered before auth callback processing')
+          }
+          if (!appSource.includes('path: PASSWORD_RESET_PATH')) throw new Error('Dedicated password-reset path is missing from App.jsx')
+          if (appSource.includes('account-recovery-overlay')) throw new Error('Legacy recovery modal wrapper remains in App.jsx')
+
           const paymentSource = read('server/payment.mjs')
           for (const secret of ['CASHFREE_CLIENT_SECRET', 'SUPABASE_SERVICE_ROLE_KEY']) {
             if (paymentSource.includes('VITE_' + secret)) throw new Error('Payment secret exposed through VITE_ env: ' + secret)
@@ -147,12 +178,22 @@ jobs:
         run: |
           ! grep -R -n "story?.id" src/App.jsx
           test -s src/AccountSettings.jsx
+          test -s src/components/PasswordInput.jsx
           test -s src/lib/authRedirect.js
+          test -s src/lib/authRecovery.js
           grep -q "linkIdentity" src/AccountSettings.jsx
           grep -q "supportTelegramUrl" src/AdminPanel.jsx
           grep -q "supportTelegramUrl" src/AccountSettings.jsx
           grep -q "/api/public-settings" server.mjs
           grep -q "getAuthRedirectUrl" src/Auth.jsx
+          grep -q "productionSafe: true" src/Auth.jsx
+          grep -q "PASSWORD_RESET_PATH" src/Auth.jsx
+          grep -q "PASSWORD_RESET_PATH" src/AccountSettings.jsx
+          grep -q "PASSWORD_RECOVERY" src/App.jsx
+          grep -q "getAuthRecoveryParams" src/App.jsx
+          grep -q "cleanAuthCallbackUrl" src/App.jsx
+          grep -q "Show password" src/components/PasswordInput.jsx
+          grep -q "Hide password" src/components/PasswordInput.jsx
           grep -q "phone_change" src/AccountSettings.jsx
           grep -q "scope: 'global'" src/AccountSettings.jsx
           grep -q "getMediaPositionKey" src/App.jsx
