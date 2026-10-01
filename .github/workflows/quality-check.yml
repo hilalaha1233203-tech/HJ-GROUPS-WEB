@@ -69,7 +69,7 @@ jobs:
             ? fs.readdirSync(dir).filter((name) => name.endsWith('.sql'))
             : []
           for (const file of files) {
-            if (!/^\\d{14}_[A-Za-z0-9._-]+\\.sql$/.test(file)) {
+            if (!/^\d{14}_[A-Za-z0-9._-]+\.sql$/.test(file)) {
               throw new Error('Supabase migration filename must use <14-digit-timestamp>_<name>.sql: ' + file)
             }
           }
