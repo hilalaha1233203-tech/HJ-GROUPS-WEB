@@ -7,10 +7,9 @@ import React, { useEffect, useState } from 'react'
 
 const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
 
-// The streaming service is deployed separately. Configure its public URL in VITE_STREAMING_SERVER_URL.
-const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL || '')
-  .trim()
-  .replace(/\/+$/, '')
+// The streaming service is deployed separately. Use its stable Vercel project URL
+// instead of pinning the website to an immutable deployment URL.
+import { STREAMING_SERVER_URL } from './lib/streamingUrl'
 
 
 const ADMIN_SETTINGS_KEY = 'hj_admin_settings_v1'
