@@ -1,0 +1,1 @@
+-- Telegram episode idempotency migration. The production schema already contains the idempotency column and unique index; this tracked migration keeps repository history aligned with the deployed change.\n
