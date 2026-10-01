@@ -1,7 +1,7 @@
-const DEFAULT_STREAMING_SERVER_URL = 'https://hj-telegram-streaming.vercel.app'
+const DEFAULT_STREAMING_SERVER_URL = 'https://hj-telegram-streaming.onrender.com'
 
-const DEPLOYMENT_URL_PATTERN =
-  /^https:\/\/hj-telegram-streaming-[a-z0-9-]+-ak-3a25\.vercel\.app$/i
+const VERCEL_STREAMING_HOST_PATTERN =
+  /^https:\/\/hj-telegram-streaming(?:-[a-z0-9-]+-ak-3a25)?\.vercel\.app$/i
 
 export function normalizeStreamingServerUrl(value) {
   const raw = String(value || '').trim().replace(/\/+$/, '')
@@ -10,7 +10,11 @@ export function normalizeStreamingServerUrl(value) {
   try {
     const url = new URL(raw)
     const normalized = url.toString().replace(/\/+$/, '')
-    if (DEPLOYMENT_URL_PATTERN.test(normalized)) return DEFAULT_STREAMING_SERVER_URL
+
+    if (VERCEL_STREAMING_HOST_PATTERN.test(normalized)) {
+      return DEFAULT_STREAMING_SERVER_URL
+    }
+
     return normalized
   } catch {
     return raw
