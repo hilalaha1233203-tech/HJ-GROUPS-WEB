@@ -152,8 +152,20 @@ export function saveUnlockedAds(set) {
   localStorage.setItem(AD_UNLOCKS_KEY, JSON.stringify([...active]))
 }
 
+function normalizeEpisodeStoryKey(kind, value) {
+  if (kind !== 'episode' && kind !== 'video-episode') return String(value ?? '')
+  const text = String(value ?? '').trim()
+  const match = kind === 'video-episode'
+    ? text.match(/^tg-video-(\d+)$/i)
+    : text.match(/^tg-story-(\d+)$/i)
+  return match ? match[1] : text
+}
+
 export function adsKeyFor(kind, ...ids) {
-  return `${kind}:${ids.join(':')}`
+  const parts = ids.map((value, index) => (
+    index === 0 ? normalizeEpisodeStoryKey(kind, value) : String(value ?? '')
+  ))
+  return kind + ':' + parts.join(':')
 }
 
 export function canAccess(
