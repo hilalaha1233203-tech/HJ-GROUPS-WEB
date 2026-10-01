@@ -6567,6 +6567,10 @@ body:has(.reader-overlay:not(.reader-minimized)),
   background: #f1a23a;
   box-shadow: 0 0 0 3px rgba(241, 162, 58, 0.11);
 }
+.shortener-health-grid .unknown i {
+  background: #8d96a8;
+  box-shadow: 0 0 0 3px rgba(141, 150, 168, 0.11);
+}
 
 
 
