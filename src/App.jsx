@@ -744,6 +744,9 @@ export function App() {
   const [selectedStory, setSelectedStory] =
     useState(null)
 
+  const [storyEpisodeRangeStart, setStoryEpisodeRangeStart] = useState(0)
+  const [storyEpisodeVisibleEnd, setStoryEpisodeVisibleEnd] = useState(50)
+
   const [selectedBook, setSelectedBook] =
     useState(null)
 
@@ -4067,6 +4070,8 @@ export function App() {
       setSelectedStory(
         story
       )
+      setStoryEpisodeRangeStart(0)
+      setStoryEpisodeVisibleEnd(50)
 
       setPage('story')
 
@@ -4079,6 +4084,8 @@ export function App() {
   const closeStoryDetails =
     () => {
       setSelectedStory(null)
+      setStoryEpisodeRangeStart(0)
+      setStoryEpisodeVisibleEnd(50)
       setPage('home')
     }
 
@@ -7742,71 +7749,146 @@ export function App() {
                     : '+ Add to My Library'}
                 </button>
 
-                <div className="details-episodes">
-                  {selectedStory.episodes?.map(
-                    (
-                      episode
-                    ) => {
-                      const adsKey =
-                        adsKeyFor(
-                          'episode',
-                          selectedStory.id,
-                          episode.number
-                        )
+                <div className="details-episode-tools">
+                  {(() => {
+                    const allEpisodes = Array.isArray(selectedStory.episodes)
+                      ? selectedStory.episodes
+                      : []
+                    const rangeStarts = []
 
-                      const accessible =
-                        canAccessContent(
-                          episode,
-                          adsKey,
-                          selectedStory.id
-                          )
-
-                      return (
-                        <button
-                          key={
-                            episode.number
-                          }
-                          onClick={() =>
-                            openPlayer(
-                              selectedStory,
-                              episode
-                            )
-                          }
-                        >
-                          <span>
-                            {String(
-                              episode.number
-                            ).padStart(
-                              2,
-                              '0'
-                            )}
-                          </span>
-
-                          <div>
-                            <strong>
-                              {
-                                episode.title
-                              }
-                            </strong>
-
-                            <small>
-                              {
-                                getEpisodeAccessLabel(
-                                  episode
-                                )
-                              }
-                            </small>
-                          </div>
-
-                          <b>
-                            {accessible
-                              ? '▶'
-                              : '🔒'}
-                          </b>
-                        </button>
-                      )
+                    for (let index = 0; index < allEpisodes.length; index += 50) {
+                      rangeStarts.push(index)
                     }
-                  )}
+
+                    const visibleEnd = Math.min(
+                      storyEpisodeVisibleEnd,
+                      allEpisodes.length
+                    )
+                    const visibleEpisodes = allEpisodes.slice(
+                      storyEpisodeRangeStart,
+                      visibleEnd
+                    )
+
+                    return (
+                      <>
+                        {rangeStarts.length > 1 && (
+                          <div
+                            className="episode-range-nav"
+                            aria-label="Episode ranges"
+                          >
+                            {rangeStarts.map((start) => {
+                              const end = Math.min(start + 50, allEpisodes.length)
+                              const active = start === storyEpisodeRangeStart
+
+                              return (
+                                <button
+                                  type="button"
+                                  key={start}
+                                  className={active ? 'active' : ''}
+                                  onClick={() => {
+                                    setStoryEpisodeRangeStart(start)
+                                    setStoryEpisodeVisibleEnd(
+                                      Math.min(start + 50, allEpisodes.length)
+                                    )
+                                  }}
+                                >
+                                  {start + 1}-{end}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        <div className="episode-range-caption">
+                          Showing episodes {allEpisodes.length ? storyEpisodeRangeStart + 1 : 0}-{visibleEnd} of {allEpisodes.length}
+                        </div>
+
+                        <div className="details-episodes">
+                          {visibleEpisodes.map(
+                            (
+                              episode
+                            ) => {
+                              const adsKey =
+                                adsKeyFor(
+                                  'episode',
+                                  selectedStory.id,
+                                  episode.number
+                                )
+
+                              const accessible =
+                                canAccessContent(
+                                  episode,
+                                  adsKey,
+                                  selectedStory.id
+                                )
+
+                              return (
+                                <button
+                                  key={
+                                    episode.number
+                                  }
+                                  onClick={() =>
+                                    openPlayer(
+                                      selectedStory,
+                                      episode
+                                    )
+                                  }
+                                >
+                                  <span>
+                                    {String(
+                                      episode.number
+                                    ).padStart(
+                                      2,
+                                      '0'
+                                    )}
+                                  </span>
+
+                                  <div>
+                                    <strong>
+                                      {
+                                        episode.title
+                                      }
+                                    </strong>
+
+                                    <small>
+                                      {
+                                        getEpisodeAccessLabel(
+                                          episode
+                                        )
+                                      }
+                                    </small>
+                                  </div>
+
+                                  <b>
+                                    {accessible
+                                      ? '▶'
+                                      : '🔒'}
+                                  </b>
+                                </button>
+                              )
+                            }
+                          )}
+                        </div>
+
+                        {visibleEnd < allEpisodes.length && (
+                          <button
+                            type="button"
+                            className="episode-load-more"
+                            onClick={() =>
+                              setStoryEpisodeVisibleEnd(
+                                Math.min(visibleEnd + 50, allEpisodes.length)
+                              )
+                            }
+                          >
+                            Load More Episodes · {Math.min(
+                              50,
+                              allEpisodes.length - visibleEnd
+                            )} More
+                          </button>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
