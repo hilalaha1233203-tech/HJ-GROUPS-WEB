@@ -1214,6 +1214,7 @@ export function App() {
   const [pdfPage, setPdfPage] =
     useState(1)
   const analyticsReaderPageRef = useRef(null)
+  const analyticsReaderSessionRef = useRef(null)
 
   const [pdfInputPage, setPdfInputPage] =
     useState('')
@@ -3341,7 +3342,7 @@ export function App() {
       book_id: pending.contentType === 'book' ? pending.item?.id : null,
       access_type: 'ads',
       metadata: { provider: 'shortener', content_type: pending.contentType },
-    }, `ad-start:${pending.contentType}:${pending.item?.id}:${pending.storyId ?? ''}`)
+    })
 
     const returnPath =
       window.location.pathname +
@@ -4122,7 +4123,7 @@ export function App() {
       void trackUserActivity('story_view', {
         story_id: Number.isFinite(Number(story?.id)) ? Number(story.id) : null,
         metadata: { source: 'story_details' },
-      }, `story:${story?.id}`)
+      })
 
       setSelectedStory(
         story
@@ -5153,7 +5154,7 @@ export function App() {
     if (!readerOpen || !readerBook?.id) return undefined
     const page = readerType === 'epub' ? epubPage : pdfPage
     if (!Number.isInteger(Number(page)) || Number(page) < 1) return undefined
-    const pageKey = `${readerBook.id}:${readerType}:${page}`
+    const pageKey = `${analyticsReaderSessionRef.current || readerBook.id}:${readerType}:${page}`
     if (analyticsReaderPageRef.current === pageKey) return undefined
     analyticsReaderPageRef.current = pageKey
     void trackUserActivity('book_page', {
@@ -5196,11 +5197,13 @@ export function App() {
 
       showMediaLoadingNotice('This book will load in a few seconds depending on your network.')
 
+      analyticsReaderSessionRef.current = `${Date.now()}_${Math.random().toString(36).slice(2)}`
+      analyticsReaderPageRef.current = null
       void trackUserActivity('book_open', {
         book_id: Number.isFinite(Number(book?.id)) ? Number(book.id) : null,
         access_type: book?.accessType ?? book?.access_type ?? null,
         metadata: { type: book?.type || null },
-      }, `book-open:${book?.id}`)
+      })
 
       setReaderBook(book)
       setReaderPreviewOnly(previewOnly)
