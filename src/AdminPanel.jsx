@@ -2181,6 +2181,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px', marginTop: '12px' }}>
                           <span style={{ color: '#ddd', fontSize: '13px' }}>Imported: <b>{bulkImportProgress.imported}</b></span>
+                          <span style={{ color: '#ddd', fontSize: '13px' }}>Remaining: <b>{Math.max(0, bulkImportProgress.total - bulkImportProgress.processed)}</b></span>
                           <span style={{ color: '#ddd', fontSize: '13px' }}>Skipped: <b>{bulkImportProgress.skipped}</b></span>
                           <span style={{ color: '#ddd', fontSize: '13px' }}>Duplicates: <b>{bulkImportProgress.duplicates}</b></span>
                           <span style={{ color: '#ddd', fontSize: '13px' }}>Failed: <b>{bulkImportProgress.failed}</b></span>
