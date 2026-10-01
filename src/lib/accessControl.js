@@ -94,18 +94,21 @@ export function loadUnlockedAds() {
   }
 }
 
-export function saveUnlockedAd(key, durationMinutes = 360) {
+export function saveUnlockedAdUntil(key, expiresAt) {
   if (!key || typeof window === 'undefined') return null
-  const duration = Math.min(1440, Math.max(1, Number(durationMinutes) || 360))
-  const requestedExpiry = Date.now() + duration * 60 * 1000
+  const numericExpiry = expiresAt instanceof Date
+    ? expiresAt.getTime()
+    : Number(expiresAt)
+  if (!Number.isFinite(numericExpiry) || numericExpiry <= Date.now()) return null
+
   const expiries = readAdUnlockExpiries()
   const existingExpiry = Number(expiries[String(key)])
-  // Never let a later server entitlement get shortened by a second sync row
-  // arriving with a smaller remaining duration.
-  const expiresAt = Number.isFinite(existingExpiry) && existingExpiry > requestedExpiry
+  // Never shorten an already longer-lived local cache entry.
+  const finalExpiry = Number.isFinite(existingExpiry) && existingExpiry > numericExpiry
     ? existingExpiry
-    : requestedExpiry
-  expiries[String(key)] = expiresAt
+    : numericExpiry
+
+  expiries[String(key)] = finalExpiry
   writeAdUnlockExpiries(expiries)
   localStorage.setItem(
     AD_UNLOCKS_KEY,
@@ -115,7 +118,13 @@ export function saveUnlockedAd(key, durationMinutes = 360) {
         .map(([unlockKey]) => unlockKey)
     )
   )
-  return expiresAt
+  return finalExpiry
+}
+
+export function saveUnlockedAd(key, durationMinutes = 360) {
+  if (!key || typeof window === 'undefined') return null
+  const duration = Math.min(1440, Math.max(1, Number(durationMinutes) || 360))
+  return saveUnlockedAdUntil(key, Date.now() + duration * 60 * 1000)
 }
 
 export function hasActiveAdUnlock(key) {
