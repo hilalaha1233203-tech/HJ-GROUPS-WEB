@@ -108,8 +108,28 @@ test.describe('HJ GROUPS admin health', () => {
     await videoPremium.check()
     await expect(videoPremium).toBeChecked()
 
+    const shortenerStatusResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/shortener/status')
+    )
     await adminOverlay.getByRole('button', { name: /Management & Settings/i }).first().click()
+    const shortenerStatusResponse = await shortenerStatusResponsePromise
+    const shortenerStatusPayload = await shortenerStatusResponse.json()
     await expect(page.getByText('Management & Settings', { exact: true })).toBeVisible()
+    expect(shortenerStatusResponse.status(), 'shortener status HTTP response').toBe(200)
+    expect(typeof shortenerStatusPayload.configured?.arolinks).toBe('boolean')
+    expect(typeof shortenerStatusPayload.configured?.earn4link).toBe('boolean')
+    expect(typeof shortenerStatusPayload.configured?.supabaseServiceRole).toBe('boolean')
+    expect(typeof shortenerStatusPayload.configured?.publicBaseUrl).toBe('boolean')
+    expect(typeof shortenerStatusPayload.configured?.unlockSecret).toBe('boolean')
+    expect(typeof shortenerStatusPayload.supabaseUrl).toBe('boolean')
+    expect(shortenerStatusPayload.primary).toMatch(/^(arolinks|earn4link)$/)
+    expect(shortenerStatusPayload.fallback).toMatch(/^(arolinks|earn4link)$/)
+    expect(shortenerStatusPayload.unlockDurationMinutes).toBeGreaterThanOrEqual(1)
+    expect(shortenerStatusPayload.unlockDurationMinutes).toBeLessThanOrEqual(1440)
+    await test.info().attach('shortener-status.json', {
+      body: JSON.stringify(shortenerStatusPayload, null, 2),
+      contentType: 'application/json',
+    })
     await expect(page.getByText('CONTENT MANAGEMENT', { exact: true })).toBeVisible()
     await expect(page.getByText('ADS PROVIDER', { exact: true })).toBeVisible()
     await expect(page.getByText('PAYMENTS', { exact: true })).toBeVisible()
