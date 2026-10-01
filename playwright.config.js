@@ -16,6 +16,10 @@ export default defineConfig({
     browserName: 'chromium',
     ...devices['Desktop Chrome'],
     headless: true,
+    extraHTTPHeaders: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
