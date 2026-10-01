@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { supabase } from './supabase'
+import { getAuthRedirectUrl } from './lib/authRedirect'
 
 const DEFAULTS = Object.freeze({
   sleepTimer: 0,
@@ -23,7 +24,7 @@ const DEFAULTS = Object.freeze({
   dataSaver: false,
 })
 
-function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTimer, onApplyPlayerSettings, isAdmin = false }) {
+function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTimer, onApplyPlayerSettings, supportTelegramUrl = '', isAdmin = false }) {
   const [name, setName] = useState(() => String(user?.user_metadata?.full_name || ''))
   const [newEmail, setNewEmail] = useState(() => String(user?.email || ''))
   const [phone, setPhone] = useState(() => String(user?.phone || ''))
@@ -111,8 +112,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     }
 
     setBusy(true)
-    const configured = String(import.meta.env.VITE_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '')
-    const redirectTo = configured ? configured + '/' : window.location.origin + '/'
+    const redirectTo = getAuthRedirectUrl()
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     })
@@ -286,6 +286,23 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
 
       {status && <div className="account-settings-status">{status}</div>}
       {error && <div className="account-settings-error">{error}</div>}
+
+      <section className="account-settings-card">
+        <div className="account-settings-card-head">
+          <div><small>SUPPORT</small><h2>Telegram Support</h2></div>
+          <span className="account-settings-icon">💬</span>
+        </div>
+        {supportTelegramUrl ? (
+          <>
+            <p className="account-settings-note">Need help? Contact HJ GROUPS support directly on Telegram.</p>
+            <a className="primary-btn account-settings-support-link" href={supportTelegramUrl} target="_blank" rel="noreferrer noopener">
+              Open Telegram Support
+            </a>
+          </>
+        ) : (
+          <div className="account-settings-note">Telegram support is not configured yet.</div>
+        )}
+      </section>
 
       <section className="account-settings-card">
         <div className="account-settings-card-head">
