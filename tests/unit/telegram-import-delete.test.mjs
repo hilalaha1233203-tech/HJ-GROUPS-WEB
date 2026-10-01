@@ -34,6 +34,27 @@ test('Telegram Select All reverses scan order so auto-numbered episodes import 1
   )
 })
 
+test('Admin access type labels do not reference an undefined variable', () => {
+  const panel = read('src/AdminPanel.jsx')
+  assert.match(panel, /function AccessTypeSelect\(\{ groupName, label = 'Access Types', value, onChange \}\)/)
+  assert.match(panel, /<span className="access-type-label">\{label\}<\/span>/)
+  assert.match(panel, /function AccessTypeField\(\{ groupName, label = 'Access Types', value, onChange \}\)/)
+})
+
+test('Long story episode lists render in 50-episode chunks with range navigation', () => {
+  const app = read('src/App.jsx')
+  const css = read('src/App.css')
+  assert.match(app, /const \[storyEpisodeRangeStart, setStoryEpisodeRangeStart\] = useState\(0\)/)
+  assert.match(app, /const \[storyEpisodeVisibleEnd, setStoryEpisodeVisibleEnd\] = useState\(50\)/)
+  assert.match(app, /for \(let index = 0; index < allEpisodes\.length; index \+= 50\)/)
+  assert.match(app, /setStoryEpisodeVisibleEnd\(Math\.min\(visibleEnd \+ 50, allEpisodes\.length\)\)/)
+  assert.match(app, /\{start \+ 1\}-\{end\}/)
+  assert.match(app, /aria-label="Episode ranges"/)
+  assert.match(app, /Load More Episodes/)
+  assert.match(css, /\.episode-range-nav \{/)
+  assert.match(css, /\.episode-load-more \{/)
+})
+
 test('Admin delete awaits the database operation and deletes by primary-key identity', () => {
   const panel = read('src/AdminPanel.jsx')
   const app = read('src/App.jsx')
