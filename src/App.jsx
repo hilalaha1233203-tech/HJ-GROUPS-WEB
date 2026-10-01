@@ -3515,7 +3515,6 @@ export function App() {
       const media =
         getMediaElement()
 
-      clearMediaLoadingNotice()
       if (!media) return
 
       const adsKey =
