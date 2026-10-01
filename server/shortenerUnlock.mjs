@@ -20,7 +20,7 @@ function resolveSupabaseUrl() {
 }
 
 const SUPABASE_URL = resolveSupabaseUrl()
-const SHORTENER_STATUS_VERSION = '2026-10-01-auth-diagnostics-1'
+const SHORTENER_STATUS_VERSION = '2026-10-01-auth-diagnostics-2'
 
 const SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
 const UNLOCK_TOKEN_SECRET = String(process.env.UNLOCK_TOKEN_SECRET || '').trim()
