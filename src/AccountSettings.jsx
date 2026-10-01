@@ -112,7 +112,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
     }
 
     setBusy(true)
-    const redirectTo = getAuthRedirectUrl()
+    const redirectTo = getAuthRedirectUrl({ productionSafe: true })
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     })
