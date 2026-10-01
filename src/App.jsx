@@ -989,11 +989,6 @@ export function App() {
         const payload = await response.json()
         if (!payload?.ok || !payload.expiresAt) return
 
-        const remaining = Math.max(
-          1,
-          Math.ceil((new Date(payload.expiresAt).getTime() - Date.now()) / 60000)
-        )
-
         cacheServerAdUnlock({
           content_type: payload.contentType,
           content_id: payload.contentId,
