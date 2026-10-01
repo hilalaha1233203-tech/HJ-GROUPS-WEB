@@ -1275,7 +1275,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     if (videoBulkSelectedIds.length === videoBulkMessages.length) {
       setVideoBulkSelectedIds([])
     } else {
-      setVideoBulkSelectedIds(videoBulkMessages.map((msg) => msg.messageId))
+      setVideoBulkSelectedIds([...videoBulkMessages].reverse().map((msg) => msg.messageId))
     }
   }
 
@@ -1422,7 +1422,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     if (bookBulkSelectedIds.length === bookBulkMessages.length) {
       setBookBulkSelectedIds([])
     } else {
-      setBookBulkSelectedIds(bookBulkMessages.map((msg) => msg.messageId))
+      setBookBulkSelectedIds([...bookBulkMessages].reverse().map((msg) => msg.messageId))
     }
   }
 
