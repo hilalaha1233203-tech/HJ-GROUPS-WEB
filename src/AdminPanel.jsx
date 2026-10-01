@@ -252,6 +252,44 @@ function AdminPanel({
   const [shortenerHealth, setShortenerHealth] = useState(null)
   const [shortenerHealthLoading, setShortenerHealthLoading] = useState(false)
   const [shortenerHealthRefresh, setShortenerHealthRefresh] = useState(0)
+  const [analyticsRange, setAnalyticsRange] = useState('7d')
+  const [analyticsData, setAnalyticsData] = useState(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsError, setAnalyticsError] = useState('')
+
+
+  useEffect(() => {
+    if (tab !== 'analytics') return undefined
+    let mounted = true
+    const getRange = () => {
+      if (analyticsRange === 'all') return { start: null, end: null }
+      const now = new Date()
+      const start = new Date(now)
+      if (analyticsRange === 'today') start.setHours(0, 0, 0, 0)
+      else if (analyticsRange === '7d') start.setDate(start.getDate() - 7)
+      else start.setDate(start.getDate() - 30)
+      return { start: start.toISOString(), end: now.toISOString() }
+    }
+    const loadAnalytics = async () => {
+      setAnalyticsLoading(true)
+      setAnalyticsError('')
+      try {
+        const { start, end } = getRange()
+        const { data, error } = await supabase.rpc('get_hj_admin_analytics', { p_start_at: start, p_end_at: end })
+        if (error) throw error
+        if (mounted) setAnalyticsData(data || null)
+      } catch (error) {
+        if (mounted) {
+          setAnalyticsData(null)
+          setAnalyticsError(error?.message || 'Unable to load analytics.')
+        }
+      } finally {
+        if (mounted) setAnalyticsLoading(false)
+      }
+    }
+    loadAnalytics()
+    return () => { mounted = false }
+  }, [tab, analyticsRange])
 
   useEffect(() => {
     if (tab !== 'settings') return undefined
@@ -1673,6 +1711,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         <button className={tab === 'stories' ? 'active' : ''} onClick={() => setTab('stories')}>🎧 Audio Stories</button>
         <button className={tab === 'books' ? 'active' : ''} onClick={() => setTab('books')}>📚 Books</button>
         <button className={tab === 'videos' ? 'active' : ''} onClick={() => setTab('videos')}>🎬 Videos</button>
+        <button className={tab === 'analytics' ? 'active' : ''} onClick={() => setTab('analytics')}>📊 Analytics</button>
         <button className={`admin-settings-tab-button ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>⚙ Management & Settings</button>
       </div>
 
@@ -1767,6 +1806,73 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         )}
 
         {/* ================= MANAGEMENT & SETTINGS ================= */}
+
+        {tab === 'analytics' && (
+          <section className="admin-section" style={{ padding: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '18px' }}>
+              <div>
+                <div className="admin-eyebrow">USER ACTIVITY</div>
+                <h2 style={{ margin: '4px 0' }}>Analytics</h2>
+                <p style={{ margin: 0, opacity: 0.75 }}>Factual activity only — anonymous sessions use a random browser session ID; authenticated activity uses the Supabase user ID.</p>
+              </div>
+              <select value={analyticsRange} onChange={(event) => setAnalyticsRange(event.target.value)} aria-label="Analytics date range">
+                <option value="today">Today</option><option value="7d">Last 7 Days</option><option value="30d">Last 30 Days</option><option value="all">All Time</option>
+              </select>
+            </div>
+            {analyticsLoading && <p>Loading analytics…</p>}
+            {analyticsError && <p className="auth-error" role="alert">{analyticsError}</p>}
+            {!analyticsLoading && !analyticsError && analyticsData && (
+              <>
+                <div className="admin-stat-grid">
+                  {[
+                    ['👥', 'Registered Users', analyticsData.overview?.registered_users ?? 0],
+                    ['🟢', 'Active Logged-in Users', analyticsData.overview?.active_logged_in_users ?? 0],
+                    ['🕶️', 'Active Anonymous Sessions', analyticsData.overview?.active_anonymous_sessions ?? 0],
+                    ['📖', 'Story Views', analyticsData.overview?.story_views ?? 0],
+                    ['▶', 'Episode Plays', analyticsData.overview?.episode_plays ?? 0],
+                    ['👤', 'Unique Episode Viewers', Number(analyticsData.overview?.logged_in_episode_viewers || 0) + Number(analyticsData.overview?.anonymous_episode_viewers || 0)],
+                    ['✓', 'Episode Completions', analyticsData.overview?.episode_completions ?? 0],
+                    ['📢', 'Ad Unlock Starts', analyticsData.overview?.ad_unlock_starts ?? 0],
+                    ['✅', 'Ad Unlock Completions', analyticsData.overview?.ad_unlock_completions ?? 0],
+                    ['🔓', 'Actual Ad Unlocks', analyticsData.overview?.actual_ad_unlocks ?? 0],
+                    ['♛', 'Premium/VIP Accesses', analyticsData.overview?.premium_vip_accesses ?? 0],
+                  ].map(([icon, label, value]) => (
+                    <div className="admin-stat-card" key={label}><span className="admin-stat-icon">{icon}</span><small>{label}</small><strong>{value}</strong></div>
+                  ))}
+                </div>
+                <section className="admin-section" style={{ marginTop: '18px' }}>
+                  <h3>📚 Story Analytics</h3>
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Story</th><th>Views</th><th>Unique Viewers</th><th>Episode Plays</th><th>Unique Episode Viewers</th><th>Completions</th><th>Ad Starts</th><th>Ad Completions</th></tr></thead><tbody>
+                    {(analyticsData.stories || []).map((row) => <tr key={row.id}><td>{row.title || 'Untitled'}</td><td>{row.story_views}</td><td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td><td>{row.episode_plays}</td><td>{Number(row.logged_in_episode_viewers || 0) + Number(row.anonymous_episode_viewers || 0)}</td><td>{row.episode_completions}</td><td>{row.ad_unlock_starts}</td><td>{row.ad_unlock_completions}</td></tr>)}
+                  </tbody></table></div>
+                </section>
+                <section className="admin-section" style={{ marginTop: '18px' }}>
+                  <h3>🎧 Episode Analytics</h3>
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Episode</th><th>Title</th><th>Total Plays</th><th>Unique Viewers</th><th>Completed Plays</th><th>Ad Starts</th><th>Ad Completions</th><th>Actual Unlocks</th></tr></thead><tbody>
+                    {(analyticsData.episodes || []).map((row) => <tr key={row.id}><td>{row.episode_number}</td><td>{row.title || 'Untitled'}</td><td>{row.total_plays}</td><td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td><td>{row.completed_plays}</td><td>{row.ad_unlock_starts}</td><td>{row.ad_unlock_completions}</td><td>{row.actual_unlocks ?? 0}</td></tr>)}
+                  </tbody></table></div>
+                </section>
+                <section className="admin-section" style={{ marginTop: '18px' }}>
+                  <h3>📢 Ad Analytics</h3>
+                  <p style={{ opacity: 0.75 }}>Started ≠ Completed ≠ Actual Unlock. Actual Unlock is read from the existing HJ GROUPS <code>ad_unlocks</code> state.</p>
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Time</th><th>Event</th><th>User</th><th>Session</th><th>Story</th><th>Episode</th></tr></thead><tbody>
+                    {(analyticsData.ad_activity || []).map((row) => <tr key={row.id}><td>{row.created_at ? new Date(row.created_at).toLocaleString() : '—'}</td><td>{row.event_type}</td><td>{row.user_id || '—'}</td><td>{row.session_suffix ? <>…{row.session_suffix}</> : '—'}</td><td>{row.story_id || '—'}</td><td>{row.episode_id || '—'}</td></tr>)}
+                  </tbody></table></div>
+                </section>
+                <section className="admin-section" style={{ marginTop: '18px' }}>
+                  <h3>👥 User Activity</h3>
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>User ID</th><th>Profile</th><th>Last Activity</th><th>Plays</th><th>Completed</th><th>Ad Unlocks</th></tr></thead><tbody>
+                    {(analyticsData.users || []).map((row) => <tr key={row.user_id}><td>{row.user_id}</td><td>{row.full_name || '—'}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.completed_episodes}</td><td>{row.ad_unlocks}</td></tr>)}
+                  </tbody></table></div>
+                  <h4 style={{ marginTop: '18px' }}>Anonymous Sessions</h4>
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Session</th><th>Last Activity</th><th>Plays</th><th>Unlocks</th></tr></thead><tbody>
+                    {(analyticsData.anonymous_sessions || []).map((row) => <tr key={row.session_suffix}><td>…{row.session_suffix}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.unlocks}</td></tr>)}
+                  </tbody></table></div>
+                </section>
+              </>
+            )}
+          </section>
+        )}
 
         {tab === 'settings' && (
           <>
