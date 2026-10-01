@@ -9,6 +9,7 @@ const SUPABASE_URL = String(
 
 const SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
 const CASHFREE_CLIENT_ID = String(process.env.CASHFREE_CLIENT_ID || '').trim()
+const PAYMENT_RUNTIME_ENABLED = String(process.env.HJ_PAYMENTS_ENABLED || '').trim().toLowerCase() === 'true'
 const CASHFREE_CLIENT_SECRET = String(process.env.CASHFREE_CLIENT_SECRET || '').trim()
 const CASHFREE_ENVIRONMENT = String(process.env.CASHFREE_ENVIRONMENT || 'sandbox').trim().toLowerCase()
 const PUBLIC_BASE_URL = String(process.env.HJ_PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '')
@@ -57,6 +58,9 @@ function json(res, status, payload) {
 }
 
 function requireConfigured() {
+  if (!PAYMENT_RUNTIME_ENABLED) {
+    throw new Error('Payments are currently disabled.')
+  }
   if (!CASHFREE_CLIENT_ID || !CASHFREE_CLIENT_SECRET) {
     throw new Error('Cashfree server credentials are not configured.')
   }
@@ -383,10 +387,19 @@ async function status(req, res, orderId) {
 }
 
 async function health(req, res) {
+  let adminEnabled = false
+  try {
+    const settings = await getAdminSettings()
+    adminEnabled = settings?.payments?.enabled === true
+  } catch {}
+  const credentialsConfigured = Boolean(CASHFREE_CLIENT_ID && CASHFREE_CLIENT_SECRET && PUBLIC_BASE_URL && SERVICE_ROLE_KEY)
+  const enabled = PAYMENT_RUNTIME_ENABLED && adminEnabled && credentialsConfigured
   return json(res, 200, {
-    enabled: Boolean(CASHFREE_CLIENT_ID && CASHFREE_CLIENT_SECRET),
+    enabled,
+    adminEnabled,
+    runtimeEnabled: PAYMENT_RUNTIME_ENABLED,
     environment: CASHFREE_ENVIRONMENT,
-    configured: Boolean(CASHFREE_CLIENT_ID && CASHFREE_CLIENT_SECRET && PUBLIC_BASE_URL && SERVICE_ROLE_KEY),
+    configured: credentialsConfigured,
   })
 }
 
@@ -421,4 +434,5 @@ export {
   moneyEquals,
   safeProductPrice,
   verifyWebhookSignature,
+  isPaymentsRuntimeEnabled: () => PAYMENT_RUNTIME_ENABLED,
 }
