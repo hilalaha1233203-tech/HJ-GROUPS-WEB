@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 
 const CASHFREE_SDK_URL = 'https://sdk.cashfree.com/js/v3/cashfree.js'
@@ -36,10 +36,32 @@ function makeRequestId() {
 export default function PaymentModal({ target, onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [availability, setAvailability] = useState({ checking: true, enabled: false })
+
+  useEffect(() => {
+    let mounted = true
+    fetch('/api/payments/health', { method: 'GET', credentials: 'include', cache: 'no-store' })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null)
+        if (!response.ok) throw new Error(String(payload?.error || 'Unable to check payment availability.'))
+        if (mounted) setAvailability({ checking: false, enabled: payload?.enabled === true })
+      })
+      .catch((healthError) => {
+        if (!mounted) return
+        setAvailability({ checking: false, enabled: false })
+        setError(String(healthError?.message || 'Payment service is currently unavailable.'))
+      })
+    return () => { mounted = false }
+  }, [])
 
   if (!target) return null
 
   const startPayment = async () => {
+    if (!availability.enabled) {
+      setError('Payments are currently disabled. Please check back later.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
@@ -96,7 +118,11 @@ export default function PaymentModal({ target, onClose }) {
         <h3>👑 Unlock Story</h3>
         <p>Purchase lifetime access to <strong>{target.title || 'this story'}</strong>.</p>
         <p className="ad-unlock-countdown">
-          Payment is processed securely by Cashfree. HJ GROUPS does not collect your card, UPI PIN or CVV.
+          {availability.checking
+            ? 'Checking payment availability…'
+            : availability.enabled
+              ? 'Payment is processed securely by Cashfree. HJ GROUPS does not collect your card, UPI PIN or CVV.'
+              : 'Payments are currently disabled. Story purchases are not available yet.'}
         </p>
 
         {error && <p className="auth-error" role="alert">{error}</p>}
@@ -105,8 +131,8 @@ export default function PaymentModal({ target, onClose }) {
           <button type="button" className="secondary-btn" onClick={onClose} disabled={loading}>
             Cancel
           </button>
-          <button type="button" className="primary-btn" onClick={startPayment} disabled={loading}>
-            {loading ? 'Opening payment…' : 'Continue to Payment'}
+          <button type="button" className="primary-btn" onClick={startPayment} disabled={loading || availability.checking || !availability.enabled}>
+            {loading ? 'Opening payment…' : availability.checking ? 'Checking…' : availability.enabled ? 'Continue to Payment' : 'Payment Disabled'}
           </button>
         </div>
       </div>
