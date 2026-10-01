@@ -80,8 +80,8 @@ function contentPath(contentType, contentId) {
 
 function extractBearer(req) {
   const header = String(req.headers.authorization || '')
-  if (!/^Bearer\\s+/i.test(header)) return ''
-  return header.replace(/^Bearer\\s+/i, '').trim()
+  if (!/^Bearer\s+/i.test(header)) return ''
+  return header.replace(/^Bearer\s+/i, '').trim()
 }
 
 async function authenticate(req) {
@@ -938,6 +938,7 @@ async function status(req, res) {
   const providers = getProviderOrder(settings)
   return json(res, 200, {
     ok: !settingsError && configured.supabaseServiceRole && configured.publicBaseUrl,
+    supabaseUrl: Boolean(SUPABASE_URL),
     enabled: settings.shortenerEnabled,
     primary: settings.primary,
     fallback: settings.fallback,
@@ -988,6 +989,15 @@ export {
   chooseUnlockExpiry,
 }
 
+function corsHeaders(req) {
+  return {
+    'Access-Control-Allow-Origin': req.headers.origin || '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    Vary: 'Origin',
+  }
+}
+
 export async function handleShortenerRequest(req, res, url, readBody) {
   try {
     if (url.pathname === '/api/shortener/start' && req.method === 'POST') {
@@ -1004,6 +1014,10 @@ export async function handleShortenerRequest(req, res, url, readBody) {
 
     if (url.pathname === '/api/shortener/entitlements' && req.method === 'GET') {
       return listEntitlements(req, res)
+    }
+
+    if (url.pathname === '/api/shortener/status' && req.method === 'OPTIONS') {
+      return json(res, 204, {}, { ...corsHeaders(req) })
     }
 
     if (url.pathname === '/api/shortener/status' && req.method === 'GET') {
