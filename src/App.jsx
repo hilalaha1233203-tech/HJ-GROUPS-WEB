@@ -11,6 +11,7 @@ import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
 import PaymentModal from './components/PaymentModal'
+import PasswordInput from './components/PasswordInput'
 
 import {
   resolveAccessType,
