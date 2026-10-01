@@ -930,9 +930,9 @@ export function App() {
     for (const episodeNumber of episodeNumbers) {
       const numericEpisode = Number(episodeNumber)
       if (!Number.isInteger(numericEpisode) || numericEpisode < 1) continue
-      saveUnlockedAd(
+      saveUnlockedAdUntil(
         adsKeyFor(kind, unlock.storyId, numericEpisode),
-        remainingMinutes
+        exactExpiry
       )
     }
   }
