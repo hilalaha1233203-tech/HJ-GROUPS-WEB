@@ -2948,6 +2948,18 @@ body:has(.reader-overlay:not(.reader-minimized)),
     width 0.3s linear;
 }
 
+.ad-unlock-range-note {
+  margin: 10px 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(124,131,255,.24);
+  border-radius: 9px;
+  background: rgba(124,131,255,.07);
+  color: #cfd4ff;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ad-unlock-range-note strong { color: #fff; }
+
 .ad-unlock-countdown {
   font-size: 13px;
 
