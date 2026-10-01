@@ -10,7 +10,7 @@ import Auth from './Auth'
 import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
-import { trackUserActivity } from './lib/analytics'
+import { getAnalyticsSessionId, trackUserActivity } from './lib/analytics'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
 
@@ -889,6 +889,10 @@ export function App() {
   const [recoveryMessage, setRecoveryMessage] = useState('')
 
   const loggedIn = !!user
+  useEffect(() => {
+    if (!user?.id) getAnalyticsSessionId()
+  }, [user?.id])
+
 
   const isAdmin =
     loggedIn &&
