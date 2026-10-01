@@ -14,7 +14,15 @@ const {
   safeProductPrice,
   verifyWebhookSignature,
   isPaymentsRuntimeEnabled,
+  isLikelyJwt,
 } = await import('../../server/payment.mjs')
+
+
+test('malformed bearer tokens fail local JWT-shape validation', () => {
+  assert.equal(isLikelyJwt('header.payload.signature'), true)
+  assert.equal(isLikelyJwt('header.payload'), false)
+  assert.equal(isLikelyJwt(''), false)
+})
 
 test('payment amount validation rejects zero, negative and non-numeric values', () => {
   assert.equal(isFinitePositiveAmount(1), true)
