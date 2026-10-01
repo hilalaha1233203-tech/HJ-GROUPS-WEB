@@ -116,10 +116,22 @@ async function handleAdminAnalytics(req, res) {
 
     const url = new URL(req.url || '/', 'http://' + (req.headers.host || 'localhost'))
     const range = url.searchParams.get('range') || '7d'
-    const now = new Date()
+    const requestedStart = url.searchParams.get('start')
+    const requestedEnd = url.searchParams.get('end')
     let start = null
     let end = null
-    if (range !== 'all') {
+    if (requestedStart && requestedEnd) {
+      const startDate = new Date(requestedStart)
+      const endDate = new Date(requestedEnd)
+      if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || startDate >= endDate) {
+        return send(res, 400, JSON.stringify({ error: 'Invalid analytics date range' }), {
+          'Content-Type': 'application/json; charset=utf-8',
+        })
+      }
+      start = startDate.toISOString()
+      end = endDate.toISOString()
+    } else if (range !== 'all') {
+      const now = new Date()
       const startDate = new Date(now)
       if (range === 'today') startDate.setHours(0, 0, 0, 0)
       else if (range === '30d') startDate.setDate(startDate.getDate() - 30)
