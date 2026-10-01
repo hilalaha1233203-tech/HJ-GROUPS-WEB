@@ -815,6 +815,39 @@ export function App() {
   const [sleepMinutes, setSleepMinutes] =
     useState(0)
 
+  const [mediaLoadingNotice, setMediaLoadingNotice] = useState('')
+  const mediaLoadingNoticeTimerRef = useRef(null)
+
+  const clearMediaLoadingNotice = () => {
+    if (mediaLoadingNoticeTimerRef.current) {
+      window.clearTimeout(mediaLoadingNoticeTimerRef.current)
+      mediaLoadingNoticeTimerRef.current = null
+    }
+    setMediaLoadingNotice('')
+  }
+
+  const showMediaLoadingNotice = (message) => {
+    if (mediaLoadingNoticeTimerRef.current) {
+      window.clearTimeout(mediaLoadingNoticeTimerRef.current)
+      mediaLoadingNoticeTimerRef.current = null
+    }
+    setMediaLoadingNotice(String(message || ''))
+    const timerId = window.setTimeout(() => {
+      if (mediaLoadingNoticeTimerRef.current !== timerId) return
+      mediaLoadingNoticeTimerRef.current = null
+      setMediaLoadingNotice('')
+    }, 20000)
+    mediaLoadingNoticeTimerRef.current = timerId
+  }
+
+  useEffect(() => {
+    return () => {
+      if (mediaLoadingNoticeTimerRef.current) {
+        window.clearTimeout(mediaLoadingNoticeTimerRef.current)
+      }
+    }
+  }, [])
+
   /* =======================================================
      AUTH
   ======================================================= */
@@ -3482,6 +3515,7 @@ export function App() {
       const media =
         getMediaElement()
 
+      clearMediaLoadingNotice()
       if (!media) return
 
       const adsKey =
@@ -3615,6 +3649,11 @@ export function App() {
     }
     setIsPlaying(false)
     setCurrentMediaSrc('')
+    showMediaLoadingNotice(
+      episode.type === 'video'
+        ? 'This video will load in a few seconds depending on your network.'
+        : 'This episode will load in a few seconds depending on your network.'
+    )
     try {
       const mediaSrc = await resolveMediaSource(episode)
       if (runId !== mediaResolveRunRef.current) return
@@ -4001,6 +4040,7 @@ export function App() {
         mediaLoadTimerRef.current = null
       }
       setCurrentMediaSrc('')
+      clearMediaLoadingNotice()
 
       setActivePlayerKind(
         (kind) =>
@@ -4957,6 +4997,7 @@ export function App() {
 
       setReaderError('')
       setReaderLoading(false)
+      clearMediaLoadingNotice()
 
       setPdfPages(0)
       setPdfPage(1)
@@ -5067,6 +5108,8 @@ export function App() {
         requestAccess(book, bookAccessKey, () => openReaderForBook(book, { autoRead }), book.id, 'book')
         return
       }
+
+      showMediaLoadingNotice('This book will load in a few seconds depending on your network.')
 
       setReaderBook(book)
       setReaderPreviewOnly(previewOnly)
@@ -5459,6 +5502,7 @@ export function App() {
 
   const handlePdfLoadSuccess =
     async (pdf) => {
+      clearMediaLoadingNotice()
       pdfDocumentRef.current =
         pdf
 
@@ -6485,6 +6529,7 @@ export function App() {
 
   const handlePageRendered =
     () => {
+      clearMediaLoadingNotice()
       if (
         readerBodyRef.current
       ) {
@@ -6990,7 +7035,8 @@ export function App() {
             }
             onError={() => {
               console.error('Media playback failed:', currentEpisode?.src)
-              setIsPlaying(false)
+              clearMediaLoadingNotice()
+               setIsPlaying(false)
             }}
           />
         )}
@@ -8549,6 +8595,13 @@ export function App() {
         </div>
       )}
 
+      {mediaLoadingNotice && (
+        <div className="media-loading-toast" role="status" aria-live="polite">
+          <span className="media-loading-spinner" aria-hidden="true" />
+          <span>{mediaLoadingNotice}</span>
+        </div>
+      )}
+
       {/* =====================================================
          MINI PLAYER
       ===================================================== */}
@@ -8773,7 +8826,8 @@ export function App() {
                       }
                       onError={() => {
                         console.error('Media playback failed:', currentEpisode?.src)
-                        setIsPlaying(false)
+                        clearMediaLoadingNotice()
+                         setIsPlaying(false)
                       }}
                     />
                   ) : (
