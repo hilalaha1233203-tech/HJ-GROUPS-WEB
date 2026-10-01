@@ -131,3 +131,11 @@ test('an explicitly empty rule list is rejected instead of silently restoring de
   assert.equal(result.valid, false)
   assert.match(result.errors.join(' '), /at least one/i)
 })
+
+test('Telegram story IDs use the same Ads key identity as the server numeric story ID', async () => {
+  const { adsKeyFor } = await import('../../src/lib/accessControl.js')
+  assert.equal(adsKeyFor('episode', 'tg-story-3', 14), 'episode:3:14')
+  assert.equal(adsKeyFor('episode', 3, 14), 'episode:3:14')
+  assert.equal(adsKeyFor('video-episode', 'tg-video-7', 9), 'video-episode:7:9')
+  assert.equal(adsKeyFor('book', 'tg-book-4'), 'book:tg-book-4')
+})
