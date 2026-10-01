@@ -1336,8 +1336,18 @@ export function App() {
   const [telegramBooks, setTelegramBooks] = useState([])
   const [telegramVideoStories, setTelegramVideoStories] = useState([])
 
+  const publicTelegramStories = telegramStories.map((story) => ({
+    ...story,
+    episodes: (story.episodes || []).filter((episode) => !episode.isTelegramDuplicate),
+  }))
+
   const stories = [
     
+    ...adminStories,
+    ...publicTelegramStories,
+  ]
+
+  const adminPanelStories = [
     ...adminStories,
     ...telegramStories,
   ]
@@ -1457,15 +1467,33 @@ export function App() {
 
     if (supabaseId !== null) {
       const messageId = episode.telegram_message_id ? Number(episode.telegram_message_id) : null
+      const telegramImportKey = Number.isFinite(messageId)
+        ? `${supabaseId}:${messageId}`
+        : null
       const streamUrl = Number.isFinite(messageId)
         ? `${STREAMING_SERVER_URL}/audio/message/${encodeURIComponent(messageId)}`
         : (episode.src || null)
 
       const accessType = episode.accessType || 'free'
 
-      // Try a hybrid payload first. This succeeds when production has both
-      // legacy episode_number/audio_url columns and newer number/file_url
-      // columns. It also keeps Access Type / availability / Telegram ID.
+      if (telegramImportKey) {
+        const duplicateLookup = await supabase
+          .from('episodes')
+          .select('id')
+          .eq('telegram_import_key', telegramImportKey)
+          .limit(1)
+          .maybeSingle()
+
+        if (duplicateLookup.error) {
+          const message = String(duplicateLookup.error.message || '')
+          const schemaMismatch =
+            /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(message)
+          if (!schemaMismatch) throw duplicateLookup.error
+        } else if (duplicateLookup.data?.id) {
+          return { status: 'duplicate', id: duplicateLookup.data.id }
+        }
+      }
+
       const hybridRow = {
         story_id: supabaseId,
         episode_number: Number(episode.number),
@@ -1480,28 +1508,45 @@ export function App() {
         language: episode.language || 'Tamil',
         available: episode.available !== false,
         ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
+        ...(telegramImportKey ? { telegram_import_key: telegramImportKey } : {}),
       }
 
       let result = await supabase.from('episodes').insert(hybridRow)
 
       if (result.error) {
-        const hybridError = result.error
-        const message = String(hybridError.message || '')
+        const isDuplicate =
+          String(result.error.code || '') === '23505' ||
+          /duplicate key value violates unique constraint|episodes_telegram_import_key/i.test(
+            String(result.error.message || '')
+          )
+
+        if (isDuplicate && telegramImportKey) {
+          const duplicateLookup = await supabase
+            .from('episodes')
+            .select('id')
+            .eq('telegram_import_key', telegramImportKey)
+            .limit(1)
+            .maybeSingle()
+
+          if (duplicateLookup.error) throw duplicateLookup.error
+          return { status: 'duplicate', id: duplicateLookup.data?.id ?? null }
+        }
+
+        const message = String(result.error.message || '')
         const schemaMismatch =
           /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
 
         if (!schemaMismatch) {
           console.error('Supabase episode insert error:', {
-            code: hybridError.code,
-            status: hybridError.status,
-            message: hybridError.message,
-            details: hybridError.details,
-            hint: hybridError.hint,
+            code: result.error.code,
+            status: result.error.status,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
           })
-          throw hybridError
+          throw result.error
         }
 
-        // Newer schema without legacy columns.
         const modernRow = {
           story_id: supabaseId,
           number: Number(episode.number),
@@ -1514,26 +1559,42 @@ export function App() {
           language: episode.language || 'Tamil',
           available: episode.available !== false,
           ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
+          ...(telegramImportKey ? { telegram_import_key: telegramImportKey } : {}),
         }
 
         result = await supabase.from('episodes').insert(modernRow)
 
-        // Original/legacy schema without the newer columns.
         if (result.error) {
-          const modernError = result.error
-          const modernMessage = String(modernError.message || '')
+          const isModernDuplicate =
+            String(result.error.code || '') === '23505' ||
+            /duplicate key value violates unique constraint|episodes_telegram_import_key/i.test(
+              String(result.error.message || '')
+            )
+
+          if (isModernDuplicate && telegramImportKey) {
+            const duplicateLookup = await supabase
+              .from('episodes')
+              .select('id')
+              .eq('telegram_import_key', telegramImportKey)
+              .limit(1)
+              .maybeSingle()
+            if (duplicateLookup.error) throw duplicateLookup.error
+            return { status: 'duplicate', id: duplicateLookup.data?.id ?? null }
+          }
+
+          const modernMessage = String(result.error.message || '')
           const modernSchemaMismatch =
             /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(modernMessage)
 
           if (!modernSchemaMismatch) {
             console.error('Supabase modern episode insert error:', {
-              code: modernError.code,
-              status: modernError.status,
-              message: modernError.message,
-              details: modernError.details,
-              hint: modernError.hint,
+              code: result.error.code,
+              status: result.error.status,
+              message: result.error.message,
+              details: result.error.details,
+              hint: result.error.hint,
             })
-            throw modernError
+            throw result.error
           }
 
           const legacyRow = {
@@ -1546,6 +1607,23 @@ export function App() {
           result = await supabase.from('episodes').insert(legacyRow)
 
           if (result.error) {
+            const isLegacyDuplicate =
+              String(result.error.code || '') === '23505' ||
+              /duplicate key value violates unique constraint|episodes_telegram_import_key/i.test(
+                String(result.error.message || '')
+              )
+
+            if (isLegacyDuplicate && telegramImportKey) {
+              const duplicateLookup = await supabase
+                .from('episodes')
+                .select('id')
+                .eq('telegram_import_key', telegramImportKey)
+                .limit(1)
+                .maybeSingle()
+              if (duplicateLookup.error) throw duplicateLookup.error
+              return { status: 'duplicate', id: duplicateLookup.data?.id ?? null }
+            }
+
             console.error('Supabase legacy episode insert error:', {
               code: result.error.code,
               status: result.error.status,
@@ -1556,8 +1634,6 @@ export function App() {
             throw result.error
           }
 
-          // On partially upgraded legacy tables, persist newer fields
-          // individually when they exist; missing columns are safely ignored.
           const metadata = {
             access_type: serializeAccessType(accessType),
             language: episode.language || 'Tamil',
@@ -1565,6 +1641,7 @@ export function App() {
             ...(Number.isFinite(messageId) ? { telegram_message_id: messageId } : {}),
             ...(episode.filePath ? { file_path: episode.filePath } : {}),
             file_url: streamUrl,
+            ...(telegramImportKey ? { telegram_import_key: telegramImportKey } : {}),
           }
 
           for (const [column, value] of Object.entries(metadata)) {
@@ -1592,7 +1669,7 @@ export function App() {
         // Database write succeeded; Realtime or the next reload will refresh the UI.
       }
 
-      return
+      return { status: 'imported' }
     }
 
     persistStories(adminStories.map((story) =>
@@ -1600,14 +1677,15 @@ export function App() {
         ? { ...story, episodes: [...(story.episodes || []), episode] }
         : story
     ))
+    return { status: 'imported-local' }
   }
 
-
-  const updateEpisode = async (storyId, episodeNumber, updates) => {
+  const updateEpisode = async (storyId, episodeNumber, updates, episodeId = null) => {
     const supabaseId = getSupabaseStoryId(storyId)
     if (supabaseId !== null) {
       const number = Number(updates.number ?? episodeNumber)
-      const modernRow = {
+      const targetId = Number(episodeId)
+      const baseUpdate = {
         number,
         title: updates.title,
         type: updates.type || 'audio',
@@ -1618,25 +1696,33 @@ export function App() {
         language: updates.language || 'Tamil',
         available: updates.available !== false,
       }
-      if (updates.telegram_message_id) modernRow.telegram_message_id = Number(updates.telegram_message_id)
+      if (updates.telegram_message_id) baseUpdate.telegram_message_id = Number(updates.telegram_message_id)
 
-      let result = await supabase.from('episodes').update(modernRow)
-        .eq('story_id', supabaseId).eq('number', Number(episodeNumber))
+      const buildUpdateQuery = (table, row, legacy = false) => {
+        let query = supabase.from(table).update(row).eq('story_id', supabaseId)
+        if (Number.isInteger(targetId) && targetId > 0) {
+          query = query.eq('id', targetId)
+        } else {
+          query = query.eq(legacy ? 'episode_number' : 'number', Number(episodeNumber))
+        }
+        return query
+      }
 
-      if (result.error) {
-        const message = String(result.error.message || '')
-        const schemaMismatch = /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
-        if (!schemaMismatch) throw result.error
+      let response = await buildUpdateQuery('episodes', baseUpdate)
+
+      if (response.error) {
+        const message = String(response.error.message || '')
+        const schemaMismatch =
+          /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
+        if (!schemaMismatch) throw response.error
 
         const legacyRow = {
           episode_number: number,
           title: updates.title,
           audio_url: updates.src || null,
         }
-        result = await supabase.from('episodes').update(legacyRow)
-          .eq('story_id', supabaseId).eq('episode_number', Number(episodeNumber))
-
-        if (result.error) throw result.error
+        response = await buildUpdateQuery('episodes', legacyRow, true)
+        if (response.error) throw response.error
 
         const metadata = {
           access_type: serializeAccessType(updates.accessType),
@@ -1648,17 +1734,23 @@ export function App() {
         }
 
         for (const [column, value] of Object.entries(metadata)) {
-          const { error: metadataError } = await supabase.from('episodes')
-            .update({ [column]: value })
-            .eq('story_id', supabaseId)
-            .eq('episode_number', Number(episodeNumber))
-          if (metadataError && !/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(String(metadataError.message || ''))) {
+          const metadataQuery = buildUpdateQuery('episodes', { [column]: value }, true)
+          const { error: metadataError } = await metadataQuery
+          if (
+            metadataError &&
+            !/column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(
+              String(metadataError.message || '')
+            )
+          ) {
             throw metadataError
           }
         }
       }
 
-      await refreshTelegramContent().catch(() => {})
+      try {
+        await refreshTelegramContent()
+      } catch {}
+
       return
     }
 
@@ -1669,17 +1761,60 @@ export function App() {
     ))
   }
 
-  const deleteEpisode = async (storyId, episodeNumber) => {
+  const deleteEpisode = async (storyId, episodeId) => {
     const supabaseId = getSupabaseStoryId(storyId)
+    const numericEpisodeId = Number(episodeId)
+
     if (supabaseId !== null) {
-      const { error } = await supabase.from('episodes').delete()
-        .eq('story_id', supabaseId).eq('number', Number(episodeNumber))
-      if (error) throw error
-      return
+      if (!Number.isInteger(numericEpisodeId) || numericEpisodeId <= 0) {
+        throw new Error('Episode database ID is missing or invalid.')
+      }
+
+      const existing = await supabase
+        .from('episodes')
+        .select('id,story_id')
+        .eq('id', numericEpisodeId)
+        .eq('story_id', supabaseId)
+        .maybeSingle()
+
+      if (existing.error) throw existing.error
+      if (!existing.data) {
+        throw new Error('Episode was not found in the database; nothing was deleted.')
+      }
+
+      const deletion = await supabase
+        .from('episodes')
+        .delete()
+        .eq('id', numericEpisodeId)
+        .eq('story_id', supabaseId)
+        .select('id')
+
+      if (deletion.error) throw deletion.error
+      if (!Array.isArray(deletion.data) || deletion.data.length !== 1 || Number(deletion.data[0]?.id) !== numericEpisodeId) {
+        throw new Error('Episode delete did not affect the expected database row.')
+      }
+
+      const verify = await supabase
+        .from('episodes')
+        .select('id')
+        .eq('id', numericEpisodeId)
+        .maybeSingle()
+
+      if (verify.error) throw verify.error
+      if (verify.data) {
+        throw new Error('Episode delete could not be verified; the database row still exists.')
+      }
+
+      await refreshTelegramContent()
+      return { deletedId: numericEpisodeId }
     }
+
     persistStories(adminStories.map((story) =>
-      story.id === storyId ? { ...story, episodes: (story.episodes || []).filter((ep) => ep.number !== episodeNumber) } : story
+      story.id === storyId
+        ? { ...story, episodes: (story.episodes || []).filter((ep) => ep.id !== numericEpisodeId) }
+        : story
     ))
+    return { deletedId: numericEpisodeId }
   }
 
   const deleteAdminStory = async (storyId) => {
@@ -9145,7 +9280,7 @@ export function App() {
       {adminOpen && (
         <div className="login-overlay admin-overlay">
           <AdminPanel
-            stories={stories}
+            stories={adminPanelStories}
             books={books}
             videoStories={
               videoStories
