@@ -509,10 +509,10 @@ test('legacy active Ads entitlement is enriched with story and episode identity 
     'utf8'
   )
 
-  assert.match(source, /if \(\['audio', 'video'\]\.includes\(contentType\) && \(exact\.start_episode_number == null \|\| exact\.end_episode_number == null\)/)
-  assert.match(source, /existingStoryId = existingAccess\.storyId.*context\.storyId/)
-  assert.match(source, /existingStartEpisode = existingStartEpisode.*context\.episodeNumber/)
-  assert.match(source, /episodeNumbers: existingEpisodeNumbers/)
+  assert.ok(source.includes("if (['audio', 'video'].includes(contentType) && (exact.start_episode_number == null || exact.end_episode_number == null))"))
+  assert.ok(source.includes('existingStoryId = existingAccess.storyId ?? context.storyId'))
+  assert.ok(source.includes('existingStartEpisode = existingStartEpisode ?? context.episodeNumber'))
+  assert.ok(source.includes('episodeNumbers: existingEpisodeNumbers'))
 })
 
 test('Ads rule configuration errors are treated as server configuration failures', () => {
