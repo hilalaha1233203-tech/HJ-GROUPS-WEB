@@ -22,6 +22,8 @@ In HJ GROUPS Admin → Management & Settings → Payments:
 2. Currency: INR
 3. Set `Story Lifetime` to the real amount you want to charge.
 4. Keep Payments disabled until the Cashfree merchant is activated and server credentials are configured.
+
+The server also requires `HJ_PAYMENTS_ENABLED=true` before checkout endpoints can operate. Leave it unset or false while payments are pending.
 5. `Payment secret is configured in server environment` is only an admin UI marker; it does not create or store the secret.
 
 The current backend intentionally supports the existing `story_lifetime` purchase path first. It reuses `public.purchases` and grants lifetime story access only after server-side Cashfree verification.
