@@ -76,6 +76,11 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(audioStoryForm.locator('label').nth(1)).toBeVisible()
     await expect(audioStoryForm.locator('select').nth(1)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Messages/i })).toBeVisible()
+    const telegramStorySelect = audioStoryForm.locator('select').first()
+    const storyOptionCount = await telegramStorySelect.locator('option').count()
+    expect(storyOptionCount).toBeGreaterThan(1)
+    await telegramStorySelect.selectOption({ index: 1 })
+    await expect(telegramStorySelect).not.toHaveValue('')
     const telegramMessagesResponsePromise = page.waitForResponse(
       (response) => response.url().includes('/telegram/messages'),
       { timeout: 30_000 }
