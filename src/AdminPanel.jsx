@@ -478,7 +478,7 @@ function AdminPanel({
 
       if (cloudError) throw cloudError
 
-      const preview = normalizeContentAccessSettings(adminSettings.content)
+      const preview = normalizeContentAccessSettings(settingsToSave.content)
       const { error: previewError } = await supabase
         .from('content_access_settings')
         .upsert({
@@ -486,7 +486,7 @@ function AdminPanel({
           audio_free_episodes: preview.freeAudioEpisodes,
           video_free_episodes: preview.freeVideoEpisodes,
           book_free_pages: preview.freeBookPages,
-          ad_unlock_duration_minutes: Math.min(1440, Math.max(1, Number(adminSettings.ads.unlockDurationMinutes) || 360)),
+          ad_unlock_duration_minutes: Math.min(1440, Math.max(1, Number(settingsToSave.ads.unlockDurationMinutes) || 360)),
           updated_at: new Date().toISOString(),
         })
 
