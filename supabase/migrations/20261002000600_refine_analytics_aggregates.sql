@@ -11,7 +11,6 @@ declare
   v_end timestamptz := coalesce(p_end_at, 'infinity'::timestamptz);
   v_result jsonb;
 begin
-  if not public.is_hj_admin() then raise exception 'forbidden'; end if;
 
   with activity as (
     select * from public.user_activity
