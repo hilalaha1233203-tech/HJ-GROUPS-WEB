@@ -41,8 +41,9 @@ const PasswordInput = forwardRef(function PasswordInput(
 
     if (typeof window !== 'undefined') {
       window.requestAnimationFrame(() => {
-        if (!element || document.activeElement !== element) return
+        if (!element) return
         try {
+          element.focus({ preventScroll: true })
           element.setSelectionRange(selectionStart ?? element.value.length, selectionEnd ?? element.value.length)
         } catch {}
       })
