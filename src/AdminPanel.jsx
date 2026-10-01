@@ -19,6 +19,7 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     siteName: 'HJ GROUPS',
     tagline: 'Stories, Books & Videos',
     supportEmail: '',
+    supportTelegramUrl: '',
     logoUrl: '',
     maintenanceMode: false,
     allowNewSignup: true,
@@ -1762,6 +1763,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 <div className="admin-settings-form-grid">
                   <label>Website name<input value={adminSettings.website.siteName} onChange={(e) => updateAdminSetting('website', 'siteName', e.target.value)} /></label>
                   <label>Support email<input type="email" value={adminSettings.website.supportEmail} onChange={(e) => updateAdminSetting('website', 'supportEmail', e.target.value)} /></label>
+                  <label>Telegram support URL<input type="url" value={adminSettings.website.supportTelegramUrl} onChange={(e) => updateAdminSetting('website', 'supportTelegramUrl', e.target.value)} placeholder="https://t.me/your_support_bot" /></label>
                   <label className="admin-settings-span-2">Tagline<input value={adminSettings.website.tagline} onChange={(e) => updateAdminSetting('website', 'tagline', e.target.value)} /></label>
                   <label className="admin-settings-span-2">Logo URL<input value={adminSettings.website.logoUrl} onChange={(e) => updateAdminSetting('website', 'logoUrl', e.target.value)} placeholder="Optional override" /></label>
                 </div>
