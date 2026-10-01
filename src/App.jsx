@@ -3587,10 +3587,14 @@ export function App() {
       if (mediaLoadTimerRef.current !== timerId) return
       mediaLoadTimerRef.current = null
       const media = episode.type === 'video' ? videoRef.current : audioRef.current
-      if (!media) return setIsPlaying(false)
+      if (!media) {
+        clearMediaLoadingNotice()
+        return setIsPlaying(false)
+      }
       const adsKey = story ? adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', story.id, episode.number) : undefined
       if (!canAccessContent(episode, adsKey, story && story.id)) {
         media.pause?.()
+        clearMediaLoadingNotice()
         return setIsPlaying(false)
       }
       try {
@@ -3629,10 +3633,12 @@ export function App() {
         const playPromise = media.play()
         playPromise?.then(() => setIsPlaying(true)).catch((error) => {
           console.error('Media play failed:', error)
+          clearMediaLoadingNotice()
           setIsPlaying(false)
         })
       } catch (error) {
         console.error('Media load failed:', error)
+        clearMediaLoadingNotice()
         setIsPlaying(false)
       }
     }, 80)
@@ -3662,6 +3668,7 @@ export function App() {
     } catch (error) {
       if (runId !== mediaResolveRunRef.current) return
       console.error('Media access failed:', error)
+      clearMediaLoadingNotice()
       setIsPlaying(false)
       alert(error?.message || 'Unable to start this content. Please sign in or unlock it first.')
     }
