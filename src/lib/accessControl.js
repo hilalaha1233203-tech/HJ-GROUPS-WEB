@@ -25,10 +25,6 @@ export function resolveAccessType(item) {
     }
   }
 
-  if (Array.isArray(item.accessType)) {
-    const valid = item.accessType.filter((t) => ACCESS_TYPES.includes(t))
-    return valid.length > 0 ? valid : ['free']
-  }
 
   if (item.accessType && ACCESS_TYPES.includes(item.accessType)) {
     return [item.accessType]
