@@ -20,7 +20,7 @@ test('Telegram import is protected by database identity and a unique import key'
   assert.ok(modernSectionStart >= 0 && modernSectionEnd > modernSectionStart)
   assert.doesNotMatch(app.slice(modernSectionStart, modernSectionEnd), /file_id:/)
 
-  const migration = read('supabase/migrations/20261001_telegram_episode_idempotency.sql')
+  const migration = read('supabase/migrations/20261001113000_telegram_episode_idempotency.sql')
   assert.match(migration, /ADD COLUMN IF NOT EXISTS telegram_import_key/)
   assert.match(migration, /episodes_telegram_import_key_unique/)
   assert.match(migration, /PARTITION BY story_id, telegram_message_id/)
