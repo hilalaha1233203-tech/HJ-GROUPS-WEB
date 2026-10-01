@@ -444,4 +444,5 @@ export {
   moneyEquals,
   safeProductPrice,
   verifyWebhookSignature,
+  isLikelyJwt,
 }
