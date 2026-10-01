@@ -5372,6 +5372,7 @@ export function App() {
             error
           )
 
+          clearMediaLoadingNotice()
           setReaderResolvedFile(
             null
           )
@@ -5901,6 +5902,7 @@ export function App() {
               setReaderLoading(
                 false
               )
+               clearMediaLoadingNotice()
 
               try {
                 rendition.themes.fontSize(
@@ -5949,6 +5951,7 @@ export function App() {
           setReaderLoading(
             false
           )
+           clearMediaLoadingNotice()
 
           if (
             pendingAutoReadRef.current
@@ -7058,6 +7061,11 @@ export function App() {
             onEnded={
               handleEnded
             }
+             onError={() => {
+               console.error('Media playback failed:', currentEpisode?.src)
+               clearMediaLoadingNotice()
+               setIsPlaying(false)
+             }}
           />
         )}
 
