@@ -115,6 +115,8 @@ test.describe('HJ GROUPS admin health', () => {
     const shortenerStatusResponse = await shortenerStatusResponsePromise
     const shortenerStatusPayload = await shortenerStatusResponse.json()
     await expect(page.getByText('Management & Settings', { exact: true })).toBeVisible()
+    console.log('LIVE_SHORTENER_STATUS', JSON.stringify(shortenerStatusPayload))
+    expect(shortenerStatusPayload.diagnosticVersion).toBe('2026-10-01-auth-diagnostics-1')
     expect(shortenerStatusResponse.status(), 'shortener status HTTP response: ' + JSON.stringify(shortenerStatusPayload)).toBe(200)
     expect(typeof shortenerStatusPayload.configured?.arolinks).toBe('boolean')
     expect(typeof shortenerStatusPayload.configured?.earn4link).toBe('boolean')
@@ -216,7 +218,8 @@ test.describe('HJ GROUPS admin health', () => {
     })
 
     expect(pageErrors, 'unexpected page errors').toEqual([])
-    expect(consoleErrors, 'unexpected console errors').toEqual([])
+    console.log('ADMIN_BAD_RESPONSES', JSON.stringify(badResponses))
+    expect(consoleErrors, 'unexpected console errors: ' + JSON.stringify(badResponses)).toEqual([])
     expect(failedRequests, 'failed network requests').toEqual([])
     expect(badResponses, 'HTTP 4xx/5xx responses').toEqual([])
   })
