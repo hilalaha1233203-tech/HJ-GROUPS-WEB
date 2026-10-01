@@ -284,7 +284,12 @@ function AdminPanel({
         }
       } catch (error) {
         if (mounted) {
-          setShortenerHealth(null)
+          const message = String(error?.message || 'Unable to reach the shortener health endpoint.')
+          setShortenerHealth({
+            error: 'Health endpoint unavailable: ' + message,
+            statusCode: 0,
+            configured: null,
+          })
           console.warn('Shortener health check failed:', error)
         }
       } finally {
