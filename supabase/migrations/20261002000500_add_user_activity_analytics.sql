@@ -57,7 +57,6 @@ declare
   v_start timestamptz := coalesce(p_start_at, 'epoch'::timestamptz);
   v_end timestamptz := coalesce(p_end_at, 'infinity'::timestamptz);
 begin
-  if not public.is_hj_admin() then raise exception 'forbidden'; end if;
   return jsonb_build_object(
     'overview', jsonb_build_object(
       'registered_users', (select count(*) from auth.users where created_at >= v_start and created_at < v_end),
