@@ -206,8 +206,9 @@ test.describe('HJ GROUPS TTS health', () => {
 
 test.describe('HJ GROUPS Telegram streaming health', () => {
   test('streaming server health and CORS preflight', async ({ request }) => {
-    const streamingURL = String(process.env.PLAYWRIGHT_STREAMING_URL || '').trim().replace(/\/+$/, '')
-    test.skip(!streamingURL, 'PLAYWRIGHT_STREAMING_URL is not configured')
+    const streamingURL = String(
+      process.env.PLAYWRIGHT_STREAMING_URL || 'https://hj-telegram-streaming.vercel.app'
+    ).trim().replace(/\/+$/, '')
 
     const health = await request.get(streamingURL + '/health')
     expect(health.status()).toBe(200)
