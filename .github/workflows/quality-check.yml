@@ -105,8 +105,8 @@ jobs:
             ['src/App.jsx', 'PASSWORD_RECOVERY'],
             ['src/App.jsx', 'passwordRecoveryStatus'],
             ['src/App.jsx', 'requestNewRecoveryEmail'],
-            ['src/App.jsx', 'updateUser({
-      password: recoveryPassword'],
+            ['src/App.jsx', 'updateUser({'],
+            ['src/App.jsx', 'password: recoveryPassword'],
             ['src/App.jsx', 'signOut({ scope: \'local\' })'],
             ['src/App.jsx', 'AccountSettings'],
             ['src/App.jsx', 'account-settings'],
@@ -151,7 +151,7 @@ jobs:
           const passwordSources = ['src/Auth.jsx', 'src/AccountSettings.jsx', 'src/App.jsx', 'src/Admin.jsx']
           for (const file of passwordSources) {
             const source = read(file)
-            if (/<input\\b[^>]*\\btype=(["'])password\\1/i.test(source)) {
+            if (/<input\b[^>]*\btype=(["'])password\1/i.test(source)) {
               throw new Error('Raw password input remains outside PasswordInput component: ' + file)
             }
           }
