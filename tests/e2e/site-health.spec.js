@@ -90,7 +90,49 @@ test.describe('HJ GROUPS public website health', () => {
     }
   })
 
-  test('public tabs and modals open without crashing', async ({ page }) => {
+  test('featured audio story stays within a controlled first viewport on desktop and mobile', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
+
+  const hero = page.locator('.hero-section').first()
+  if (await hero.count()) {
+    const desktopViewport = await page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      height: document.documentElement.clientHeight,
+    }))
+    const desktopBox = await hero.boundingBox()
+    expect(desktopBox?.height || 0).toBeLessThan(desktopViewport.height * 0.82)
+    await expect(page.locator('.top-header').first()).toBeVisible()
+
+    const nextSection = page.locator('.stories-section').first()
+    if (await nextSection.count() && desktopBox) {
+      const nextBox = await nextSection.boundingBox()
+      expect(nextBox?.y || 0).toBeLessThan(desktopViewport.height * 1.35)
+      expect((nextBox?.y || 0) + (nextBox?.height || 0)).toBeGreaterThan(desktopBox.y)
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.waitForTimeout(700)
+
+    const mobileViewport = await page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      height: document.documentElement.clientHeight,
+      scrollWidth: document.documentElement.scrollWidth,
+    }))
+    const mobileHero = page.locator('.hero-section').first()
+    const mobileBox = await mobileHero.boundingBox()
+    expect(mobileBox?.height || 0).toBeLessThan(mobileViewport.height * 0.78)
+    expect(mobileViewport.scrollWidth).toBeLessThanOrEqual(mobileViewport.width)
+
+    const mobileNextSection = page.locator('.stories-section').first()
+    if (await mobileNextSection.count()) {
+      const nextBox = await mobileNextSection.boundingBox()
+      expect(nextBox?.y || 0).toBeLessThan(mobileViewport.height * 1.6)
+    }
+  }
+})
+
+test('public tabs and modals open without crashing', async ({ page }) => {
     const labels = ['Home', 'Audio Stories', 'Books', 'Videos', 'VIP', 'Library', 'Login']
     const reports = []
 
