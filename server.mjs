@@ -7,6 +7,7 @@ import { isTamilText, MAX_CHARS, synthesizeEdgeTts } from './server/edgeTts.mjs'
 import { isSarvamConfigured, synthesizeSarvamTts } from './server/sarvamTts.mjs'
 import { handleShortenerRequest } from './server/shortenerUnlock.mjs'
 import { handlePaymentRequest } from './server/payment.mjs'
+import { createClient } from '@supabase/supabase-js'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(ROOT, 'dist')
@@ -78,6 +79,61 @@ const jsonHeaders = (req) => ({
   'Content-Type': 'application/json; charset=utf-8',
   ...corsHeaders(req),
 })
+
+const PUBLIC_SETTINGS_SUPABASE_URL = String(process.env.VITE_SUPABASE_URL || 'https://yajkfglagnyvenddyvok.supabase.co').trim()
+const PUBLIC_SETTINGS_SERVICE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+
+async function handlePublicSettings(req, res) {
+  if (req.method !== 'GET') {
+    return send(res, 405, JSON.stringify({ error: 'Method not allowed' }), {
+      'Content-Type': 'application/json; charset=utf-8',
+      Allow: 'GET',
+    })
+  }
+
+  if (!PUBLIC_SETTINGS_SERVICE_KEY) {
+    return send(res, 503, JSON.stringify({ error: 'Public settings service is not configured' }), {
+      'Content-Type': 'application/json; charset=utf-8',
+    })
+  }
+
+  try {
+    const client = createClient(PUBLIC_SETTINGS_SUPABASE_URL, PUBLIC_SETTINGS_SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+    const { data, error } = await client
+      .from('app_settings')
+      .select('value')
+      .eq('id', 'hj_admin_settings')
+      .maybeSingle()
+
+    if (error) throw error
+
+    const website = data?.value?.website
+    const rawSupportUrl = String(website?.supportTelegramUrl || '').trim()
+    let supportTelegramUrl = ''
+    if (rawSupportUrl) {
+      try {
+        const parsed = new URL(rawSupportUrl)
+        if (parsed.protocol === 'https:' && parsed.hostname.toLowerCase() === 't.me') {
+          supportTelegramUrl = parsed.toString()
+        }
+      } catch {}
+    }
+
+    return send(res, 200, JSON.stringify({
+      ok: true,
+      website: { supportTelegramUrl },
+    }), {
+      'Content-Type': 'application/json; charset=utf-8',
+    })
+  } catch (error) {
+    console.warn('[public-settings] load failed:', String(error?.message || error).slice(0, 300))
+    return send(res, 503, JSON.stringify({ error: 'Public settings unavailable' }), {
+      'Content-Type': 'application/json; charset=utf-8',
+    })
+  }
+}
 
 async function handleTts(req, res, forcedProvider = 'auto') {
   if (req.method === 'OPTIONS') {
@@ -243,6 +299,8 @@ const server = createServer(async (req, res) => {
       ...corsHeaders(req),
     })
   }
+
+  if (url.pathname === '/api/public-settings') return handlePublicSettings(req, res)
 
   if (url.pathname === '/api/tts') return handleTts(req, res, 'auto')
   if (url.pathname === '/api/edge-tts') return handleTts(req, res, 'edge')
