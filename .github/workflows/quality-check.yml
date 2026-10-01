@@ -77,6 +77,14 @@ jobs:
           const fs = require('fs')
           const read = (p) => fs.readFileSync(p, 'utf8')
           const checks = [
+            ['src/lib/authRedirect.js', 'PRODUCTION_SITE_URL'],
+            ['src/Auth.jsx', 'getAuthRedirectUrl'],
+            ['src/AccountSettings.jsx', 'supportTelegramUrl'],
+            ['src/AdminPanel.jsx', 'supportTelegramUrl'],
+            ['src/App.jsx', '/api/public-settings'],
+            ['server.mjs', '/api/public-settings'],
+            ['server.mjs', 'Public settings unavailable'],
+
             ['src/Auth.jsx', 'shouldCreateUser: false'],
             ['src/Auth.jsx', 'signInWithOAuth'],
             ['src/Auth.jsx', 'shouldCreateUser: true'],
@@ -139,7 +147,12 @@ jobs:
         run: |
           ! grep -R -n "story?.id" src/App.jsx
           test -s src/AccountSettings.jsx
+          test -s src/lib/authRedirect.js
           grep -q "linkIdentity" src/AccountSettings.jsx
+          grep -q "supportTelegramUrl" src/AdminPanel.jsx
+          grep -q "supportTelegramUrl" src/AccountSettings.jsx
+          grep -q "/api/public-settings" server.mjs
+          grep -q "getAuthRedirectUrl" src/Auth.jsx
           grep -q "phone_change" src/AccountSettings.jsx
           grep -q "scope: 'global'" src/AccountSettings.jsx
           grep -q "getMediaPositionKey" src/App.jsx
