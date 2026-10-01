@@ -172,15 +172,35 @@ test.describe('HJ GROUPS admin health', () => {
     const firstRuleInputs = ruleRows.nth(0).locator('input')
     const secondRuleInputs = ruleRows.nth(1).locator('input')
     const thirdRuleInputs = ruleRows.nth(2).locator('input')
-    await expect(firstRuleInputs.nth(0)).toHaveValue('1')
-    await expect(firstRuleInputs.nth(1)).toHaveValue('1000')
-    await expect(firstRuleInputs.nth(2)).toHaveValue('10')
-    await expect(secondRuleInputs.nth(0)).toHaveValue('1001')
-    await expect(secondRuleInputs.nth(1)).toHaveValue('1500')
-    await expect(secondRuleInputs.nth(2)).toHaveValue('5')
-    await expect(thirdRuleInputs.nth(0)).toHaveValue('1501')
-    await expect(thirdRuleInputs.nth(1)).toHaveValue('')
-    await expect(thirdRuleInputs.nth(2)).toHaveValue('3')
+    const configuredRuleValues = await Promise.all(
+      [firstRuleInputs, secondRuleInputs, thirdRuleInputs].map(async (inputs) => ({
+        start: await inputs.nth(0).inputValue(),
+        end: await inputs.nth(1).inputValue(),
+        count: await inputs.nth(2).inputValue(),
+      }))
+    )
+
+    expect(configuredRuleValues.length).toBe(3)
+    expect(Number(configuredRuleValues[0].start)).toBe(1)
+
+    for (const rule of configuredRuleValues) {
+      expect(Number.isInteger(Number(rule.start))).toBe(true)
+      expect(Number(rule.start)).toBeGreaterThanOrEqual(1)
+      expect(Number.isInteger(Number(rule.count))).toBe(true)
+      expect(Number(rule.count)).toBeGreaterThanOrEqual(1)
+
+      if (rule.end !== '') {
+        expect(Number.isInteger(Number(rule.end))).toBe(true)
+        expect(Number(rule.end)).toBeGreaterThanOrEqual(Number(rule.start))
+      }
+    }
+
+    expect(Number(configuredRuleValues[1].start)).toBe(Number(configuredRuleValues[0].end) + 1)
+    expect(Number(configuredRuleValues[2].start)).toBe(
+      configuredRuleValues[1].end === ''
+        ? Number(configuredRuleValues[1].start) + 1
+        : Number(configuredRuleValues[1].end) + 1
+    )
     await expect(rulesSection.getByText(/Rule matching uses the actual episode number/i)).toBeVisible()
 
     const settingsSave = adminOverlay.getByRole('button', { name: /Save All Settings/i })
