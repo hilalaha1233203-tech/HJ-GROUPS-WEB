@@ -2142,10 +2142,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
               <form onSubmit={submitEpisode} className="admin-form">
                 <select value={episodeStoryId} onChange={(e) => setEpisodeStoryId(e.target.value)}>
                   <option value="">Select audio story</option>
-                  {adminStoryIds.length > 0 &&
-                    stories
-                      .filter((story) => adminStoryIds.includes(story.id))
-                      .map((story) => <option key={story.id} value={story.id}>{story.title}</option>)}
+                  {stories.map((story) => (
+                    <option key={story.id} value={story.id}>{story.title}</option>
+                  ))}
                 </select>
 
                 <input
