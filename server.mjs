@@ -83,6 +83,68 @@ const jsonHeaders = (req) => ({
 const PUBLIC_SETTINGS_SUPABASE_URL = String(process.env.VITE_SUPABASE_URL || 'https://yajkfglagnyvenddyvok.supabase.co').trim()
 const PUBLIC_SETTINGS_SERVICE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
 
+async function handleAdminAnalytics(req, res) {
+  if (req.method !== 'GET') {
+    return send(res, 405, JSON.stringify({ error: 'Method not allowed' }), {
+      'Content-Type': 'application/json; charset=utf-8',
+      Allow: 'GET',
+    })
+  }
+
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const supabaseUrl = String(process.env.VITE_SUPABASE_URL || 'https://yajkfglagnyvenddyvok.supabase.co').trim()
+  const authorization = String(req.headers.authorization || '')
+  const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : ''
+
+  if (!serviceKey || !accessToken) {
+    return send(res, 401, JSON.stringify({ error: 'Unauthorized' }), {
+      'Content-Type': 'application/json; charset=utf-8',
+    })
+  }
+
+  try {
+    const adminClient = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+    const { data: userData, error: userError } = await adminClient.auth.getUser(accessToken)
+    const email = String(userData?.user?.email || '').trim().toLowerCase()
+    if (userError || email !== 'hilalaha1233203@gmail.com') {
+      return send(res, 403, JSON.stringify({ error: 'Forbidden' }), {
+        'Content-Type': 'application/json; charset=utf-8',
+      })
+    }
+
+    const url = new URL(req.url || '/', 'http://' + (req.headers.host || 'localhost'))
+    const range = url.searchParams.get('range') || '7d'
+    const now = new Date()
+    let start = null
+    let end = null
+    if (range !== 'all') {
+      const startDate = new Date(now)
+      if (range === 'today') startDate.setHours(0, 0, 0, 0)
+      else if (range === '30d') startDate.setDate(startDate.getDate() - 30)
+      else startDate.setDate(startDate.getDate() - 7)
+      start = startDate.toISOString()
+      end = now.toISOString()
+    }
+
+    const { data, error } = await adminClient.rpc('get_hj_admin_analytics', {
+      p_start_at: start,
+      p_end_at: end,
+    })
+    if (error) throw error
+
+    return send(res, 200, JSON.stringify(data || {}), {
+      'Content-Type': 'application/json; charset=utf-8',
+    })
+  } catch (error) {
+    console.warn('[admin-analytics] load failed:', String(error?.message || error).slice(0, 300))
+    return send(res, 500, JSON.stringify({ error: 'Analytics unavailable' }), {
+      'Content-Type': 'application/json; charset=utf-8',
+    })
+  }
+}
+
 async function handlePublicSettings(req, res) {
   if (req.method !== 'GET') {
     return send(res, 405, JSON.stringify({ error: 'Method not allowed' }), {
@@ -301,6 +363,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/public-settings') return handlePublicSettings(req, res)
+  if (url.pathname === '/api/admin/analytics') return handleAdminAnalytics(req, res)
 
   if (url.pathname === '/api/tts') return handleTts(req, res, 'auto')
   if (url.pathname === '/api/edge-tts') return handleTts(req, res, 'edge')
