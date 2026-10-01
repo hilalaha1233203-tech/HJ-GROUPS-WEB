@@ -2,7 +2,7 @@ import { resolveAccessType } from './accessControl'
 import { isEpisodePreviewFree, loadCachedContentAccessSettings } from './contentAccessSettings'
 import { supabase } from '../supabase'
 
-const STREAMING_SERVER_URL = String(import.meta.env.VITE_STREAMING_SERVER_URL || '').trim().replace(/\/+$/, '')
+import { STREAMING_SERVER_URL } from './streamingUrl'
 const protectedTypes = new Set(['premium', 'vip', 'ads'])
 
 const isProtected = (item) => {
