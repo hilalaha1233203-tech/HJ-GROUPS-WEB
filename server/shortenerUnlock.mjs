@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import { resolveAdUnlockPlan, validateAdUnlockRules } from '../src/lib/adUnlockRules.js'
 
 function resolveSupabaseUrl() {
   const candidates = [
