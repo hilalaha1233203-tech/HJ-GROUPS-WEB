@@ -1830,7 +1830,14 @@ export function App() {
 
     persistStories(adminStories.map((story) =>
       story.id === storyId
-        ? { ...story, episodes: (story.episodes || []).filter((ep) => ep.id !== numericEpisodeId) }
+        ? {
+            ...story,
+            episodes: (story.episodes || []).filter((ep) =>
+              ep.id != null
+                ? Number(ep.id) !== numericEpisodeId
+                : Number(ep.number) !== numericEpisodeId
+            ),
+          }
         : story
     ))
     return { deletedId: numericEpisodeId }
