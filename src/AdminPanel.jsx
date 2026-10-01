@@ -417,7 +417,10 @@ function AdminPanel({
       return
     }
 
-    const lastEnd = Number(adUnlockRules[adUnlockRules.length - 1]?.endEpisode)
+    const finiteEnds = adUnlockRules
+      .map((rule) => Number(rule.endEpisode))
+      .filter((value) => Number.isInteger(value) && value >= 1)
+    const lastEnd = finiteEnds.length ? Math.max(...finiteEnds) : null
     const nextStart = Number.isInteger(lastEnd) && lastEnd >= 1 ? lastEnd + 1 : ''
     setAdminSettings((current) => ({
       ...current,
