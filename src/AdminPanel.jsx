@@ -261,13 +261,27 @@ function AdminPanel({
   useEffect(() => {
     if (tab !== 'analytics') return undefined
     let mounted = true
+    const getAnalyticsRange = () => {
+      if (analyticsRange === 'all') return { start: '', end: '' }
+      const now = new Date()
+      const start = new Date(now)
+      if (analyticsRange === 'today') start.setHours(0, 0, 0, 0)
+      else if (analyticsRange === '30d') start.setDate(start.getDate() - 30)
+      else start.setDate(start.getDate() - 7)
+      return { start: start.toISOString(), end: now.toISOString() }
+    }
+
     const loadAnalytics = async () => {
       setAnalyticsLoading(true)
       setAnalyticsError('')
       try {
         const { data: { session } = {} } = await supabase.auth.getSession()
         if (!session?.access_token) throw new Error('Admin session is unavailable.')
-        const response = await fetch('/api/admin/analytics?range=' + encodeURIComponent(analyticsRange), {
+        const { start, end } = getAnalyticsRange()
+        const query = new URLSearchParams({ range: analyticsRange })
+        if (start) query.set('start', start)
+        if (end) query.set('end', end)
+        const response = await fetch('/api/admin/analytics?' + query.toString(), {
           method: 'GET',
           credentials: 'include',
           headers: { Authorization: 'Bearer ' + session.access_token },
