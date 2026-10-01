@@ -1350,7 +1350,9 @@ export async function handleShortenerRequest(req, res, url, readBody) {
         ? 503
         : /Supabase auth verification failed/i.test(message)
           ? 502
-          : 500
+          : /Ads episode unlock rules are invalid/i.test(message)
+            ? 503
+            : 500
     return json(res, statusCode, {
       error: statusCode === 401 ? message : 'Shortener service error.',
       code: statusCode === 503 ? 'SHORTENER_CONFIGURATION_ERROR' : statusCode === 502 ? 'SUPABASE_AUTH_ERROR' : 'SHORTENER_INTERNAL_ERROR',
