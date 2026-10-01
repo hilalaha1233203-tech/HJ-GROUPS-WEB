@@ -119,7 +119,7 @@ const LANGUAGE_OPTIONS = [
   'Assamese', 'Sanskrit', 'Other',
 ]
 
-function AccessTypeSelect({ groupName, value, onChange }) {
+function AccessTypeSelect({ groupName, label = 'Access Types', value, onChange }) {
   const options = [
     { value: 'free', label: 'Free' },
     { value: 'vip', label: 'VIP' },
@@ -186,7 +186,7 @@ function AccessTypeField({ groupName, label = 'Access Types', value, onChange })
 
   return (
     <div className="access-type-field">
-      <span className="access-type-label">Access Types</span>
+      <span className="access-type-label">{label}</span>
       <div className="access-type-options">
         {options.map((opt) => (
           <label key={opt.value} className="access-type-option">
