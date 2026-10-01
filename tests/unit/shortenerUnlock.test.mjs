@@ -503,6 +503,18 @@ test('legacy single-episode entitlements remain readable alongside range entitle
   assert.match(source, /unlockEndEpisode: row\.end_episode_number \?\? episodeNumber/)
 })
 
+test('legacy active Ads entitlement is enriched with story and episode identity before returning alreadyGranted', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+
+  assert.match(source, /if \(\['audio', 'video'\]\.includes\(contentType\) && \(exact\.start_episode_number == null \|\| exact\.end_episode_number == null\)/)
+  assert.match(source, /existingStoryId = existingAccess\.storyId \?\? context\.storyId/)
+  assert.match(source, /existingStartEpisode = existingStartEpisode \?\? context\.episodeNumber/)
+  assert.match(source, /episodeNumbers: existingEpisodeNumbers/)
+})
+
 test('Ads rule configuration errors are treated as server configuration failures', () => {
   const source = readFileSync(
     resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
