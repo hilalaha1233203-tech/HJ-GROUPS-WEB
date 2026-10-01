@@ -677,19 +677,17 @@ async function getExistingAccess(user, contentType, contentId, content) {
     return { source: 'admin', expiresAt: null }
   }
 
-  const nowIso = new Date().toISOString()
-  const { data: adUnlock, error: unlockError } = await getServiceClient()
-    .from('ad_unlocks')
-    .select('expires_at')
-    .eq('user_id', user.id)
-    .eq('content_type', contentType)
-    .eq('content_id', contentId)
-    .gt('expires_at', nowIso)
-    .maybeSingle()
-
-  if (unlockError) throw new Error('Unable to verify existing temporary access.')
-  if (adUnlock?.expires_at) {
-    return { source: 'ad_unlock', expiresAt: adUnlock.expires_at }
+  if (isAdsEnabled(content)) {
+    const adUnlock = await findActiveAdUnlock(user.id, contentType, contentId, content)
+    if (adUnlock?.expires_at) {
+      return {
+        source: 'ad_unlock',
+        expiresAt: adUnlock.expires_at,
+        storyId: adUnlock.story_id ?? null,
+        unlockStartEpisode: adUnlock.start_episode_number ?? null,
+        unlockEndEpisode: adUnlock.end_episode_number ?? null,
+      }
+    }
   }
 
   if (await hasActivePurchase(user.id, content)) {
