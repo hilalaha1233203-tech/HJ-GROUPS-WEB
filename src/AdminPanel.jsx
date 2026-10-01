@@ -261,15 +261,6 @@ function AdminPanel({
   useEffect(() => {
     if (tab !== 'analytics') return undefined
     let mounted = true
-    const getRange = () => {
-      if (analyticsRange === 'all') return { start: null, end: null }
-      const now = new Date()
-      const start = new Date(now)
-      if (analyticsRange === 'today') start.setHours(0, 0, 0, 0)
-      else if (analyticsRange === '7d') start.setDate(start.getDate() - 7)
-      else start.setDate(start.getDate() - 30)
-      return { start: start.toISOString(), end: now.toISOString() }
-    }
     const loadAnalytics = async () => {
       setAnalyticsLoading(true)
       setAnalyticsError('')
