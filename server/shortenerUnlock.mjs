@@ -1063,9 +1063,11 @@ export async function handleShortenerRequest(req, res, url, readBody) {
     console.error('[shortener] request failed:', message)
     const statusCode = /Authentication required|Authentication failed|Admin access required/.test(message)
       ? 401
-      : /SUPABASE_SERVICE_ROLE_KEY is not configured|not configured/i.test(message)
+      : /SUPABASE_SERVICE_ROLE_KEY is not configured|Supabase server URL|Supabase server client configuration|not configured/i.test(message)
         ? 503
-        : 500
+        : /Supabase auth verification failed/i.test(message)
+          ? 502
+          : 500
     return json(res, statusCode, {
       error: statusCode === 401 ? message : 'Shortener service error.',
       code: statusCode === 503 ? 'SHORTENER_CONFIGURATION_ERROR' : statusCode === 502 ? 'SUPABASE_AUTH_ERROR' : 'SHORTENER_INTERNAL_ERROR',
