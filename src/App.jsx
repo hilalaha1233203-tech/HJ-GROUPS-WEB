@@ -903,9 +903,39 @@ export function App() {
   const [adModalOpen, setAdModalOpen] =
     useState(false)
 
+  const [adUnlockPreview, setAdUnlockPreview] = useState(null)
+
   const [paymentTarget, setPaymentTarget] = useState(null)
 
   const pendingUnlockRef = useRef(null)
+
+  const cacheServerAdUnlock = (unlock) => {
+    const expiresAt = unlock?.expires_at || unlock?.expiresAt
+    const remainingMs = new Date(expiresAt || '').getTime() - Date.now()
+    const remainingMinutes = Math.ceil(remainingMs / 60000)
+    if (!Number.isFinite(remainingMinutes) || remainingMinutes < 1) return
+
+    if (unlock?.content_type === 'book' && unlock?.content_id != null) {
+      saveUnlockedAd(adsKeyFor('book', unlock.content_id), remainingMinutes)
+      return
+    }
+
+    if (unlock?.storyId == null || unlock?.content_type == null) return
+
+    const kind = unlock.content_type === 'video' ? 'video-episode' : 'episode'
+    const episodeNumbers = Array.isArray(unlock.episodeNumbers) && unlock.episodeNumbers.length
+      ? unlock.episodeNumbers
+      : (unlock.episodeNumber != null ? [unlock.episodeNumber] : [])
+
+    for (const episodeNumber of episodeNumbers) {
+      const numericEpisode = Number(episodeNumber)
+      if (!Number.isInteger(numericEpisode) || numericEpisode < 1) continue
+      saveUnlockedAd(
+        adsKeyFor(kind, unlock.storyId, numericEpisode),
+        remainingMinutes
+      )
+    }
+  }
 
   useEffect(() => {
     if (!user?.id) return undefined
@@ -926,22 +956,7 @@ export function App() {
         if (!response.ok) return
         const payload = await response.json()
         for (const unlock of Array.isArray(payload?.unlocks) ? payload.unlocks : []) {
-          const remaining = Math.max(
-            1,
-            Math.ceil((new Date(unlock.expires_at).getTime() - Date.now()) / 60000)
-          )
-          if (unlock.content_type === 'book') {
-            saveUnlockedAd(adsKeyFor('book', unlock.content_id), remaining)
-          } else if (unlock.storyId != null && unlock.episodeNumber != null) {
-            saveUnlockedAd(
-              adsKeyFor(
-                unlock.content_type === 'video' ? 'video-episode' : 'episode',
-                unlock.storyId,
-                unlock.episodeNumber
-              ),
-              remaining
-            )
-          }
+          cacheServerAdUnlock(unlock)
         }
 
         if (mounted) setUnlockedAds(loadUnlockedAds())
@@ -979,18 +994,14 @@ export function App() {
           Math.ceil((new Date(payload.expiresAt).getTime() - Date.now()) / 60000)
         )
 
-        if (payload.contentType === 'book') {
-          saveUnlockedAd(adsKeyFor('book', payload.contentId), remaining)
-        } else if (payload.storyId != null && payload.episodeNumber != null) {
-          saveUnlockedAd(
-            adsKeyFor(
-              payload.contentType === 'video' ? 'video-episode' : 'episode',
-              payload.storyId,
-              payload.episodeNumber
-            ),
-            remaining
-          )
-        }
+        cacheServerAdUnlock({
+          content_type: payload.contentType,
+          content_id: payload.contentId,
+          expiresAt: payload.expiresAt,
+          storyId: payload.storyId,
+          episodeNumber: payload.episodeNumber,
+          episodeNumbers: payload.episodeNumbers,
+        })
 
         if (mounted) {
           setUnlockedAds(loadUnlockedAds())
@@ -1002,7 +1013,10 @@ export function App() {
               ? `${Math.floor(totalMinutes / 60)} hours`
               : `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`)
             : `${totalMinutes} minutes`
-          window.alert(`✓ Ad unlock complete. This content is available for ${durationLabel}.`)
+          const rangeLabel = payload.unlockStartEpisode != null && payload.unlockEndEpisode != null
+            ? ` Episodes ${payload.unlockStartEpisode}–${payload.unlockEndEpisode}${payload.episodeNumbers?.length ? ` (${payload.episodeNumbers.length} existing episodes)` : ''}`
+            : ''
+          window.alert(`✓ Ad unlock complete.${rangeLabel} Available for ${durationLabel}.`)
         }
       } catch (error) {
         console.warn('Temporary ad unlock completion failed:', error)
@@ -3311,6 +3325,7 @@ export function App() {
     // user through the shortener again.
     if (payload?.alreadyGranted) {
       pendingUnlockRef.current = null
+      setAdUnlockPreview(null)
       setAdModalOpen(false)
       pending.onGranted?.()
       return
@@ -3327,6 +3342,46 @@ export function App() {
 
     setAdModalOpen(false)
     window.location.assign(payload.shortUrl)
+  }
+
+  const loadAdUnlockPreview = async (item, resolvedContentType, onGranted) => {
+    try {
+      const { data: { session } = {} } = await supabase.auth.getSession()
+      if (!session?.access_token || !item?.id) return
+
+      const response = await fetch('/api/shortener/preview', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + session.access_token,
+        },
+        body: JSON.stringify({
+          contentType: resolvedContentType,
+          contentId: item.id,
+        }),
+        cache: 'no-store',
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || !payload?.ok) return
+
+      const pending = pendingUnlockRef.current
+      if (!pending || pending.item?.id !== item.id || pending.contentType !== resolvedContentType) return
+
+      if (payload.alreadyGranted) {
+        pendingUnlockRef.current = null
+        setAdUnlockPreview(null)
+        setAdModalOpen(false)
+        onGranted?.()
+        return
+      }
+
+      setAdUnlockPreview(payload)
+    } catch {
+      // Preview is advisory only. The server will recalculate the rule during
+      // the actual /api/shortener/start + /api/shortener/complete flow.
+    }
   }
 
   const requestAccess = (
@@ -3372,7 +3427,9 @@ export function App() {
         onGranted,
         contentType: resolvedContentType,
       }
+      setAdUnlockPreview(null)
       setAdModalOpen(true)
+      void loadAdUnlockPreview(item, resolvedContentType, onGranted)
       return
     }
 
@@ -3412,7 +3469,7 @@ export function App() {
     () => {
       pendingUnlockRef.current =
         null
-
+      setAdUnlockPreview(null)
       setAdModalOpen(false)
     }
 
@@ -9289,6 +9346,7 @@ export function App() {
           onClose={handleAdCancel}
           onUnlock={startShortenerUnlock}
           providerLabel="AroLinks / Earn4Link"
+          unlockPreview={adUnlockPreview}
         />
       )}
 
