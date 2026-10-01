@@ -7960,11 +7960,7 @@ export function App() {
                           <button
                             type="button"
                             className="episode-load-more"
-                            onClick={() =>
-                              setStoryEpisodeVisibleEnd(
-                                Math.min(visibleEnd + 50, allEpisodes.length)
-                              )
-                            }
+                            onClick={() => setStoryEpisodeVisibleEnd(Math.min(visibleEnd + 50, allEpisodes.length))}
                           >
                             Load More Episodes · {Math.min(
                               50,
