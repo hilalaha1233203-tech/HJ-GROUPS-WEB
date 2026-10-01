@@ -76,6 +76,24 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(audioStoryForm.locator('label').nth(1)).toBeVisible()
     await expect(audioStoryForm.locator('select').nth(1)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Messages/i })).toBeVisible()
+    const telegramMessagesResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/telegram/messages'),
+      { timeout: 30_000 }
+    )
+    await page.getByRole('button', { name: /Scan Telegram Messages/i }).click()
+    const telegramMessagesResponse = await telegramMessagesResponsePromise
+    const telegramMessagesPayload = await telegramMessagesResponse.json().catch(() => null)
+    console.log('LIVE_TELEGRAM_MESSAGES_STATUS', JSON.stringify({
+      status: telegramMessagesResponse.status(),
+      url: telegramMessagesResponse.url(),
+      count: Array.isArray(telegramMessagesPayload) ? telegramMessagesPayload.length : null,
+    }))
+    expect(
+      telegramMessagesResponse.status(),
+      'Telegram messages request failed: ' + JSON.stringify(telegramMessagesPayload)
+    ).toBe(200)
+    expect(Array.isArray(telegramMessagesPayload)).toBe(true)
+
     await expect(page.getByText('Access Types', { exact: true }).first()).toBeVisible()
     const audioVip = page.locator('input[name="bulk-audio-default-access_vip"]').first()
     await expect(audioVip).toBeVisible()
