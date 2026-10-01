@@ -777,6 +777,7 @@ export function App() {
 
   const [currentMediaSrc, setCurrentMediaSrc] = useState('')
   const analyticsPlaybackSessionRef = useRef(null)
+  const analyticsPlaybackSessionCounterRef = useRef(0)
   const mediaResolveRunRef = useRef(0)
   const mediaLoadTimerRef = useRef(null)
 
@@ -1215,6 +1216,7 @@ export function App() {
     useState(1)
   const analyticsReaderPageRef = useRef(null)
   const analyticsReaderSessionRef = useRef(null)
+  const analyticsReaderSessionCounterRef = useRef(0)
 
   const [pdfInputPage, setPdfInputPage] =
     useState('')
@@ -3704,7 +3706,8 @@ export function App() {
     if (readerBook) teardownReader()
     const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', story.id, episode.number)
     requestAccess(episode, adsKey, () => {
-      analyticsPlaybackSessionRef.current = `${Date.now()}_${Math.random().toString(36).slice(2)}`
+      analyticsPlaybackSessionCounterRef.current += 1
+      analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
       if (isReading) stopReadAloud()
       setActivePlayerKind('episode')
       setCurrentStory(story)
@@ -5197,7 +5200,8 @@ export function App() {
 
       showMediaLoadingNotice('This book will load in a few seconds depending on your network.')
 
-      analyticsReaderSessionRef.current = `${Date.now()}_${Math.random().toString(36).slice(2)}`
+      analyticsReaderSessionCounterRef.current += 1
+      analyticsReaderSessionRef.current = String(analyticsReaderSessionCounterRef.current)
       analyticsReaderPageRef.current = null
       void trackUserActivity('book_open', {
         book_id: Number.isFinite(Number(book?.id)) ? Number(book.id) : null,
