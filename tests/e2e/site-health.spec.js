@@ -162,6 +162,66 @@ test.describe('HJ GROUPS authentication UI health', () => {
 })
 
 
+test.describe('HJ GROUPS password recovery UI health', () => {
+  test('password visibility toggle works on desktop and mobile', async ({ page }) => {
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error?.message || String(error)))
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text())
+    })
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await page.getByRole('button', { name: /login/i }).first().click()
+    await page.getByRole('button', { name: /password login/i }).first().click()
+
+    const loginPassword = page.locator('.auth-field .password-input input').first()
+    const showLoginPassword = page.getByRole('button', { name: 'Show password' }).first()
+    await expect(loginPassword).toHaveAttribute('type', 'password')
+    await showLoginPassword.click()
+    await expect(loginPassword).toHaveAttribute('type', 'text')
+    await expect(page.getByRole('button', { name: 'Hide password' }).first()).toBeVisible()
+    await page.getByRole('button', { name: 'Hide password' }).first().click()
+    await expect(loginPassword).toHaveAttribute('type', 'password')
+
+    await page.getByRole('button', { name: /sign up/i }).last().click()
+    await page.getByRole('button', { name: /password sign up/i }).first().click()
+    const signupPassword = page.locator('.auth-field .password-input input').first()
+    await expect(signupPassword).toHaveAttribute('type', 'password')
+    await page.getByRole('button', { name: 'Show password' }).first().click()
+    await expect(signupPassword).toHaveAttribute('type', 'text')
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole('button', { name: 'Hide password' }).first().click()
+    await expect(signupPassword).toHaveAttribute('type', 'password')
+    await page.getByRole('button', { name: 'Show password' }).first().click()
+    await expect(signupPassword).toHaveAttribute('type', 'text')
+
+    expect(errors).toEqual([])
+  })
+
+  test('dedicated reset route handles invalid or expired links without opening the normal site shell', async ({ page }) => {
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error?.message || String(error)))
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text())
+    })
+
+    await page.goto(
+      '/reset-password?error=access_denied&error_code=otp_expired&error_description=Token%20has%20expired',
+      { waitUntil: 'domcontentloaded' }
+    )
+
+    await expect(page.getByRole('heading', { name: 'Reset Your Password' })).toBeVisible()
+    await expect(page.getByText(/expired or was already used/i)).toBeVisible()
+    await expect(page.getByRole('textbox', { name: /email address/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Request New Reset Email/i })).toBeVisible()
+    await expect(page.getByText('Audio Stories', { exact: true })).toHaveCount(0)
+
+    expect(errors).toEqual([])
+  })
+})
+
+
 test.describe('HJ GROUPS TTS health', () => {
   test('production TTS endpoint returns playable audio', async ({ request }) => {
     test.skip(
