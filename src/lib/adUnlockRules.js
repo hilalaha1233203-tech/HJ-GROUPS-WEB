@@ -26,7 +26,7 @@ const getRawRuleValue = (rule, keys) => {
 }
 
 export function normalizeAdUnlockRules(value) {
-  const source = Array.isArray(value) && value.length ? value : cloneDefaults()
+  const source = Array.isArray(value) ? value : cloneDefaults()
   return source.map((rule) => ({
     startEpisode: getRawRuleValue(rule, ['startEpisode', 'start', 'episodeStart']) ?? '',
     endEpisode: isUnlimitedEnd(getRawRuleValue(rule, ['endEpisode', 'end', 'episodeEnd']))
