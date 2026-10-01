@@ -1476,6 +1476,25 @@ export function App() {
 
       const accessType = episode.accessType || 'free'
 
+      if (Number.isFinite(messageId)) {
+        const duplicateByMessage = await supabase
+          .from('episodes')
+          .select('id,story_id,telegram_message_id')
+          .eq('story_id', supabaseId)
+          .eq('telegram_message_id', messageId)
+          .limit(1)
+          .maybeSingle()
+
+        if (duplicateByMessage.error) {
+          const message = String(duplicateByMessage.error.message || '')
+          const schemaMismatch =
+            /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205/i.test(message)
+          if (!schemaMismatch) throw duplicateByMessage.error
+        } else if (duplicateByMessage.data?.id) {
+          return { status: 'duplicate', id: duplicateByMessage.data.id }
+        }
+      }
+
       if (telegramImportKey) {
         const duplicateLookup = await supabase
           .from('episodes')
