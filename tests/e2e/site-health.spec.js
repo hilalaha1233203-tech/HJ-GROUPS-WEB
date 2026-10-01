@@ -335,4 +335,35 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
       'streaming server must allow the website origin'
     ).toBe(process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com')
   })
+
+  test('public latest audio episode accepts browser range playback without 416 or 5xx', async ({ page }) => {
+    await page.goto('/?qa-media=' + Date.now(), { waitUntil: 'domcontentloaded' })
+
+    const latestPlay = page.locator('.latest-list .latest-item .latest-play').first()
+    await expect(latestPlay).toBeVisible()
+
+    const mediaResponsePromise = page.waitForResponse(
+      (response) => /\/audio\/message\//i.test(response.url()),
+      { timeout: 20_000 }
+    )
+
+    await latestPlay.click()
+
+    const mediaResponse = await mediaResponsePromise
+    expect([200, 206]).toContain(
+      mediaResponse.status(),
+      'Telegram audio must not return 416/5xx during normal browser playback'
+    )
+
+    if (mediaResponse.status() === 206) {
+      expect(mediaResponse.headers()['content-range'] || '').toMatch(/^bytes \d+-\d+\/\d+$/)
+    }
+
+    const audio = page.locator('audio').first()
+    await expect(audio).toHaveAttribute('src', /\/audio\/message\//i)
+    await expect.poll(
+      async () => audio.evaluate((element) => element.readyState),
+      { timeout: 10_000 }
+    ).toBeGreaterThan(0)
+  })
 })
