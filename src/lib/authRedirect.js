@@ -14,7 +14,8 @@ function appendAuthPath(base, path = '/') {
     ? basePath + (targetPath === '/' ? '/' : targetPath)
     : targetPath
 
-  return url.toString().replace(/\/+$/, '') + '/'
+  const result = url.toString().replace(/\/+$/, '')
+  return targetPath === '/' ? result + '/' : result
 }
 
 export function getAuthRedirectUrl({ productionSafe = false, path = '/' } = {}) {
