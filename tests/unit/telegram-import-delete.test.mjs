@@ -10,6 +10,16 @@ test('Telegram import is protected by database identity and a unique import key'
   assert.match(app, /eq\('telegram_import_key', telegramImportKey\)/)
   assert.match(app, /status: 'duplicate'/)
 
+  const hybridSectionStart = app.indexOf('const hybridRow')
+  const hybridSectionEnd = app.indexOf('let result = await supabase.from(\'episodes\').insert(hybridRow)')
+  assert.ok(hybridSectionStart >= 0 && hybridSectionEnd > hybridSectionStart)
+  assert.doesNotMatch(app.slice(hybridSectionStart, hybridSectionEnd), /file_id:/)
+
+  const modernSectionStart = app.indexOf('const modernRow')
+  const modernSectionEnd = app.indexOf('result = await supabase.from(\'episodes\').insert(modernRow)')
+  assert.ok(modernSectionStart >= 0 && modernSectionEnd > modernSectionStart)
+  assert.doesNotMatch(app.slice(modernSectionStart, modernSectionEnd), /file_id:/)
+
   const migration = read('supabase/migrations/20261001_telegram_episode_idempotency.sql')
   assert.match(migration, /ADD COLUMN IF NOT EXISTS telegram_import_key/)
   assert.match(migration, /episodes_telegram_import_key_unique/)
