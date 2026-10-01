@@ -974,6 +974,7 @@ function json(res, statusCode, payload, extraHeaders = {}) {
 }
 
 export {
+  extractBearer,
   getProviderOrder,
   extractProviderUrl,
   callProvider,
