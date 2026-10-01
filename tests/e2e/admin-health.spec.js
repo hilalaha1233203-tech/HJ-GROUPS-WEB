@@ -116,7 +116,7 @@ test.describe('HJ GROUPS admin health', () => {
     const shortenerStatusPayload = await shortenerStatusResponse.json()
     await expect(page.getByText('Management & Settings', { exact: true })).toBeVisible()
     console.log('LIVE_SHORTENER_STATUS', JSON.stringify(shortenerStatusPayload))
-    expect(shortenerStatusPayload.diagnosticVersion).toBe('2026-10-01-auth-diagnostics-1')
+    expect(shortenerStatusPayload.diagnosticVersion).toBe('2026-10-01-auth-diagnostics-2')
     expect(shortenerStatusResponse.status(), 'shortener status HTTP response: ' + JSON.stringify(shortenerStatusPayload)).toBe(200)
     expect(typeof shortenerStatusPayload.configured?.arolinks).toBe('boolean')
     expect(typeof shortenerStatusPayload.configured?.earn4link).toBe('boolean')
