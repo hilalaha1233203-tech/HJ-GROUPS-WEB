@@ -22,6 +22,7 @@ const {
   isEntitlementActive,
   chooseUnlockExpiry,
   extractBearer,
+  isLikelyJwt,
 } = await import('../../server/shortenerUnlock.mjs')
 
 const shortener = await import('../../src/lib/shortenerProviders.js')
@@ -31,6 +32,14 @@ test('Bearer authentication header is parsed correctly', () => {
   assert.equal(extractBearer({ headers: { authorization: 'bearer xyz789' } }), 'xyz789')
   assert.equal(extractBearer({ headers: { authorization: 'Basic abc123' } }), '')
   assert.equal(extractBearer({ headers: {} }), '')
+})
+
+
+test('malformed bearer tokens are rejected before remote Supabase verification', () => {
+  assert.equal(isLikelyJwt('header.payload.signature'), true)
+  assert.equal(isLikelyJwt('abc.def'), false)
+  assert.equal(isLikelyJwt(''), false)
+  assert.equal(isLikelyJwt('not-a-jwt'), false)
 })
 
 test('provider normalization defaults to AroLinks primary and Earn4Link fallback', () => {
