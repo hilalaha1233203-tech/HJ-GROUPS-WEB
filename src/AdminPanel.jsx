@@ -2,6 +2,11 @@ import FileUploadField from './components/FileUploadField'
 import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
 import { normalizeShortenerSettings } from './lib/shortenerProviders'
+import {
+  DEFAULT_AD_UNLOCK_RULES,
+  normalizeAdUnlockRules,
+  validateAdUnlockRules,
+} from './lib/adUnlockRules'
 import { supabase } from './supabase'
 import React, { useEffect, useRef, useState } from 'react'
 
@@ -41,6 +46,7 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     rewardedAdUnitId: '',
     interstitialAdUnitId: '',
     unlockDurationMinutes: 360,
+    episodeUnlockRules: DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule })),
     shortenerEnabled: false,
     primaryShortener: 'arolinks',
     fallbackShortener: 'earn4link',
@@ -73,7 +79,11 @@ const readAdminSettings = () => {
         ...normalizeContentAccessSettings(stored?.content || {}),
         ...(stored?.content || {}),
       },
-      ads: { ...DEFAULT_ADMIN_SETTINGS.ads, ...(stored?.ads || {}) },
+      ads: {
+        ...DEFAULT_ADMIN_SETTINGS.ads,
+        ...(stored?.ads || {}),
+        episodeUnlockRules: normalizeAdUnlockRules(stored?.ads?.episodeUnlockRules),
+      },
       payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored?.payments || {}) },
     }
   } catch {
@@ -318,7 +328,11 @@ function AdminPanel({
               ...normalizeContentAccessSettings(stored.content || {}),
               ...(stored.content || {}),
             },
-            ads: normalizeShortenerSettings({ ...DEFAULT_ADMIN_SETTINGS.ads, ...(stored.ads || {}) }),
+            ads: normalizeShortenerSettings({
+              ...DEFAULT_ADMIN_SETTINGS.ads,
+              ...(stored.ads || {}),
+              episodeUnlockRules: normalizeAdUnlockRules(stored?.ads?.episodeUnlockRules),
+            }),
             payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored.payments || {}) },
           })
           try {
@@ -365,6 +379,12 @@ function AdminPanel({
     return () => { mounted = false }
   }, [])
 
+  const adUnlockRules = Array.isArray(adminSettings.ads.episodeUnlockRules)
+    ? adminSettings.ads.episodeUnlockRules
+    : DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule }))
+
+  const adUnlockRuleValidation = validateAdUnlockRules(adUnlockRules)
+
   const updateAdminSetting = (section, key, value) => {
     setAdminSettings((current) => ({
       ...current,
@@ -376,20 +396,83 @@ function AdminPanel({
     setSettingsDirty(true)
   }
 
+  const updateAdUnlockRule = (index, key, value) => {
+    setAdminSettings((current) => ({
+      ...current,
+      ads: {
+        ...current.ads,
+        episodeUnlockRules: normalizeAdUnlockRules(current.ads?.episodeUnlockRules).map((rule, ruleIndex) => (
+          ruleIndex === index
+            ? { ...rule, [key]: value === '' ? null : value }
+            : rule
+        )),
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
+  const addAdUnlockRule = () => {
+    if (adUnlockRules.some((rule) => rule.endEpisode == null || String(rule.endEpisode).trim() === '')) {
+      showToast('Set an End Episode on the unlimited rule before adding another rule.', 'error')
+      return
+    }
+
+    const lastEnd = Number(adUnlockRules[adUnlockRules.length - 1]?.endEpisode)
+    const nextStart = Number.isInteger(lastEnd) && lastEnd >= 1 ? lastEnd + 1 : ''
+    setAdminSettings((current) => ({
+      ...current,
+      ads: {
+        ...current.ads,
+        episodeUnlockRules: [
+          ...normalizeAdUnlockRules(current.ads?.episodeUnlockRules),
+          { startEpisode: nextStart, endEpisode: null, unlockCount: 1 },
+        ],
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
+  const deleteAdUnlockRule = (index) => {
+    setAdminSettings((current) => ({
+      ...current,
+      ads: {
+        ...current.ads,
+        episodeUnlockRules: normalizeAdUnlockRules(current.ads?.episodeUnlockRules).filter((_, ruleIndex) => ruleIndex !== index),
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
   const saveAdminSettings = async () => {
+    const ruleValidation = validateAdUnlockRules(adminSettings.ads?.episodeUnlockRules)
+    if (!ruleValidation.valid) {
+      showToast(ruleValidation.errors[0] || 'Fix the Ads episode unlock rules before saving.', 'error')
+      return
+    }
+
+    const settingsToSave = {
+      ...adminSettings,
+      ads: {
+        ...adminSettings.ads,
+        episodeUnlockRules: ruleValidation.normalizedRules,
+      },
+    }
+
+    setAdminSettings(settingsToSave)
+
     try {
-      localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(adminSettings))
-      setEpisodeAccessType(adminSettings.content.defaultAudioAccess)
-      setBookAccessType(adminSettings.content.defaultBookAccess)
-      setVideoAccessType(adminSettings.content.defaultVideoAccess)
-      setBulkDefaultAccessType(adminSettings.content.defaultAudioAccess)
-      setVideoBulkDefaultAccessType(adminSettings.content.defaultVideoAccess)
-      setBookBulkDefaultAccessType(adminSettings.content.defaultBookAccess)
+      localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(settingsToSave))
+      setEpisodeAccessType(settingsToSave.content.defaultAudioAccess)
+      setBookAccessType(settingsToSave.content.defaultBookAccess)
+      setVideoAccessType(settingsToSave.content.defaultVideoAccess)
+      setBulkDefaultAccessType(settingsToSave.content.defaultAudioAccess)
+      setVideoBulkDefaultAccessType(settingsToSave.content.defaultVideoAccess)
+      setBookBulkDefaultAccessType(settingsToSave.content.defaultBookAccess)
       const { error: cloudError } = await supabase
         .from('app_settings')
         .upsert({
           id: 'hj_admin_settings',
-          value: adminSettings,
+          value: settingsToSave,
           updated_at: new Date().toISOString(),
         })
 
@@ -1753,7 +1836,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <label>Publisher / App ID<input value={adminSettings.ads.publisherId} onChange={(e) => updateAdminSetting('ads', 'publisherId', e.target.value)} placeholder="Publisher / App ID" /></label>
                   <label>Rewarded Ad Unit ID<input value={adminSettings.ads.rewardedAdUnitId} onChange={(e) => updateAdminSetting('ads', 'rewardedAdUnitId', e.target.value)} placeholder="Rewarded placement ID" /></label>
                   <label>Interstitial Ad Unit ID<input value={adminSettings.ads.interstitialAdUnitId} onChange={(e) => updateAdminSetting('ads', 'interstitialAdUnitId', e.target.value)} placeholder="Optional interstitial ID" /></label>
-                  <label>Unlock duration (minutes)<input type="number" min="1" max="1440" value={adminSettings.ads.unlockDurationMinutes} onChange={(e) => updateAdminSetting('ads', 'unlockDurationMinutes', Number(e.target.value) || 120)} /></label>
+                  <label>Unlock duration (minutes)<input type="number" min="1" max="1440" value={adminSettings.ads.unlockDurationMinutes} onChange={(e) => updateAdminSetting('ads', 'unlockDurationMinutes', Number(e.target.value) || 360)} /></label>
                   <label className="admin-settings-toggle">
                     <input
                       type="checkbox"
@@ -1787,6 +1870,75 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     Routing is disabled by default. Use only for provider-approved link flows. The provider redirect is treated only as the completion signal because these providers do not expose a completion webhook to HJ GROUPS.
                   </small>
                 </div>
+
+                <div className="admin-ad-unlock-rules">
+                  <div className="admin-ad-unlock-rules-head">
+                    <div>
+                      <strong>Ads Unlock Episode Rules</strong>
+                      <small>Rule matching uses the actual episode number where the user starts the Ads unlock.</small>
+                    </div>
+                    <button type="button" className="admin-settings-inline-button" onClick={addAdUnlockRule}>+ Add Rule</button>
+                  </div>
+
+                  <div className="admin-ad-unlock-rule-table">
+                    <div className="admin-ad-unlock-rule-row header">
+                      <span>Start Episode</span>
+                      <span>End Episode</span>
+                      <span>Episodes Per Ad</span>
+                      <span>Action</span>
+                    </div>
+                    {adUnlockRules.map((rule, index) => (
+                      <div className="admin-ad-unlock-rule-row" key={String(index)}>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={rule.startEpisode ?? ''}
+                          onChange={(e) => updateAdUnlockRule(index, 'startEpisode', e.target.value)}
+                          aria-label={`Rule ${index + 1} start episode`}
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={rule.endEpisode ?? ''}
+                          onChange={(e) => updateAdUnlockRule(index, 'endEpisode', e.target.value)}
+                          placeholder="∞ No upper limit"
+                          aria-label={`Rule ${index + 1} end episode`}
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={rule.unlockCount ?? ''}
+                          onChange={(e) => updateAdUnlockRule(index, 'unlockCount', e.target.value)}
+                          aria-label={`Rule ${index + 1} episodes per ad`}
+                        />
+                        <button
+                          type="button"
+                          className="admin-delete"
+                          onClick={() => deleteAdUnlockRule(index)}
+                          aria-label={`Delete Ads unlock rule ${index + 1}`}
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {!adUnlockRuleValidation.valid && (
+                    <div className="admin-ad-unlock-rule-errors" role="alert">
+                      {adUnlockRuleValidation.errors.map((error) => <span key={error}>⚠ {error}</span>)}
+                    </div>
+                  )}
+
+                  <div className="admin-ad-unlock-rule-example">
+                    <strong>Example:</strong> 1–1000 → 10 · 1001–1500 → 5 · 1501–∞ → 3.
+                    Complete an ad on Episode 14 with a 5-count rule to temporarily unlock 14–18.
+                    Only episodes that actually exist in that story are included.
+                  </div>
+                </div>
+
                 <div className="shortener-health-panel" aria-live="polite">
                   <div className="shortener-health-head">
                     <strong>Shortener server health</strong>
