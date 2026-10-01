@@ -3639,7 +3639,7 @@ export function App() {
 
         const positionKey = getMediaPositionKey({
           ...episode,
-          storyId: story?.id,
+          storyId: story && story.id,
         })
         const rememberPosition = isVideo
           ? accountSettings.videoRememberPosition
@@ -4121,7 +4121,7 @@ export function App() {
   const openStoryDetails =
     (story) => {
       void trackUserActivity('story_view', {
-        story_id: Number.isFinite(Number(story?.id)) ? Number(story.id) : null,
+        story_id: Number.isFinite(Number(story && story.id)) ? Number(story.id) : null,
         metadata: { source: 'story_details' },
       })
 
