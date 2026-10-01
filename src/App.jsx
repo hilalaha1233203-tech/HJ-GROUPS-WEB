@@ -3860,8 +3860,11 @@ export function App() {
 
   const handleMediaPlay = () => {
     if (!currentEpisode) return
+    if (!analyticsPlaybackSessionRef.current) {
+      analyticsPlaybackSessionCounterRef.current += 1
+      analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
+    }
     const playbackSession = analyticsPlaybackSessionRef.current
-    if (!playbackSession) return
     const isVideo = currentEpisode.type === 'video'
     void trackUserActivity(isVideo ? 'video_play' : 'episode_play', {
       story_id: Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null,
@@ -3906,6 +3909,7 @@ export function App() {
         }
       }
 
+      analyticsPlaybackSessionRef.current = null
       setIsPlaying(false)
 
       try {
