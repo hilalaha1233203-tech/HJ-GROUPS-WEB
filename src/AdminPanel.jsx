@@ -142,7 +142,7 @@ function AccessTypeSelect({ groupName, value, onChange }) {
 
   return (
     <div className="access-type-field">
-      <span className="access-type-label">Access Types</span>
+      <span className="access-type-label">{label}</span>
       <div className="access-type-options">
         {options.map((option) => (
           <label key={option.value} className="access-type-option">
@@ -159,7 +159,7 @@ function AccessTypeSelect({ groupName, value, onChange }) {
     </div>
   )
 }
-function AccessTypeField({ groupName, value, onChange }) {
+function AccessTypeField({ groupName, label = 'Access Types', value, onChange }) {
   const options = [
     { value: 'free', label: 'Free' },
     { value: 'vip', label: 'VIP' },
@@ -2054,9 +2054,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
               <div className="admin-settings-card">
                 <div className="admin-settings-card-head"><div><small>CONTENT ACCESS</small><h3>Default Access Rules</h3></div><span>🔐</span></div>
                 <div className="admin-settings-access-grid">
-                  <AccessTypeField groupName="settings-default-audio" value={adminSettings.content.defaultAudioAccess} onChange={(value) => updateAdminSetting('content', 'defaultAudioAccess', value)} />
-                  <AccessTypeField groupName="settings-default-books" value={adminSettings.content.defaultBookAccess} onChange={(value) => updateAdminSetting('content', 'defaultBookAccess', value)} />
-                  <AccessTypeField groupName="settings-default-videos" value={adminSettings.content.defaultVideoAccess} onChange={(value) => updateAdminSetting('content', 'defaultVideoAccess', value)} />
+                  <AccessTypeField groupName="settings-default-audio" label="Audio Access Types" value={adminSettings.content.defaultAudioAccess} onChange={(value) => updateAdminSetting('content', 'defaultAudioAccess', value)} />
+                  <AccessTypeField groupName="settings-default-video" label="Video Access Types" value={adminSettings.content.defaultVideoAccess} onChange={(value) => updateAdminSetting('content', 'defaultVideoAccess', value)} />
+                  <AccessTypeField groupName="settings-default-book" label="Book Access Types" value={adminSettings.content.defaultBookAccess} onChange={(value) => updateAdminSetting('content', 'defaultBookAccess', value)} />
                 </div>
                 <div className="admin-settings-form-grid">
                   <label>Free audio episodes<input aria-label="Free audio episodes" type="number" min="0" max="100" value={adminSettings.content.freeAudioEpisodes} onChange={(e) => updateAdminSetting('content', 'freeAudioEpisodes', Number(e.target.value) || 0)} /></label>
