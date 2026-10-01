@@ -447,7 +447,18 @@ async function findActiveAdUnlock(userId, contentType, contentId, content) {
     .maybeSingle()
 
   if (exactError) throw new Error('Unable to verify existing temporary access.')
-  if (exact?.expires_at) return exact
+  if (exact?.expires_at) {
+    if (['audio', 'video'].includes(contentType) && (exact.start_episode_number == null || exact.end_episode_number == null)) {
+      const context = await getEpisodeUnlockContext(contentType, content)
+      return {
+        ...exact,
+        story_id: exact.story_id ?? context.storyId,
+        start_episode_number: exact.start_episode_number ?? context.episodeNumber,
+        end_episode_number: exact.end_episode_number ?? context.episodeNumber,
+      }
+    }
+    return exact
+  }
 
   if (!isAdsEnabled(content) || !['audio', 'video'].includes(contentType)) return null
 
@@ -876,14 +887,47 @@ async function completeUnlock(req, res) {
   if (existingAccess) {
     await markIntentCompleted(intent.id)
     clearCookie(res, 'hj_unlock_code')
+
+    let existingStoryId = existingAccess.storyId ?? null
+    let existingEpisodeNumber = existingAccess.episodeNumber ?? null
+    let existingStartEpisode = existingAccess.unlockStartEpisode ?? null
+    let existingEndEpisode = existingAccess.unlockEndEpisode ?? null
+    let existingEpisodeNumbers = []
+
+    if (existingAccess.source === 'ad_unlock' && ['audio', 'video'].includes(intent.content_type)) {
+      const context = await getEpisodeUnlockContext(intent.content_type, content)
+      existingStoryId = existingStoryId ?? context.storyId
+      existingEpisodeNumber = existingEpisodeNumber ?? context.episodeNumber
+      existingStartEpisode = existingStartEpisode ?? context.episodeNumber
+      existingEndEpisode = existingEndEpisode ?? context.episodeNumber
+
+      if (existingStoryId != null && existingStartEpisode != null && existingEndEpisode != null) {
+        existingEpisodeNumbers = await getExistingEpisodeNumbers(
+          intent.content_type,
+          existingStoryId,
+          existingStartEpisode,
+          existingEndEpisode
+        )
+      }
+
+      if (!existingEpisodeNumbers.length && existingEpisodeNumber != null) {
+        existingEpisodeNumbers = [existingEpisodeNumber]
+      }
+    }
+
     return json(res, 200, {
       ok: true,
       contentType: intent.content_type,
       contentId: intent.content_id,
       expiresAt: existingAccess.expiresAt,
-      storyId: null,
-      episodeNumber: null,
-      episodeNumbers: [],
+      storyId: existingStoryId,
+      episodeNumber: existingEpisodeNumber,
+      unlockStartEpisode: existingStartEpisode,
+      unlockEndEpisode: existingEndEpisode,
+      unlockCount: existingStartEpisode != null && existingEndEpisode != null
+        ? existingEndEpisode - existingStartEpisode + 1
+        : 1,
+      episodeNumbers: existingEpisodeNumbers,
       alreadyGranted: true,
       source: existingAccess.source,
     })
