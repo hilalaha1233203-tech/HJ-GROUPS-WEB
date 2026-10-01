@@ -274,9 +274,16 @@ function AdminPanel({
       setAnalyticsLoading(true)
       setAnalyticsError('')
       try {
-        const { start, end } = getRange()
-        const { data, error } = await supabase.rpc('get_hj_admin_analytics', { p_start_at: start, p_end_at: end })
-        if (error) throw error
+        const { data: { session } = {} } = await supabase.auth.getSession()
+        if (!session?.access_token) throw new Error('Admin session is unavailable.')
+        const response = await fetch('/api/admin/analytics?range=' + encodeURIComponent(analyticsRange), {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Authorization: 'Bearer ' + session.access_token },
+          cache: 'no-store',
+        })
+        const data = await response.json().catch(() => null)
+        if (!response.ok) throw new Error(data?.error || 'Unable to load analytics.')
         if (mounted) setAnalyticsData(data || null)
       } catch (error) {
         if (mounted) {
