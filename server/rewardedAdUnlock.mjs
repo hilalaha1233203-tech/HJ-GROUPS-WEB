@@ -85,6 +85,28 @@ async function existingNumbers(type,storyId,start,end) {
   }
   return [...new Set(rows.filter(x=>x?.available!==false).map(x=>Number(x.number??x.episode_number)).filter(n=>Number.isInteger(n)&&n>=start&&n<=end))].sort((a,b)=>a-b)
 }
+async function preview(req,res,body) {
+  const user=await auth(req)
+  const type=String(body?.contentType||'').toLowerCase()
+  const id=parseId(body?.contentId)
+  if(!['audio','video'].includes(type)||!id) return json(res,400,{error:'Invalid unlock target.'})
+  const s=await settings()
+  if(!s.enabled) return json(res,503,{error:'Ads unlock is disabled.'})
+  if(s.provider!=='google' || !s.rewardedAdUnitId) return json(res,503,{error:'Rewarded Ads provider is not configured for web.'})
+  const row=await content(type,id)
+  const {storyId,episodeNumber}=await episodeContext(type,row)
+  const plan=resolveAdUnlockPlan(episodeNumber,s.rules)
+  const episodeNumbers=await existingNumbers(type,storyId,plan.startEpisode,plan.endEpisode)
+  if(!episodeNumbers.includes(episodeNumber)) return json(res,409,{error:'The selected episode does not exist or is unavailable.'})
+  const {data:existing}=await db().from('ad_unlocks').select('id,expires_at,start_episode_number,end_episode_number')
+    .eq('user_id',user.id).eq('provider','rewarded_ad').eq('content_type',type).eq('story_id',storyId)
+    .lte('start_episode_number',episodeNumber).gte('end_episode_number',episodeNumber).gt('expires_at',new Date().toISOString())
+    .order('expires_at',{ascending:false}).limit(1).maybeSingle()
+  return json(res,200,{ok:true,provider:s.provider,storyId,episodeNumber,unlockCount:plan.unlockCount,
+    unlockStartEpisode:plan.startEpisode,unlockEndEpisode:plan.endEpisode,episodeNumbers,
+    durationMinutes:s.durationMinutes,alreadyGranted:Boolean(existing),expiresAt:existing?.expires_at||null})
+}
+
 async function start(req,res,body) {
   const user=await auth(req)
   const type=String(body?.contentType||'').toLowerCase()
@@ -150,6 +172,7 @@ export async function handleRewardedAdRequest(req,res,url,readJson) {
   if(!url.pathname.startsWith('/api/ads/')) return false
   if(req.method==='OPTIONS'){res.writeHead(204,{'Cache-Control':'no-store'});res.end();return true}
   try {
+    if(url.pathname==='/api/ads/preview'&&req.method==='POST') return preview(req,res,await readJson(req))
     if(url.pathname==='/api/ads/start'&&req.method==='POST') return start(req,res,await readJson(req))
     if(url.pathname==='/api/ads/complete'&&req.method==='POST') return complete(req,res,await readJson(req))
     return json(res,404,{error:'Not found'})
