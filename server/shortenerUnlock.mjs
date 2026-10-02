@@ -864,7 +864,7 @@ async function completeUnlock(req, res) {
 
   const { data: intent, error } = await getServiceClient()
     .from('ad_unlock_intents')
-    .select('id, user_id, content_type, content_id, status, expires_at')
+    .select('id, user_id, content_type, content_id, provider, status, expires_at')
     .eq('token_hash', tokenHash)
     .maybeSingle()
 
@@ -941,6 +941,7 @@ async function completeUnlock(req, res) {
       episodeNumbers: existingEpisodeNumbers,
       alreadyGranted: true,
       source: existingAccess.source,
+      provider: intent.provider || null,
     })
   }
 
@@ -1033,6 +1034,7 @@ async function completeUnlock(req, res) {
       contentType: intent.content_type,
       contentId: intent.content_id,
       expiresAt: newExpiry,
+      provider: intent.provider || null,
       storyId,
       episodeNumber,
       unlockCount: plan.unlockCount,
@@ -1087,6 +1089,7 @@ async function completeUnlock(req, res) {
     contentType: intent.content_type,
     contentId: intent.content_id,
     expiresAt: finalBookExpiry,
+    provider: intent.provider || null,
     storyId: null,
     episodeNumber: null,
     episodeNumbers: [],
