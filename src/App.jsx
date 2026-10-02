@@ -777,6 +777,7 @@ export function App() {
     useState(null)
 
   const [currentMediaSrc, setCurrentMediaSrc] = useState('')
+  const analyticsCurrentMediaRef = useRef(null)
   const analyticsPlaybackSessionRef = useRef(null)
   const analyticsPlaybackSessionCounterRef = useRef(0)
   const mediaResolveRunRef = useRef(0)
@@ -3885,6 +3886,7 @@ export function App() {
     requestAccess(episode, adsKey, () => {
       analyticsPlaybackSessionCounterRef.current += 1
       analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
+      analyticsCurrentMediaRef.current = { story, episode }
       if (isReading) stopReadAloud()
       setActivePlayerKind('episode')
       setCurrentStory(story)
@@ -3903,6 +3905,7 @@ export function App() {
     requestAccess(episode, adsKey, () => {
       analyticsPlaybackSessionCounterRef.current += 1
       analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
+      analyticsCurrentMediaRef.current = { story: currentStory, episode }
       setCurrentEpisode(episode)
       setCurrentTime(0)
       setDuration(0)
@@ -4036,20 +4039,23 @@ export function App() {
     }
 
   const handleMediaPlay = () => {
-    if (!currentEpisode) return
+    const analyticsMedia = analyticsCurrentMediaRef.current
+    const episode = analyticsMedia?.episode || currentEpisode
+    const story = analyticsMedia?.story || currentStory
+    if (!episode) return
     if (!analyticsPlaybackSessionRef.current) {
       analyticsPlaybackSessionCounterRef.current += 1
       analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
     }
     const playbackSession = analyticsPlaybackSessionRef.current
-    const isVideo = currentEpisode.type === 'video'
+    const isVideo = episode.type === 'video'
     void trackUserActivity(isVideo ? 'video_play' : 'episode_play', {
-      story_id: Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null,
-      episode_id: isVideo ? null : (Number.isFinite(Number(currentEpisode.id)) ? Number(currentEpisode.id) : null),
-      video_story_id: isVideo ? (Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null) : null,
-      video_episode_id: isVideo ? (Number.isFinite(Number(currentEpisode.id)) ? Number(currentEpisode.id) : null) : null,
-      access_type: currentEpisode.accessType ?? currentEpisode.access_type ?? null,
-      metadata: { episode_number: currentEpisode.number ?? currentEpisode.episode_number ?? null },
+      story_id: Number.isFinite(Number(story?.id)) ? Number(story.id) : null,
+      episode_id: isVideo ? null : (Number.isFinite(Number(episode.id)) ? Number(episode.id) : null),
+      video_story_id: isVideo ? (Number.isFinite(Number(story?.id)) ? Number(story.id) : null) : null,
+      video_episode_id: isVideo ? (Number.isFinite(Number(episode.id)) ? Number(episode.id) : null) : null,
+      access_type: episode.accessType ?? episode.access_type ?? null,
+      metadata: { episode_number: episode.number ?? episode.episode_number ?? null },
     }, `play:${playbackSession}`)
   }
 
@@ -4072,21 +4078,25 @@ export function App() {
 
   const handleEnded =
     () => {
-      if (currentEpisode) {
+      const analyticsMedia = analyticsCurrentMediaRef.current
+      const episode = analyticsMedia?.episode || currentEpisode
+      const story = analyticsMedia?.story || currentStory
+      if (episode) {
         const playbackSession = analyticsPlaybackSessionRef.current
-        const isVideo = currentEpisode.type === 'video'
+        const isVideo = episode.type === 'video'
         if (playbackSession) {
           void trackUserActivity(isVideo ? 'video_complete' : 'episode_complete', {
-            story_id: Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null,
-            episode_id: isVideo ? null : (Number.isFinite(Number(currentEpisode.id)) ? Number(currentEpisode.id) : null),
-            video_story_id: isVideo ? (Number.isFinite(Number(currentStory?.id)) ? Number(currentStory.id) : null) : null,
-            video_episode_id: isVideo ? (Number.isFinite(Number(currentEpisode.id)) ? Number(currentEpisode.id) : null) : null,
-            metadata: { episode_number: currentEpisode.number ?? currentEpisode.episode_number ?? null },
+            story_id: Number.isFinite(Number(story?.id)) ? Number(story.id) : null,
+            episode_id: isVideo ? null : (Number.isFinite(Number(episode.id)) ? Number(episode.id) : null),
+            video_story_id: isVideo ? (Number.isFinite(Number(story?.id)) ? Number(story.id) : null) : null,
+            video_episode_id: isVideo ? (Number.isFinite(Number(episode.id)) ? Number(episode.id) : null) : null,
+            metadata: { episode_number: episode.number ?? episode.episode_number ?? null },
           }, `complete:${playbackSession}`)
         }
       }
 
       analyticsPlaybackSessionRef.current = null
+      analyticsCurrentMediaRef.current = null
       setIsPlaying(false)
 
       try {
