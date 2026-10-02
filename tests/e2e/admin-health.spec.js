@@ -31,6 +31,16 @@ test.describe('HJ GROUPS admin health', () => {
 
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
+    const featuredHero = page.locator('.hero-section').first()
+    await expect(featuredHero).toBeVisible()
+    const featuredDots = featuredHero.locator('.hero-carousel-dots button')
+    const featuredDotCount = await featuredDots.count()
+    if (featuredDotCount > 1) {
+      const initialFeaturedTitle = await featuredHero.locator('h1').innerText()
+      await page.waitForTimeout(5_600)
+      const nextFeaturedTitle = await featuredHero.locator('h1').innerText()
+      expect(nextFeaturedTitle).not.toBe(initialFeaturedTitle)
+    }
     const audioLanguageButton = page.getByRole('button', { name: /Audio Language: All/i }).first()
     await expect(audioLanguageButton).toBeVisible()
     await audioLanguageButton.click()
