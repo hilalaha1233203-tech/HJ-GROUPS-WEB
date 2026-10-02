@@ -31,6 +31,8 @@ create table if not exists public.rewarded_ad_unlock_intents (
   completed_at timestamptz null
 );
 
+create index if not exists rewarded_ad_unlock_intents_user_idx on public.rewarded_ad_unlock_intents (user_id, status, expires_at);
+
 alter table public.rewarded_ad_unlock_intents enable row level security;
 drop policy if exists "Deny client access - rewarded ad intents" on public.rewarded_ad_unlock_intents;
 create policy "Deny client access - rewarded ad intents"
