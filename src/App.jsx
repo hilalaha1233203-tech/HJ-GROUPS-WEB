@@ -1,3 +1,4 @@
+import { hasGenre } from './lib/genreSelection.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import ePub from 'epubjs'
@@ -7045,8 +7046,7 @@ export function App() {
       ? stories
       : stories.filter(
         (story) =>
-          story.genre ===
-          activeCategory
+          hasGenre(story.genre, activeCategory)
       )
 
   const searchedStories =
