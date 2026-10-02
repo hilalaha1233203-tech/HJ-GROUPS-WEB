@@ -174,7 +174,18 @@ async function entitlements(req,res) {
     .select('id,content_type,content_id,expires_at,story_id,start_episode_number,end_episode_number')
     .eq('user_id',user.id).eq('provider','rewarded_ad').gt('expires_at',new Date().toISOString())
   if(error) return json(res,500,{error:'Unable to load Ads temporary access.'})
-  return json(res,200,{unlocks:data||[]})
+  const unlocks = await Promise.all((data || []).map(async (row) => {
+    if (row.content_type === 'audio' || row.content_type === 'video') {
+      const storyId = row.story_id ?? null
+      const episodeNumber = row.start_episode_number ?? null
+      const episodeNumbers = storyId && row.start_episode_number != null && row.end_episode_number != null
+        ? await existingNumbers(row.content_type, storyId, row.start_episode_number, row.end_episode_number)
+        : []
+      return { ...row, storyId, episodeNumber, episodeNumbers }
+    }
+    return { ...row, episodeNumbers: [] }
+  }))
+  return json(res,200,{unlocks})
 }
 
 export async function handleRewardedAdRequest(req,res,url,readJson) {
