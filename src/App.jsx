@@ -966,7 +966,8 @@ export function App() {
       return
     }
 
-    if (unlock?.storyId == null || unlock?.content_type == null) return
+    const storyId = unlock?.storyId ?? unlock?.story_id ?? null
+    if (storyId == null || unlock?.content_type == null) return
 
     const kind = unlock.content_type === 'video' ? 'video-episode' : 'episode'
     const episodeNumbers = Array.isArray(unlock.episodeNumbers) && unlock.episodeNumbers.length
@@ -977,7 +978,7 @@ export function App() {
       const numericEpisode = Number(episodeNumber)
       if (!Number.isInteger(numericEpisode) || numericEpisode < 1) continue
       saveUnlockedAdUntil(
-        adsKeyFor(kind, unlock.storyId, numericEpisode),
+        adsKeyFor(kind, storyId, numericEpisode),
         exactExpiry
       )
     }
