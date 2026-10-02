@@ -4273,7 +4273,7 @@ export function App() {
     (story) => {
       void trackUserActivity('story_view', {
         story_id: (() => {
-          const raw = String(story?.id ?? story?.story_id ?? '').trim()
+          const raw = String((story && (story.id ?? story.story_id)) ?? '').trim()
           const parsed = raw.startsWith('tg-story-') ? Number(raw.slice('tg-story-'.length)) : Number(raw)
           return Number.isInteger(parsed) && parsed > 0 ? parsed : null
         })(),
