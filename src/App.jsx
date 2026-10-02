@@ -10,6 +10,7 @@ import Auth from './Auth'
 import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
+import { showRewardedAd } from './lib/rewardedAds'
 import { getAnalyticsSessionId, trackUserActivity } from './lib/analytics'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
@@ -949,6 +950,8 @@ export function App() {
 
   const [adUnlockPreview, setAdUnlockPreview] = useState(null)
 
+  const [adProviderOptions, setAdProviderOptions] = useState([])
+
   const [paymentTarget, setPaymentTarget] = useState(null)
 
   const pendingUnlockRef = useRef(null)
@@ -1032,14 +1035,14 @@ export function App() {
         const payload = await response.json()
         if (!payload?.ok || !payload.expiresAt) return
 
-        void trackUserActivity('ad_unlock_completed', {
+        void trackUserActivity('shortener_unlock_completed', {
           story_id: payload?.storyId ?? null,
           episode_id: payload?.contentType === 'audio' ? payload?.contentId ?? null : null,
           video_episode_id: payload?.contentType === 'video' ? payload?.contentId ?? null : null,
           book_id: payload?.contentType === 'book' ? payload?.contentId ?? null : null,
           access_type: 'ads',
-          metadata: { source: 'shortener_completion' },
-        }, `ad-complete:${payload?.contentType}:${payload?.contentId}:${payload?.expiresAt}`)
+          metadata: { provider: payload?.provider || 'shortener', source: 'shortener_completion' },
+        }, `shortener-complete:${payload?.contentType}:${payload?.contentId}:${payload?.expiresAt}`)
 
         cacheServerAdUnlock({
           content_type: payload.contentType,
@@ -1063,7 +1066,7 @@ export function App() {
           const rangeLabel = payload.unlockStartEpisode != null && payload.unlockEndEpisode != null
             ? ` Episodes ${payload.unlockStartEpisode}–${payload.unlockEndEpisode}${payload.episodeNumbers?.length ? ` (${payload.episodeNumbers.length} existing episodes)` : ''}`
             : ''
-          window.alert(`✓ Ad unlock complete.${rangeLabel} Available for ${durationLabel}.`)
+          window.alert(`✓ Shortener unlock complete.${rangeLabel} Available for ${durationLabel}.`)
         }
       } catch (error) {
         console.warn('Temporary ad unlock completion failed:', error)
@@ -3341,7 +3344,7 @@ export function App() {
       throw new Error('Please log in before starting an ad unlock.')
     }
 
-    void trackUserActivity('ad_unlock_started', {
+    void trackUserActivity('shortener_unlock_started', {
       story_id: pending.item?.story_id ?? pending.item?.storyId ?? pending.storyId ?? null,
       episode_id: pending.contentType === 'audio' ? pending.item?.id : null,
       video_episode_id: pending.contentType === 'video' ? pending.item?.id : null,
