@@ -273,8 +273,19 @@ const categories = [
   'Action',
   'Adventure',
   'Romance',
-  'System',
   'Mystery',
+  'Thriller',
+  'Sci-Fi',
+  'Horror',
+  'Comedy',
+  'Drama',
+  'Historical',
+  'Mythology',
+  'Crime',
+  'Supernatural',
+  'System',
+  'Isekai',
+  'Cultivation',
 ]
 
 const bookCategories = [
