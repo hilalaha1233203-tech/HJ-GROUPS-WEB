@@ -7315,3 +7315,93 @@ canvas {
     font-size: 13px;
   }
 }
+
+
+/* Audio story genre multi-select */
+.genre-multi-select {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(124, 131, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(124, 131, 255, 0.055);
+}
+
+.genre-multi-select-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 700;
+}
+
+.genre-multi-select-head small,
+.genre-multi-select-hint {
+  color: #aeb2c7;
+  font-size: 12px;
+}
+
+.genre-multi-select-selected {
+  min-height: 22px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  color: #f3f4ff;
+  font-size: 13px;
+}
+
+.genre-multi-select-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 8px;
+}
+
+.genre-multi-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease;
+}
+
+.genre-multi-select-option:hover:not(:has(input:disabled)) {
+  border-color: rgba(124, 131, 255, 0.45);
+}
+
+.genre-multi-select-option.selected {
+  border-color: rgba(124, 131, 255, 0.62);
+  background: rgba(124, 131, 255, 0.14);
+}
+
+.genre-multi-select-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.genre-multi-select-option input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  accent-color: #7C83FF;
+}
+
+.genre-multi-select-option span {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+@media (max-width: 600px) {
+  .genre-multi-select {
+    padding: 12px;
+  }
+
+  .genre-multi-select-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
