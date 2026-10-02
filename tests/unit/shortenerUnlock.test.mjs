@@ -480,7 +480,7 @@ test('server unlock flow is range-aware and keeps secure access on the existing 
   assert.match(source, /start_episode_number/)
   assert.match(source, /end_episode_number/)
   assert.match(source, /getExistingEpisodeNumbers\(/)
-  assert.match(source, /findActiveAdUnlock\(/)
+  assert.match(source, /findActiveShortenerUnlock\(/)
   assert.match(source, /\.eq\('story_id', storyId\)/)
   assert.match(source, /\.lte\('start_episode_number', episodeNumber\)/)
   assert.match(source, /\.gte\('end_episode_number', episodeNumber\)/)
