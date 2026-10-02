@@ -328,6 +328,46 @@ const matchesLanguage = (item, selectedLanguage) =>
   selectedLanguage === 'All' ||
   String(item?.language || 'Tamil').trim().toLowerCase() === selectedLanguage.toLowerCase()
 
+const STORY_DESCRIPTION_PREVIEW_LENGTH = 180
+
+function StoryDescription({ description, storyId }) {
+  const text = String(description || '')
+  const [expanded, setExpanded] = useState(false)
+
+  if (!text) return null
+
+  const isLong = text.length > STORY_DESCRIPTION_PREVIEW_LENGTH
+  const preview = isLong
+    ? text.slice(0, STORY_DESCRIPTION_PREVIEW_LENGTH).trimEnd() + '…'
+    : text
+
+  return (
+    <div className="story-description-block">
+      <p
+        id={storyId ? `story-description-${storyId}` : undefined}
+        className={`story-card-description${expanded ? ' expanded' : ''}`}
+      >
+        {expanded || !isLong ? text : preview}
+      </p>
+
+      {isLong && (
+        <button
+          type="button"
+          className="story-description-toggle"
+          aria-expanded={expanded}
+          aria-controls={storyId ? `story-description-${storyId}` : undefined}
+          onClick={(event) => {
+            event.stopPropagation()
+            setExpanded((current) => !current)
+          }}
+        >
+          {expanded ? 'Read Less' : 'Read More'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function LanguageFilter({ value, onChange, label = 'Language' }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -7934,11 +7974,10 @@ export function App() {
                         }
                       </h3>
 
-                      <p>
-                        {
-                          story.description
-                        }
-                      </p>
+                      <StoryDescription
+                        description={story.description}
+                        storyId={story.id}
+                      />
 
                       <button
                         className="library-add"
