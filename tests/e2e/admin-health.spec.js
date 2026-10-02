@@ -76,7 +76,7 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(audioStoryForm.locator('label').nth(1)).toBeVisible()
     await expect(audioStoryForm.locator('select').nth(1)).toBeVisible()
     await expect(page.getByRole('button', { name: /Scan Telegram Messages/i })).toBeVisible()
-    const telegramStorySelect = audioStoryForm.locator('select').first()
+    const telegramStorySelect = page.locator('.bulk-telegram-section').first().locator('select').first()
     const storyOptionCount = await telegramStorySelect.locator('option').count()
     expect(storyOptionCount).toBeGreaterThan(1)
     await telegramStorySelect.selectOption({ index: 1 })
@@ -131,6 +131,69 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(videoPremium).toBeVisible()
     await videoPremium.check()
     await expect(videoPremium).toBeChecked()
+
+    await adminOverlay.getByRole('button', { name: /Analytics/i }).first().click()
+    const analyticsSection = page.locator('.admin-episode-analytics').first()
+    await expect(analyticsSection).toBeVisible()
+
+    const storyPicker = analyticsSection.getByRole('button', { name: /Search and select a story for analytics/i })
+    await expect(storyPicker).toBeVisible()
+    await expect(
+      analyticsSection.getByRole('button', { name: /Search and select an episode for analytics/i })
+    ).toHaveCount(0)
+
+    await storyPicker.click()
+    const storySearch = analyticsSection.getByRole('searchbox', { name: /Search stories/i })
+    await expect(storySearch).toBeVisible()
+    await storySearch.fill('2500')
+    const storyResult = analyticsSection.locator('.admin-episode-picker-results button').first()
+    await expect(storyResult).toBeVisible()
+    await expect(storyResult).toContainText('2500')
+    await storyResult.click()
+
+    const episodePicker = analyticsSection.getByRole('button', { name: /Search and select an episode for analytics/i })
+    await expect(episodePicker).toBeVisible()
+    await episodePicker.click()
+
+    const episodeSearch = analyticsSection.getByRole('searchbox', { name: /Search episodes/i })
+    await expect(episodeSearch).toBeVisible()
+
+    const blankEpisodeResults = analyticsSection.locator('.admin-episode-picker-results button')
+    await expect(blankEpisodeResults.first()).toBeVisible()
+    await expect(blankEpisodeResults.filter({ hasText: 'Episode 1' }).first()).toBeVisible()
+    await expect(blankEpisodeResults.filter({ hasText: 'Episode 14' }).first()).toBeVisible()
+
+    await episodeSearch.fill('14')
+    await expect(blankEpisodeResults.filter({ hasText: 'Episode 14' }).first()).toBeVisible()
+
+    await episodeSearch.fill('EP014')
+    await expect(blankEpisodeResults.filter({ hasText: 'Episode 14' }).first()).toBeVisible()
+
+    await episodeSearch.fill('2500 EP014')
+    await expect(blankEpisodeResults.filter({ hasText: 'Episode 14' }).first()).toBeVisible()
+
+    await blankEpisodeResults.filter({ hasText: 'Episode 14' }).first().click()
+    await expect(episodePicker).toContainText('Episode 14')
+    await expect(analyticsSection.locator('table tbody tr')).toHaveCount(1)
+
+    const episodeClear = analyticsSection.getByRole('button', { name: /^Clear$/i }).last()
+    await episodeClear.click()
+    await expect(episodePicker).toHaveText(/Select Episode/i)
+
+    const storyClear = analyticsSection.getByRole('button', { name: /^Clear$/i }).first()
+    await storyClear.click()
+    await expect(storyPicker).toHaveText(/Select Story/i)
+    await expect(
+      analyticsSection.getByRole('button', { name: /Search and select an episode for analytics/i })
+    ).toHaveCount(0)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect(analyticsSection).toBeVisible()
+    const mobileAnalyticsViewport = await page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }))
+    expect(mobileAnalyticsViewport.scrollWidth).toBeLessThanOrEqual(mobileAnalyticsViewport.width)
 
     const managementSettingsButton = adminOverlay.getByRole('button', { name: /Management & Settings/i }).first()
     await managementSettingsButton.click()
