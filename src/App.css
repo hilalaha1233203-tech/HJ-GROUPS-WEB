@@ -6047,6 +6047,106 @@ body:has(.reader-overlay:not(.reader-minimized)),
    HJ GROUPS — ADMIN MANAGEMENT & SETTINGS
 ========================================================= */
 
+.admin-episode-analytics-picker {
+  position: relative;
+  margin: 10px 0 14px;
+}
+
+.admin-episode-analytics-picker-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.admin-episode-picker-button {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid rgba(124,131,255,.28);
+  border-radius: 12px;
+  background: rgba(124,131,255,.09);
+  color: #eef0ff;
+  font: inherit;
+  text-align: left;
+}
+
+.admin-episode-picker-button:hover,
+.admin-episode-picker-button:focus-visible {
+  border-color: rgba(124,131,255,.58);
+  background: rgba(124,131,255,.14);
+  outline: none;
+}
+
+.admin-episode-picker-clear {
+  flex: 0 0 auto;
+}
+
+.admin-episode-picker-panel {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid rgba(124,131,255,.22);
+  border-radius: 12px;
+  background: #111426;
+}
+
+.admin-episode-picker-panel > input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+.admin-episode-picker-results {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.admin-episode-picker-results button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+  color: #f4f5fb;
+  text-align: left;
+}
+
+.admin-episode-picker-results button:hover,
+.admin-episode-picker-results button:focus-visible,
+.admin-episode-picker-results button.selected {
+  border-color: rgba(124,131,255,.42);
+  background: rgba(124,131,255,.11);
+  outline: none;
+}
+
+.admin-episode-picker-results button span,
+.admin-episode-picker-empty {
+  color: #aeb5ca;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .admin-episode-analytics-picker-head {
+    align-items: stretch;
+  }
+
+  .admin-episode-picker-button {
+    min-height: 44px;
+  }
+
+  .admin-episode-picker-clear {
+    min-height: 44px;
+  }
+}
+
 .admin-settings-intro {
   display: flex;
   align-items: flex-end;
