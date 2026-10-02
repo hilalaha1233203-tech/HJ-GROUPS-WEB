@@ -444,7 +444,7 @@ async function getExistingEpisodeNumbers(contentType, storyId, startEpisode, end
   )].sort((a, b) => a - b)
 }
 
-async function findActiveAdUnlock(userId, contentType, contentId, content) {
+async function findActiveShortenerUnlock(userId, contentType, contentId, content) {
   const db = getServiceClient()
   const nowIso = new Date().toISOString()
 
@@ -494,7 +494,7 @@ async function findActiveAdUnlock(userId, contentType, contentId, content) {
 
 async function markIntentCompleted(intentId) {
   const { error } = await getServiceClient()
-    .from('shortener_unlock_intents')
+    .from('ad_unlock_intents')
     .update({ status: 'completed', completed_at: new Date().toISOString() })
     .eq('id', intentId)
     .eq('status', 'pending')
@@ -701,7 +701,7 @@ async function createIntent({ user, contentType, contentId, provider, destinatio
   const expiresAt = new Date(Date.now() + UNLOCK_INTENT_TTL_MINUTES * 60_000).toISOString()
 
   const { error } = await getServiceClient()
-    .from('shortener_unlock_intents')
+    .from('ad_unlock_intents')
     .insert({
       token_hash: tokenHash,
       user_id: user.id,
@@ -724,7 +724,7 @@ async function getExistingAccess(user, contentType, contentId, content) {
   }
 
   if (isAdsEnabled(content)) {
-    const adUnlock = await findActiveAdUnlock(user.id, contentType, contentId, content)
+    const adUnlock = await findActiveShortenerUnlock(user.id, contentType, contentId, content)
     if (adUnlock?.expires_at) {
       return {
         source: 'shortener_unlock',
@@ -863,7 +863,7 @@ async function completeUnlock(req, res) {
   }
 
   const { data: intent, error } = await getServiceClient()
-    .from('shortener_unlock_intents')
+    .from('ad_unlock_intents')
     .select('id, user_id, content_type, content_id, status, expires_at')
     .eq('token_hash', tokenHash)
     .maybeSingle()
@@ -880,7 +880,7 @@ async function completeUnlock(req, res) {
     nowMs: Date.now(),
   })) {
     if (new Date(intent.expires_at).getTime() <= Date.now()) {
-      await getServiceClient().from('shortener_unlock_intents').update({ status: 'expired' }).eq('id', intent.id)
+      await getServiceClient().from('ad_unlock_intents').update({ status: 'expired' }).eq('id', intent.id)
       return json(res, 410, { error: 'Unlock session expired.' })
     }
     return json(res, 403, { error: 'Invalid unlock session.' })
@@ -966,7 +966,7 @@ async function completeUnlock(req, res) {
       plan.endEpisode
     )
 
-    const existingRange = await findActiveAdUnlock(
+    const existingRange = await findActiveShortenerUnlock(
       user.id,
       intent.content_type,
       intent.content_id,
@@ -1118,7 +1118,7 @@ async function unlockLanding(req, res, url) {
   }
 
   const { data: intent, error } = await getServiceClient()
-    .from('shortener_unlock_intents')
+    .from('ad_unlock_intents')
     .select('id, user_id, content_type, content_id, status, expires_at, return_path')
     .eq('token_hash', tokenHash)
     .maybeSingle()
@@ -1136,7 +1136,7 @@ async function unlockLanding(req, res, url) {
     userId: intent.user_id,
   })) {
     if (new Date(intent.expires_at).getTime() <= Date.now()) {
-      await getServiceClient().from('shortener_unlock_intents').update({ status: 'expired' }).eq('id', intent.id)
+      await getServiceClient().from('ad_unlock_intents').update({ status: 'expired' }).eq('id', intent.id)
       return redirect(res, '/?unlock_error=expired')
     }
     return redirect(res, '/?unlock_error=invalid_session')
@@ -1202,7 +1202,7 @@ async function checkAccess(req, res, body) {
   }
 
   if (isAdsEnabled(content)) {
-    const adUnlock = await findActiveAdUnlock(user.id, contentType, contentId, content)
+    const adUnlock = await findActiveShortenerUnlock(user.id, contentType, contentId, content)
     if (adUnlock?.expires_at) {
       return json(res, 200, {
         ok: true,
