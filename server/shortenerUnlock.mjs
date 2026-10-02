@@ -1053,7 +1053,7 @@ async function completeUnlock(req, res) {
     .eq('user_id', user.id)
     .eq('content_type', intent.content_type)
     .eq('content_id', intent.content_id)
-    .maybeSingle()
+    .order('expires_at', { ascending: false }).limit(1).maybeSingle()
 
   if (existingBook?.expires_at && isEntitlementActive(existingBook.expires_at, Date.now())) {
     await markIntentCompleted(intent.id)
