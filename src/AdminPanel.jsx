@@ -271,6 +271,9 @@ function AdminPanel({
   const [shortenerHealthRefresh, setShortenerHealthRefresh] = useState(0)
   const [analyticsRange, setAnalyticsRange] = useState('7d')
   const [analyticsData, setAnalyticsData] = useState(null)
+  const [analyticsStorySearch, setAnalyticsStorySearch] = useState('')
+  const [analyticsStoryPickerOpen, setAnalyticsStoryPickerOpen] = useState(false)
+  const [analyticsSelectedStoryId, setAnalyticsSelectedStoryId] = useState(null)
   const [analyticsEpisodeSearch, setAnalyticsEpisodeSearch] = useState('')
   const [analyticsEpisodePickerOpen, setAnalyticsEpisodePickerOpen] = useState(false)
   const [analyticsSelectedEpisodeId, setAnalyticsSelectedEpisodeId] = useState(null)
@@ -1940,48 +1943,57 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 </section>
                 {(() => {
                   const episodes = Array.isArray(analyticsData.episodes) ? analyticsData.episodes : []
-                  const storiesById = new Map(
-                    (analyticsData.stories || []).map((story) => [Number(story.id), story.title || 'Untitled Story'])
-                  )
-                  const search = analyticsEpisodeSearch.trim().toLowerCase()
-                  const matches = search
-                    ? episodes.filter((row) => {
-                      const storyTitle = storiesById.get(Number(row.story_id)) || ''
-                      return [
-                        row.episode_number,
-                        row.title,
-                        storyTitle,
-                      ].some((value) => String(value ?? '').toLowerCase().includes(search))
-                    }).slice(0, 30)
+                  const stories = Array.isArray(analyticsData.stories) ? analyticsData.stories : []
+                  const selectedStory = stories.find(
+                    (story) => Number(story.id) === Number(analyticsSelectedStoryId)
+                  ) || null
+                  const storyEpisodes = selectedStory
+                    ? episodes.filter((row) => Number(row.story_id) === Number(selectedStory.id))
                     : []
-                  const selectedEpisode = episodes.find(
+                  const storySearch = analyticsStorySearch.trim().toLowerCase()
+                  const episodeSearch = analyticsEpisodeSearch.trim().toLowerCase()
+                  const storySearchTerms = storySearch.split(/\s+/).filter(Boolean)
+                  const episodeSearchTerms = episodeSearch.split(/\s+/).filter(Boolean)
+                  const storyMatches = stories.filter((story) => {
+                    if (!storySearchTerms.length) return true
+                    const searchable = [story.title, story.id].join(' ').toLowerCase()
+                    return storySearchTerms.every((term) => searchable.includes(term))
+                  })
+                  const episodeMatches = storyEpisodes.filter((row) => {
+                    if (!episodeSearchTerms.length) return true
+                    const searchable = [row.episode_number, row.title].join(' ').toLowerCase()
+                    return episodeSearchTerms.every((term) => searchable.includes(term))
+                  })
+                  const selectedEpisode = storyEpisodes.find(
                     (row) => Number(row.id) === Number(analyticsSelectedEpisodeId)
                   ) || null
 
                   return (
                     <section className="admin-section admin-episode-analytics" style={{ marginTop: '18px' }}>
                       <h3>🎧 Episode Analytics</h3>
+
                       <div className="admin-episode-analytics-picker">
                         <div className="admin-episode-analytics-picker-head">
                           <button
                             type="button"
                             className="admin-episode-picker-button"
-                            onClick={() => setAnalyticsEpisodePickerOpen((open) => !open)}
-                            aria-expanded={analyticsEpisodePickerOpen}
-                            aria-label="Search and select an episode for analytics"
+                            onClick={() => setAnalyticsStoryPickerOpen((open) => !open)}
+                            aria-expanded={analyticsStoryPickerOpen}
+                            aria-label="Search and select a story for analytics"
                           >
-                            {selectedEpisode
-                              ? `Episode ${selectedEpisode.episode_number} · ${selectedEpisode.title || 'Untitled'}`
-                              : '🔎 Select Episode Analytics'}
-                            <span aria-hidden="true">{analyticsEpisodePickerOpen ? '⌃' : '⌄'}</span>
+                            {selectedStory ? `📚 ${selectedStory.title || 'Untitled Story'}` : '📚 Select Story'}
+                            <span aria-hidden="true">{analyticsStoryPickerOpen ? '⌃' : '⌄'}</span>
                           </button>
-                          {selectedEpisode && (
+                          {selectedStory && (
                             <button
                               type="button"
                               className="secondary-btn admin-episode-picker-clear"
                               onClick={() => {
-                                setAnalyticsSelectedEpisodeId(null)
+                                setAnalyticsSelectedStoryId(null)
+                                setAnalyticsStorySearch('')
                                 setAnalyticsEpisodeSearch('')
+                                setAnalyticsSelectedEpisodeId(null)
+                                setAnalyticsStoryPickerOpen(false)
                                 setAnalyticsEpisodePickerOpen(false)
                               }}
                             >
@@ -1989,42 +2001,108 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                             </button>
                           )}
                         </div>
-                        {analyticsEpisodePickerOpen && (
+
+                        {analyticsStoryPickerOpen && (
                           <div className="admin-episode-picker-panel">
                             <input
-                            type="search"
-                            value={analyticsEpisodeSearch}
-                            onChange={(event) => setAnalyticsEpisodeSearch(event.target.value)}
-                            placeholder="Search episode number or title…"
-                            aria-label="Search episodes"
-                            autoComplete="off"
-                          />
-                          {search ? (
+                              type="search"
+                              value={analyticsStorySearch}
+                              onChange={(event) => setAnalyticsStorySearch(event.target.value)}
+                              placeholder="Search story title…"
+                              aria-label="Search stories"
+                              autoComplete="off"
+                            />
                             <div className="admin-episode-picker-results">
-                              {matches.length ? matches.map((row) => (
+                              {storyMatches.length ? storyMatches.map((story) => (
                                 <button
-                                  key={row.id}
+                                  key={story.id}
                                   type="button"
-                                  className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''}
+                                  className={Number(story.id) === Number(analyticsSelectedStoryId) ? 'selected' : ''}
                                   onClick={() => {
-                                    setAnalyticsSelectedEpisodeId(row.id)
+                                    setAnalyticsSelectedStoryId(story.id)
+                                    setAnalyticsStorySearch('')
+                                    setAnalyticsSelectedEpisodeId(null)
                                     setAnalyticsEpisodeSearch('')
+                                    setAnalyticsStoryPickerOpen(false)
                                     setAnalyticsEpisodePickerOpen(false)
                                   }}
                                 >
-                                  <strong>Episode {row.episode_number}</strong>
-                                  <span>{row.title || 'Untitled'} · {storiesById.get(Number(row.story_id)) || 'Untitled Story'}</span>
+                                  <strong>{story.title || 'Untitled Story'}</strong>
+                                  <span>{story.story_views ?? 0} story views · {story.episode_plays ?? 0} episode plays</span>
                                 </button>
                               )) : (
-                                <span className="admin-episode-picker-empty">No matching episodes.</span>
+                                <span className="admin-episode-picker-empty">No matching stories.</span>
                               )}
                             </div>
-                          ) : (
-                            <span className="admin-episode-picker-empty">Type an episode number or title to search.</span>
-                          )}
                           </div>
                         )}
                       </div>
+
+                      {selectedStory && (
+                        <div className="admin-episode-analytics-picker">
+                          <div className="admin-episode-analytics-picker-head">
+                            <button
+                              type="button"
+                              className="admin-episode-picker-button"
+                              onClick={() => setAnalyticsEpisodePickerOpen((open) => !open)}
+                              aria-expanded={analyticsEpisodePickerOpen}
+                              aria-label="Search and select an episode for analytics"
+                            >
+                              {selectedEpisode
+                                ? `🎧 Episode ${selectedEpisode.episode_number} · ${selectedEpisode.title || 'Untitled'}`
+                                : '🎧 Select Episode'}
+                              <span aria-hidden="true">{analyticsEpisodePickerOpen ? '⌃' : '⌄'}</span>
+                            </button>
+                            {selectedEpisode && (
+                              <button
+                                type="button"
+                                className="secondary-btn admin-episode-picker-clear"
+                                onClick={() => {
+                                  setAnalyticsSelectedEpisodeId(null)
+                                  setAnalyticsEpisodeSearch('')
+                                  setAnalyticsEpisodePickerOpen(false)
+                                }}
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+
+                          {analyticsEpisodePickerOpen && (
+                            <div className="admin-episode-picker-panel">
+                              <input
+                                type="search"
+                                value={analyticsEpisodeSearch}
+                                onChange={(event) => setAnalyticsEpisodeSearch(event.target.value)}
+                                placeholder="Search episode number or title…"
+                                aria-label="Search episodes"
+                                autoComplete="off"
+                              />
+                              <div className="admin-episode-picker-results">
+                                {episodeMatches.length ? episodeMatches.map((row) => (
+                                  <button
+                                    key={row.id}
+                                    type="button"
+                                    className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''}
+                                    onClick={() => {
+                                      setAnalyticsSelectedEpisodeId(row.id)
+                                      setAnalyticsEpisodeSearch('')
+                                      setAnalyticsEpisodePickerOpen(false)
+                                    }}
+                                  >
+                                    <strong>Episode {row.episode_number}</strong>
+                                    <span>{row.title || 'Untitled'}</span>
+                                  </button>
+                                )) : (
+                                  <span className="admin-episode-picker-empty">
+                                    {episodeSearch ? 'No matching episodes.' : 'No episodes found for this story.'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {selectedEpisode ? (
                         <div style={{ overflowX: 'auto' }}>
@@ -2045,7 +2123,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                           </table>
                         </div>
                       ) : (
-                        <p className="admin-episode-picker-empty">Select an episode to view its analytics.</p>
+                        <p className="admin-episode-picker-empty">
+                          {selectedStory ? 'Select an episode to view its analytics.' : 'First select a story, then select an episode.'}
+                        </p>
                       )}
                     </section>
                   )
