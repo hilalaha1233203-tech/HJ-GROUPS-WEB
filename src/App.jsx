@@ -11,7 +11,7 @@ import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
 import { showRewardedAd } from './lib/rewardedAds'
-import { getAnalyticsSessionId, trackUserActivity } from './lib/analytics'
+import { getAnalyticsSessionId, normalizeStoryAnalyticsId, trackUserActivity } from './lib/analytics'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
 
@@ -4272,11 +4272,7 @@ export function App() {
   const openStoryDetails =
     (story) => {
       void trackUserActivity('story_view', {
-        story_id: (() => {
-          const raw = String((story && (story.id ?? story.story_id)) ?? '').trim()
-          const parsed = raw.startsWith('tg-story-') ? Number(raw.slice('tg-story-'.length)) : Number(raw)
-          return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-        })(),
+        story_id: normalizeStoryAnalyticsId(story && (story.id ?? story.story_id)),
         metadata: { source: 'story_details' },
       })
 
