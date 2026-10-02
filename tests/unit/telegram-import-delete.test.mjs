@@ -41,20 +41,33 @@ test('Admin access type labels do not reference an undefined variable', () => {
   assert.match(panel, /function AccessTypeField\(\{ groupName, label = 'Access Types', value, onChange \}\)/)
 })
 
-test('Long story episode lists render in 50-episode chunks with range navigation', () => {
+test('Long story episode lists use a compact dynamic 50-episode range selector', () => {
   const app = read('src/App.jsx')
   const css = read('src/App.css')
   assert.match(app, /const \[storyEpisodeRangeStart, setStoryEpisodeRangeStart\] = useState\(0\)/)
   assert.match(app, /const \[storyEpisodeVisibleEnd, setStoryEpisodeVisibleEnd\] = useState\(50\)/)
   assert.match(app, /for \(let index = 0; index < allEpisodes\.length; index \+= 50\)/)
-  assert.match(app, /setStoryEpisodeVisibleEnd\(Math\.min\(visibleEnd \+ 50, allEpisodes\.length\)\)/)
-  assert.match(app, /\{start \+ 1\}-\{end\}/)
+  assert.match(app, /const endExclusive = Math\.min\(index \+ 50, allEpisodes\.length\)/)
+  assert.match(app, /const firstEpisode = allEpisodes\[index\]/)
+  assert.match(app, /const lastEpisode = allEpisodes\[endExclusive - 1\]/)
+  assert.match(app, /label:.*firstNumber.*lastNumber/)
+  assert.match(app, /className="episode-range-nav"/)
+  assert.match(app, /className="episode-range-select"/)
   assert.match(app, /aria-label="Episode ranges"/)
+  assert.match(app, /value=\{String\(selectedRangeStart\)\}/)
+  assert.match(app, /setStoryEpisodeRangeStart\(range\.start\)/)
+  assert.match(app, /setStoryEpisodeVisibleEnd\(range\.endExclusive\)/)
   assert.match(app, /Load More Episodes/)
-  assert.match(css, /\.episode-range-nav \{/)
+  assert.match(css, /\.episode-range-select \{/)
   assert.match(css, /\.episode-load-more \{/)
 })
 
+test('Story Details Back to Stories returns to the existing Stories section inside the SPA', () => {
+  const app = read('src/App.jsx')
+  assert.match(app, /const closeStoryDetails =/)
+  assert.match(app, /setPage\('home'\)/)
+  assert.match(app, /document\.getElementById\('stories'\)\?\.scrollIntoView/)
+})
 test('Admin delete awaits the database operation and deletes by primary-key identity', () => {
   const panel = read('src/AdminPanel.jsx')
   const app = read('src/App.jsx')
