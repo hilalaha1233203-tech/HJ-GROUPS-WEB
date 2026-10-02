@@ -272,6 +272,7 @@ function AdminPanel({
   const [analyticsRange, setAnalyticsRange] = useState('7d')
   const [analyticsData, setAnalyticsData] = useState(null)
   const [analyticsEpisodeSearch, setAnalyticsEpisodeSearch] = useState('')
+  const [analyticsEpisodePickerOpen, setAnalyticsEpisodePickerOpen] = useState(false)
   const [analyticsSelectedEpisodeId, setAnalyticsSelectedEpisodeId] = useState(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsError, setAnalyticsError] = useState('')
@@ -1965,26 +1966,32 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                           <button
                             type="button"
                             className="admin-episode-picker-button"
-                            onClick={() => setAnalyticsEpisodeSearch((value) => value)}
+                            onClick={() => setAnalyticsEpisodePickerOpen((open) => !open)}
+                            aria-expanded={analyticsEpisodePickerOpen}
                             aria-label="Search and select an episode for analytics"
                           >
                             {selectedEpisode
                               ? `Episode ${selectedEpisode.episode_number} · ${selectedEpisode.title || 'Untitled'}`
                               : '🔎 Select Episode Analytics'}
-                            <span aria-hidden="true">⌄</span>
+                            <span aria-hidden="true">{analyticsEpisodePickerOpen ? '⌃' : '⌄'}</span>
                           </button>
                           {selectedEpisode && (
                             <button
                               type="button"
                               className="secondary-btn admin-episode-picker-clear"
-                              onClick={() => setAnalyticsSelectedEpisodeId(null)}
+                              onClick={() => {
+                                setAnalyticsSelectedEpisodeId(null)
+                                setAnalyticsEpisodeSearch('')
+                                setAnalyticsEpisodePickerOpen(false)
+                              }}
                             >
                               Clear
                             </button>
                           )}
                         </div>
-                        <div className="admin-episode-picker-panel">
-                          <input
+                        {analyticsEpisodePickerOpen && (
+                          <div className="admin-episode-picker-panel">
+                            <input
                             type="search"
                             value={analyticsEpisodeSearch}
                             onChange={(event) => setAnalyticsEpisodeSearch(event.target.value)}
@@ -2002,6 +2009,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                                   onClick={() => {
                                     setAnalyticsSelectedEpisodeId(row.id)
                                     setAnalyticsEpisodeSearch('')
+                                    setAnalyticsEpisodePickerOpen(false)
                                   }}
                                 >
                                   <strong>Episode {row.episode_number}</strong>
@@ -2014,7 +2022,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                           ) : (
                             <span className="admin-episode-picker-empty">Type an episode number or title to search.</span>
                           )}
-                        </div>
+                          </div>
+                        )}
                       </div>
 
                       {selectedEpisode ? (
