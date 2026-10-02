@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 // The streaming service is deployed separately. Use its stable Vercel project URL
 // instead of pinning the website to an immutable deployment URL.
 import { STREAMING_SERVER_URL } from './streamingUrl'
+import { normalizeContentStatus } from './contentStatus.js'
 
 export function fileUrlFromId(fileId, mediaType = 'audio') {
   if (!fileId) return ''
@@ -63,6 +64,7 @@ function normalizeStories(storyRows, episodeRows) {
     cover: story.cover_url || fileUrlFromId(story.cover_file_id, 'image'),
     coverPath: story.cover_path || '',
     description: story.description || '',
+    status: normalizeContentStatus(story.status),
     episodes: (episodesByStory.get(story.id) || []).sort((a, b) => a.number - b.number),
   }))
 }
@@ -87,6 +89,7 @@ function normalizeBooks(bookRows) {
     telegram_message_id: book.telegram_message_id || null,
     volumes: Array.isArray(book.volumes) ? book.volumes : [],
     accessType: book.access_type,
+    status: normalizeContentStatus(book.status),
   }))
 }
 
@@ -127,6 +130,7 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
     coverPath: video.cover_path || '',
     telegram_message_id: video.telegram_message_id || null,
     accessType: video.access_type,
+    status: normalizeContentStatus(video.status),
     episodes: (episodesByVideo.get(video.id) || []).sort((a, b) => a.number - b.number),
   }))
 }
