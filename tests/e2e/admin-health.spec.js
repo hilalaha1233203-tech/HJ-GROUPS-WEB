@@ -31,6 +31,14 @@ test.describe('HJ GROUPS admin health', () => {
 
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
+    const audioLanguageButton = page.getByRole('button', { name: /Audio Language: All/i }).first()
+    await expect(audioLanguageButton).toBeVisible()
+    await audioLanguageButton.click()
+    await expect(page.getByRole('option', { name: 'Tamil' }).first()).toBeVisible()
+    await page.getByRole('option', { name: 'Tamil' }).first().click()
+    await expect(page.getByRole('button', { name: /Audio Language: Tamil/i }).first()).toBeVisible()
+    await page.getByRole('button', { name: /Audio Language: Tamil/i }).first().click()
+    await page.getByRole('option', { name: 'All' }).first().click()
 
     const login = page.getByRole('button', { name: /login/i }).first()
     await expect(login).toBeVisible({ timeout: 20_000 })
@@ -320,6 +328,15 @@ test.describe('HJ GROUPS admin health', () => {
       await booksNav.click()
       await page.waitForTimeout(600)
 
+      const bookLanguageButton = page.getByRole('button', { name: /Book Language: All/i }).first()
+      await expect(bookLanguageButton).toBeVisible()
+      await bookLanguageButton.click()
+      await expect(page.getByRole('option', { name: 'Tamil' }).first()).toBeVisible()
+      await page.getByRole('option', { name: 'Tamil' }).first().click()
+      await expect(page.getByRole('button', { name: /Book Language: Tamil/i }).first()).toBeVisible()
+      await page.getByRole('button', { name: /Book Language: Tamil/i }).first().click()
+      await page.getByRole('option', { name: 'All' }).first().click()
+
       const firstBookCard = page.locator('.media-catalog-card').first()
       if (await firstBookCard.count()) {
         await firstBookCard.click()
@@ -344,6 +361,21 @@ test.describe('HJ GROUPS admin health', () => {
 
         await page.keyboard.press('Escape').catch(() => {})
       }
+    }
+
+    const videosNav = page.locator('.bottom-nav button').filter({ hasText: /^Videos$/i }).first()
+    if (await videosNav.count()) {
+      await videosNav.click()
+      await page.waitForTimeout(600)
+
+      const videoLanguageButton = page.getByRole('button', { name: /Video Language: All/i }).first()
+      await expect(videoLanguageButton).toBeVisible()
+      await videoLanguageButton.click()
+      await expect(page.getByRole('option', { name: 'Tamil' }).first()).toBeVisible()
+      await page.getByRole('option', { name: 'Tamil' }).first().click()
+      await expect(page.getByRole('button', { name: /Video Language: Tamil/i }).first()).toBeVisible()
+      await page.getByRole('button', { name: /Video Language: Tamil/i }).first().click()
+      await page.getByRole('option', { name: 'All' }).first().click()
     }
 
     await test.info().attach('admin-health.json', {
