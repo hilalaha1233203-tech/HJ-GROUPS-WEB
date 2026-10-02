@@ -69,6 +69,7 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Import/i)).toBeVisible()
+    await expect(adminOverlay.getByLabel('Audio story status')).toBeVisible()
     const audioStorySection = page.locator('section.admin-section').filter({ hasText: /Add New Audio Story|Edit Audio Story/i }).first()
     const audioStoryForm = audioStorySection.locator('form.admin-form').first()
     await expect(audioStoryForm.locator('select').nth(0)).toBeVisible()
@@ -108,6 +109,7 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Books/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Book Import/i)).toBeVisible()
+    await expect(adminOverlay.getByLabel('Book status')).toBeVisible()
     const bookForm = page.locator('section.admin-section').filter({ hasText: /Add New Book|Edit Book/i }).first().locator('form.admin-form').first()
     await expect(bookForm.locator('label').nth(0)).toBeVisible()
     await expect(bookForm.locator('label').nth(1)).toBeVisible()
@@ -121,6 +123,7 @@ test.describe('HJ GROUPS admin health', () => {
 
     await adminOverlay.getByRole('button', { name: /Videos/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Video Import/i)).toBeVisible()
+    await expect(adminOverlay.getByLabel('Video story status')).toBeVisible()
     const videoForm = page.locator('section.admin-section').filter({ hasText: /Add New Video Story|Edit Video Story/i }).first().locator('form.admin-form').first()
     await expect(videoForm.locator('label').nth(0)).toBeVisible()
     await expect(videoForm.locator('label').nth(1)).toBeVisible()
@@ -174,7 +177,20 @@ test.describe('HJ GROUPS admin health', () => {
 
     await blankEpisodeResults.filter({ hasText: 'Episode 14' }).first().click()
     await expect(episodePicker).toContainText('Episode 14')
-    await expect(analyticsSection.locator('table tbody tr')).toHaveCount(1)
+
+    const batchSize = analyticsSection.getByRole('combobox', { name: /Analytics batch size/i })
+    await expect(batchSize).toBeVisible()
+    await batchSize.selectOption('10')
+    await analyticsSection.getByRole('button', { name: /OK — Show Batch/i }).click()
+    await expect(analyticsSection.locator('table tbody tr')).toHaveCount(10)
+    await expect(analyticsSection.getByText('Total Plays', { exact: true })).toBeVisible()
+
+    await episodePicker.click()
+    await expect(episodeSearch).toBeVisible()
+    await blankEpisodeResults.filter({ hasText: 'Episode 14' }).first().click()
+    await batchSize.selectOption('100')
+    await analyticsSection.getByRole('button', { name: /OK — Show Batch/i }).click()
+    await expect(analyticsSection.locator('table tbody tr')).toHaveCount(100)
 
     const episodeClear = analyticsSection.getByRole('button', { name: /^Clear$/i }).last()
     await episodeClear.click()
