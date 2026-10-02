@@ -3655,6 +3655,7 @@ export function App() {
       pendingUnlockRef.current =
         null
       setAdUnlockPreview(null)
+      setAdProviderOptions([])
       setAdModalOpen(false)
     }
 
