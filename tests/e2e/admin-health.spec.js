@@ -211,7 +211,7 @@ test.describe('HJ GROUPS admin health', () => {
     await batchSize.selectOption('10')
     await analyticsSection.getByRole('button', { name: /OK — Show Batch/i }).click()
     await expect(analyticsSection.locator('table tbody tr')).toHaveCount(10)
-    await expect(analyticsSection.getByText('Total Plays', { exact: true })).toBeVisible()
+    await expect(analyticsSection.locator('.admin-analytics-batch-summary').getByText('Total Plays', { exact: true })).toBeVisible()
 
     await episodePicker.click()
     await expect(episodeSearch).toBeVisible()
