@@ -52,7 +52,6 @@ test('episode analytics batch summary keeps additive metrics without summing uni
       completed_plays: 3,
       ad_unlock_starts: 5,
       ad_unlock_completions: 3,
-      actual_unlocks: 5,
       average_plays_per_episode: 5,
     }
   )
