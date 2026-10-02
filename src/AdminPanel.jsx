@@ -1961,8 +1961,21 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   })
                   const episodeMatches = storyEpisodes.filter((row) => {
                     if (!episodeSearchTerms.length) return true
+                    const episodeNumber = Number(row.episode_number)
                     const searchable = [row.episode_number, row.title].join(' ').toLowerCase()
-                    return episodeSearchTerms.every((term) => searchable.includes(term))
+
+                    return episodeSearchTerms.every((term) => {
+                      const episodePrefix = term.match(/^ep0*(\d+)$/i)
+                      if (
+                        episodePrefix &&
+                        Number.isInteger(episodeNumber) &&
+                        episodeNumber === Number(episodePrefix[1])
+                      ) {
+                        return true
+                      }
+
+                      return searchable.includes(term)
+                    })
                   })
                   const selectedEpisode = storyEpisodes.find(
                     (row) => Number(row.id) === Number(analyticsSelectedEpisodeId)
