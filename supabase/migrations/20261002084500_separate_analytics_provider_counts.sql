@@ -32,7 +32,7 @@ begin
       (select count(*) from activity where event_type='shortener_unlock_started') shortener_unlock_starts,
       (select count(*) from activity where event_type='shortener_unlock_completed') shortener_unlock_completions,
       (select count(*) from public.shortener_unlocks where created_at >= v_start and created_at < v_end) actual_shortener_unlocks,
-      (select count(*) from purchases where created_at >= v_start and created_at < v_end) premium_vip_accesses
+      (select count(*) from public.purchases where created_at >= v_start and created_at < v_end) premium_vip_accesses
   ),
   story_activity as (
     select a.*, e.story_id as episode_story_id
