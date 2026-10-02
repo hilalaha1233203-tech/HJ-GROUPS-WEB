@@ -470,7 +470,7 @@ test('secure media keeps Ads content behind the server entitlement check', async
 
 
 test('Shortener preview respects the persisted enabled flag and configured provider order', () => {
-  const source = fs.readFileSync(
+  const source = readFileSync(
     resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
     'utf8'
   )
