@@ -305,6 +305,86 @@ const videoCategories = [
   'Romance',
 ]
 
+const HOME_LANGUAGE_OPTIONS = [
+  'All',
+  'Tamil',
+  'English',
+  'Hindi',
+  'Malayalam',
+  'Telugu',
+  'Kannada',
+  'Bengali',
+  'Marathi',
+  'Gujarati',
+  'Punjabi',
+  'Urdu',
+  'Odia',
+  'Assamese',
+  'Sanskrit',
+  'Other',
+]
+
+const matchesLanguage = (item, selectedLanguage) =>
+  selectedLanguage === 'All' ||
+  String(item?.language || 'Tamil').trim().toLowerCase() === selectedLanguage.toLowerCase()
+
+function LanguageFilter({ value, onChange, label = 'Language' }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const handleOutsideClick = (event) => {
+      if (!ref.current?.contains(event.target)) setOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [open])
+
+  return (
+    <div className="language-filter" ref={ref}>
+      <button
+        type="button"
+        className={`language-filter-button${open ? ' open' : ''}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`${label}: ${value}`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="language-filter-icon" aria-hidden="true">文</span>
+        <span className="language-filter-copy">
+          <small>{label}</small>
+          <strong>{value}</strong>
+        </span>
+        <span className="language-filter-chevron" aria-hidden="true">⌄</span>
+      </button>
+
+      {open && (
+        <div className="language-filter-menu" role="listbox" aria-label={`${label} options`}>
+          {HOME_LANGUAGE_OPTIONS.map((language) => (
+            <button
+              key={language}
+              type="button"
+              role="option"
+              aria-selected={value === language}
+              className={`language-filter-option${value === language ? ' active' : ''}`}
+              onClick={() => {
+                onChange(language)
+                setOpen(false)
+              }}
+            >
+              <span>{language}</span>
+              {value === language && <span aria-hidden="true">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* =========================================================
    LOCAL STORAGE
 ========================================================= */
@@ -1140,6 +1220,18 @@ export function App() {
 
   const [videoCategory, setVideoCategory] =
     useState('All')
+
+  const [audioLanguageFilter, setAudioLanguageFilter] =
+    useState('All')
+
+  const [bookLanguageFilter, setBookLanguageFilter] =
+    useState('All')
+
+  const [videoLanguageFilter, setVideoLanguageFilter] =
+    useState('All')
+
+  const [featuredIndex, setFeaturedIndex] =
+    useState(0)
 
   /* =======================================================
      ADMIN CONTENT
@@ -7060,9 +7152,13 @@ export function App() {
           hasGenre(story.genre, activeCategory)
       )
 
+  const languageFilteredStories = filteredStories.filter(
+    (story) => matchesLanguage(story, audioLanguageFilter)
+  )
+
   const searchedStories =
     searchText.trim()
-      ? stories.filter(
+      ? languageFilteredStories.filter(
         (story) =>
           story.title
             .toLowerCase()
@@ -7071,27 +7167,39 @@ export function App() {
                 .toLowerCase()
             )
       )
-      : filteredStories
+      : languageFilteredStories
 
   const filteredBooks =
     books.filter(
       (book) =>
-        bookCategory ===
-        'All' ||
-        book.category ===
-        bookCategory
+        (bookCategory === 'All' || book.category === bookCategory) &&
+        matchesLanguage(book, bookLanguageFilter)
     )
 
   const filteredVideos =
     videoStories.filter(
       (video) =>
-        videoCategory ===
-        'All' ||
-        video.category ===
-        videoCategory
+        (videoCategory === 'All' || video.category === videoCategory) &&
+        matchesLanguage(video, videoLanguageFilter)
     )
 
-  const featuredStory = searchedStories[0] || stories[0] || null
+  const featuredStories = searchedStories
+
+  useEffect(() => {
+    setFeaturedIndex(0)
+  }, [activeCategory, audioLanguageFilter, searchText])
+
+  useEffect(() => {
+    if (featuredStories.length < 2) return undefined
+
+    const timer = window.setInterval(() => {
+      setFeaturedIndex((current) => (current + 1) % featuredStories.length)
+    }, 5200)
+
+    return () => window.clearInterval(timer)
+  }, [featuredStories.length, activeCategory, audioLanguageFilter, searchText])
+
+  const featuredStory = featuredStories[featuredIndex] || null
 
   const playStoryFromHome = (story) => {
     if (!story) return
@@ -7611,7 +7719,7 @@ export function App() {
       {page === 'home' && (
         <main>
           {featuredStory && (
-            <section className="hero-section">
+            <section className="hero-section hero-carousel" key={featuredStory.id}>
               <div className="hero-copy">
                 <div className="eyebrow">FEATURED AUDIO STORY</div>
                 <h1>{featuredStory.title}</h1>
@@ -7627,8 +7735,24 @@ export function App() {
                 <div className="hero-meta">
                   <span>{featuredStory.genre || 'Audio Story'}</span>
                   <span>{featuredStory.episodes?.length || 0} Episodes</span>
+                  <span>{featuredStory.language || 'Tamil'}</span>
                   <span className="hero-live-dot">● New Listening Experience</span>
                 </div>
+
+                {featuredStories.length > 1 && (
+                  <div className="hero-carousel-dots" aria-label="Featured audio stories">
+                    {featuredStories.map((story, index) => (
+                      <button
+                        key={story.id}
+                        type="button"
+                        className={index === featuredIndex ? 'active' : ''}
+                        aria-label={`Show featured story ${index + 1}: ${story.title}`}
+                        aria-current={index === featuredIndex ? 'true' : undefined}
+                        onClick={() => setFeaturedIndex(index)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="hero-art">
                 <img src={featuredStory.cover} alt={featuredStory.title} />
@@ -7697,7 +7821,21 @@ export function App() {
                   Enter a new world with every episode.
                 </p>
               </div>
+
+              <LanguageFilter
+                value={audioLanguageFilter}
+                onChange={setAudioLanguageFilter}
+                label="Audio Language"
+              />
             </div>
+
+            {searchedStories.length === 0 && (
+              <div className="empty-state story-language-empty-state">
+                <span>🌐</span>
+                <h2>No audio stories found</h2>
+                <p>No audio stories are available in {audioLanguageFilter}.</p>
+              </div>
+            )}
 
             <div className="story-grid">
               {searchedStories.map(
@@ -8536,6 +8674,12 @@ export function App() {
                   </button>
                 ))}
               </div>
+
+              <LanguageFilter
+                value={bookLanguageFilter}
+                onChange={setBookLanguageFilter}
+                label="Book Language"
+              />
             </div>
 
             {filteredBooks.length ? (
@@ -8597,6 +8741,12 @@ export function App() {
                   </button>
                 ))}
               </div>
+
+              <LanguageFilter
+                value={videoLanguageFilter}
+                onChange={setVideoLanguageFilter}
+                label="Video Language"
+              />
             </div>
 
             {filteredVideos.length ? (
