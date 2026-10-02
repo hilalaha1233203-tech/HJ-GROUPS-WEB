@@ -25,6 +25,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Dependency audit (production)
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process')
+          const child = require('node:child_process')
+          let stdout = ''
+          try {
+            stdout = execFileSync('npm', ['audit', '--omit=dev', '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+          } catch (error) {
+            stdout = String(error.stdout || '')
+            const stderr = String(error.stderr || '')
+            if (stderr) process.stderr.write(stderr)
+          }
+          if (!stdout.trim()) throw new Error('npm audit returned no JSON output')
+          const report = JSON.parse(stdout)
+          const metadata = report.metadata || {}
+          console.log('npm audit metadata:', JSON.stringify(metadata.vulnerabilities || {}, null, 2))
+          const vulnerabilities = report.vulnerabilities || {}
+          const serious = Object.entries(vulnerabilities)
+            .filter(([, item]) => ['high', 'critical'].includes(item.severity))
+            .map(([name, item]) => ({ name, severity: item.severity, range: item.range, via: item.via, fixAvailable: item.fixAvailable }))
+          if (serious.length) {
+            console.error('High/Critical production vulnerabilities detected:')
+            console.error(JSON.stringify(serious, null, 2))
+            process.exit(1)
+          }
+          console.log('No high/critical production dependency vulnerabilities found.')
+          NODE
+
       - name: Lint
         run: npm run lint
 
