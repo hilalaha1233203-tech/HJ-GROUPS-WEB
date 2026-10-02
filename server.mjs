@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { isTamilText, MAX_CHARS, synthesizeEdgeTts } from './server/edgeTts.mjs'
 import { isSarvamConfigured, synthesizeSarvamTts } from './server/sarvamTts.mjs'
 import { handleShortenerRequest } from './server/shortenerUnlock.mjs'
+import { handleRewardedAdRequest } from './server/rewardedAdUnlock.mjs'
 import { handlePaymentRequest } from './server/payment.mjs'
 import { createClient } from '@supabase/supabase-js'
 
@@ -380,6 +381,11 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/tts') return handleTts(req, res, 'auto')
   if (url.pathname === '/api/edge-tts') return handleTts(req, res, 'edge')
   if (url.pathname === '/api/sarvam-tts') return handleTts(req, res, 'sarvam')
+
+  if (url.pathname.startsWith('/api/ads/')) {
+    const handled = await handleRewardedAdRequest(req, res, url, () => readJson(req))
+    if (handled !== false) return
+  }
 
   if (url.pathname.startsWith('/api/payments/')) {
     const handled = await handlePaymentRequest(req, res, url, () => readJson(req), () => readRawBody(req))
