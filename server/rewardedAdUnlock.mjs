@@ -168,10 +168,20 @@ async function complete(req,res,body) {
     expiresAt:covered?.expires_at||expiresAt,unlockCount:plan.unlockCount,unlockStartEpisode:plan.startEpisode,
     unlockEndEpisode:plan.endEpisode,episodeNumbers,reusedExisting:Boolean(covered?.id)})
 }
+async function entitlements(req,res) {
+  const user=await auth(req)
+  const {data,error}=await db().from('ad_unlocks')
+    .select('id,content_type,content_id,expires_at,story_id,start_episode_number,end_episode_number')
+    .eq('user_id',user.id).eq('provider','rewarded_ad').gt('expires_at',new Date().toISOString())
+  if(error) return json(res,500,{error:'Unable to load Ads temporary access.'})
+  return json(res,200,{unlocks:data||[]})
+}
+
 export async function handleRewardedAdRequest(req,res,url,readJson) {
   if(!url.pathname.startsWith('/api/ads/')) return false
   if(req.method==='OPTIONS'){res.writeHead(204,{'Cache-Control':'no-store'});res.end();return true}
   try {
+    if(url.pathname==='/api/ads/entitlements'&&req.method==='GET') return entitlements(req,res)
     if(url.pathname==='/api/ads/preview'&&req.method==='POST') return preview(req,res,await readJson(req))
     if(url.pathname==='/api/ads/start'&&req.method==='POST') return start(req,res,await readJson(req))
     if(url.pathname==='/api/ads/complete'&&req.method==='POST') return complete(req,res,await readJson(req))
