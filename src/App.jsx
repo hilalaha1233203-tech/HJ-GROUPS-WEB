@@ -7866,6 +7866,7 @@ export function App() {
         selectedStory && (
           <main className="story-details-page">
             <button
+              type="button"
               className="back-btn"
               onClick={
                 closeStoryDetails
