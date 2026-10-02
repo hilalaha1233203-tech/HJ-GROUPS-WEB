@@ -1,14 +1,11 @@
 import { supabase } from '../supabase'
+import { normalizeStoryAnalyticsId } from './analyticsIdentity.js'
+
+export { normalizeStoryAnalyticsId } from './analyticsIdentity.js'
 
 const SESSION_KEY = 'hj_analytics_session_id'
 const sentKeys = new Set()
 const inFlightKeys = new Set()
-
-export function normalizeStoryAnalyticsId(value) {
-  const raw = String(value ?? '').trim()
-  const parsed = raw.startsWith('tg-story-') ? Number(raw.slice('tg-story-'.length)) : Number(raw)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-}
 
 function getAnonymousSessionId() {
   if (typeof window === 'undefined') return null
