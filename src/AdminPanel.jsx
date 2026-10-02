@@ -400,11 +400,11 @@ function AdminPanel({
               ...normalizeContentAccessSettings(stored.content || {}),
               ...(stored.content || {}),
             },
-            ads: normalizeShortenerSettings({
+            ads: {
               ...DEFAULT_ADMIN_SETTINGS.ads,
               ...(stored.ads || {}),
               episodeUnlockRules: normalizeAdUnlockRules(stored?.ads?.episodeUnlockRules),
-            }),
+            },
             payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored.payments || {}) },
           })
           try {
