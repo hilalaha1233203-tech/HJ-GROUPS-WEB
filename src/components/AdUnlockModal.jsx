@@ -38,12 +38,12 @@ function AdUnlockModal({
                 >
                   {loadingProvider === option.provider
                     ? 'Opening…'
-                    : \`\${option.icon || '🔓'} \${option.label} — Unlock \${option.unlockCount} episode\${option.unlockCount === 1 ? '' : 's'}\`}
+                    : \`${option.icon || '🔓'} ${option.label} — Unlock ${option.unlockCount} episode${option.unlockCount === 1 ? '' : 's'}\`}
                 </button>
               ))}
             </div>
             <p className="ad-unlock-countdown">
-              {options.map((option) => \`\${option.label}: Episodes \${option.unlockStartEpisode}–\${option.unlockEndEpisode}\`).join(' · ')}
+              {options.map((option) => \`${option.label}: Episodes ${option.unlockStartEpisode}–${option.unlockEndEpisode}\`).join(' · ')}
             </p>
           </>
         ) : (
