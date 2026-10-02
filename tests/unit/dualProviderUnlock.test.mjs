@@ -72,7 +72,7 @@ test('configured Ads rules expose the actual provider counts from the shared rul
 test('provider choice UI has no generic Continue fallback and renders explicit provider counts', () => {
   const modal = fs.readFileSync('src/components/AdUnlockModal.jsx', 'utf8')
   assert.match(modal, /<h3>Unlock Episodes<\/h3>/)
-  assert.match(modal, /Unlock \{countLabel\} with \{providerName\}/)
+  assert.match(modal, /Unlock \$\{countLabel\} with \$\{providerName\}/)
   assert.match(modal, /option\.available === false/)
   assert.doesNotMatch(modal, /Continue to Unlock/)
 })
