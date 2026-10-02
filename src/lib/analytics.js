@@ -4,6 +4,12 @@ const SESSION_KEY = 'hj_analytics_session_id'
 const sentKeys = new Set()
 const inFlightKeys = new Set()
 
+export function normalizeStoryAnalyticsId(value) {
+  const raw = String(value ?? '').trim()
+  const parsed = raw.startsWith('tg-story-') ? Number(raw.slice('tg-story-'.length)) : Number(raw)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+}
+
 function getAnonymousSessionId() {
   if (typeof window === 'undefined') return null
   try {
@@ -45,7 +51,9 @@ export async function trackUserActivity(eventType, payload = {}, dedupeKey = nul
     const row = {
       ...identity,
       event_type: eventType,
-      story_id: payload.story_id ?? null,
+      story_id: eventType === 'story_view'
+        ? normalizeStoryAnalyticsId(payload.story_id)
+        : (payload.story_id ?? null),
       episode_id: payload.episode_id ?? null,
       book_id: payload.book_id ?? null,
       video_story_id: payload.video_story_id ?? null,
