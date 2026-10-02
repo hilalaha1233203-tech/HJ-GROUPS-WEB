@@ -6127,6 +6127,79 @@ body:has(.reader-overlay:not(.reader-minimized)),
   outline: none;
 }
 
+.admin-analytics-batch-size {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+  color: #dce0f0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-analytics-batch-size select {
+  min-width: 84px;
+  padding: 7px 10px;
+}
+
+.admin-analytics-picker-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.admin-analytics-picker-actions span {
+  color: #aeb5ca;
+  font-size: 12px;
+}
+
+.admin-analytics-batch-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.admin-analytics-batch-summary > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(124,131,255,.18);
+  border-radius: 10px;
+  background: rgba(124,131,255,.06);
+}
+
+.admin-analytics-batch-summary small {
+  display: block;
+  color: #aeb5ca;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.admin-analytics-batch-summary strong {
+  display: block;
+  margin-top: 3px;
+  color: #f4f5fb;
+  font-size: 14px;
+}
+
+.content-status-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: rgba(5, 5, 10, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
 .admin-episode-picker-results button span,
 .admin-episode-picker-empty {
   color: #aeb5ca;
