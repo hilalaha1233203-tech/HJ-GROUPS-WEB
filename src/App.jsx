@@ -3511,7 +3511,13 @@ export function App() {
         await startShortenerUnlock()
       }
     } catch (error) {
-      if (provider === 'ads') {
+      const message = String(error?.message || '')
+      const pending = pendingUnlockRef.current
+      if (
+        provider === 'ads' &&
+        pending?.item?.id &&
+        !/log in|authentication/i.test(message)
+      ) {
         setAdProviderOptions((current) => current.map((option) => (
           option.provider === 'ads'
             ? {
