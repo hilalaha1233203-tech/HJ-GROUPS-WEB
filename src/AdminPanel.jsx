@@ -2099,7 +2099,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                             </table>
                           </div>
                         </>
-                      ) : <p className="admin-episode-picker-empty">{selectedEpisode ? 'Choose the batch size and press OK to view the episode batch.' : 'First select a story, then select an episode.'}</p>}
+                      ) : <p className="admin-episode-picker-empty">{selectedEpisode ? 'Select an episode to view its analytics. Choose a batch size and press OK.' : 'First select a story, then select an episode.'}</p>}
                     </section>
                   )
                 })()}
