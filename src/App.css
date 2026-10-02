@@ -776,7 +776,9 @@ main {
   border: 1px solid rgba(124, 131, 255, 0.38);
   border-radius: 999px;
   background: rgba(124, 131, 255, 0.10);
+  background-color: #14142b;
   color: #fff;
+  color-scheme: dark;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
@@ -793,6 +795,11 @@ main {
 .episode-range-select:disabled {
   opacity: 1;
   cursor: default;
+}
+
+.episode-range-select option {
+  background-color: #14142b;
+  color: #fff;
 }
 
 .episode-range-caption {

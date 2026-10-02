@@ -3503,6 +3503,38 @@ export function App() {
     }
   }
 
+  const handleProviderUnlock = async (provider) => {
+    try {
+      if (provider === 'ads') {
+        await startRewardedAdUnlock()
+      } else {
+        await startShortenerUnlock()
+      }
+    } catch (error) {
+      const message = String(error?.message || '')
+      const pending = pendingUnlockRef.current
+      if (
+        provider === 'ads' &&
+        pending?.item?.id &&
+        !/log in|authentication/i.test(message)
+      ) {
+        setAdProviderOptions((current) => current.map((option) => (
+          option.provider === 'ads'
+            ? {
+                ...option,
+                available: false,
+                unavailableReason: 'Temporarily unavailable',
+              }
+            : option
+        )))
+        setAdUnlockPreview(null)
+        setAdModalOpen(true)
+        return
+      }
+      throw error
+    }
+  }
+
   const loadAdUnlockPreview = async (item, resolvedContentType, onGranted) => {
     try {
       const { data: { session } = {} } = await supabase.auth.getSession()
@@ -3543,6 +3575,7 @@ export function App() {
           unlockCount: adsPayload.unlockCount,
           unlockStartEpisode: adsPayload.unlockStartEpisode,
           unlockEndEpisode: adsPayload.unlockEndEpisode,
+          available: true,
           preview: adsPayload,
         })
       }
@@ -3554,6 +3587,7 @@ export function App() {
           unlockCount: shortenerPayload.unlockCount,
           unlockStartEpisode: shortenerPayload.unlockStartEpisode,
           unlockEndEpisode: shortenerPayload.unlockEndEpisode,
+          available: true,
           preview: shortenerPayload,
         })
       }
@@ -8026,6 +8060,13 @@ export function App() {
                       selectedRangeStart,
                       visibleEnd
                     )
+                    const selectedRangeIndex = rangeStarts.findIndex(
+                      (range) => range.start === selectedRangeStart
+                    )
+                    const nextRange =
+                      selectedRangeIndex >= 0
+                        ? rangeStarts[selectedRangeIndex + 1] || null
+                        : null
 
                     return (
                       <>
@@ -8125,15 +8166,18 @@ export function App() {
                           )}
                         </div>
 
-                        {visibleEnd < allEpisodes.length && (
+                        {nextRange && (
                           <button
                             type="button"
                             className="episode-load-more"
-                            onClick={() => setStoryEpisodeVisibleEnd(Math.min(visibleEnd + 50, allEpisodes.length))}
+                            onClick={() => {
+                              setStoryEpisodeRangeStart(nextRange.start)
+                              setStoryEpisodeVisibleEnd(nextRange.endExclusive)
+                            }}
                           >
                             Load More Episodes · {Math.min(
                               50,
-                              allEpisodes.length - visibleEnd
+                              nextRange.endExclusive - nextRange.start
                             )} More
                           </button>
                         )}
@@ -9740,7 +9784,7 @@ export function App() {
       {adModalOpen && (
         <AdUnlockModal
           onClose={handleAdCancel}
-          onUnlock={(provider) => provider === 'ads' ? startRewardedAdUnlock() : startShortenerUnlock()}
+          onUnlock={handleProviderUnlock}
           providerLabel={adProviderOptions[0]?.label || 'Unlock'}
           unlockPreview={adUnlockPreview}
           providerOptions={adProviderOptions}

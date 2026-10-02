@@ -755,6 +755,12 @@ async function previewUnlock(req, res, body) {
 
   const content = await loadContentForPreview(contentType, contentId)
   const settings = await getAdminSettings()
+  if (!settings.shortenerEnabled) {
+    return json(res, 503, { error: 'Shortener unlock is currently disabled.' })
+  }
+  if (!getProviderOrder(settings).length) {
+    return json(res, 503, { error: 'No shortener provider is configured.' })
+  }
   const { storyId, episodeNumber } = await getEpisodeUnlockContext(contentType, content)
   const plan = resolveAdUnlockPlan(episodeNumber, settings.episodeUnlockRules)
   const episodeNumbers = await getExistingEpisodeNumbers(

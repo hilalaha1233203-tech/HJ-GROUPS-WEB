@@ -469,6 +469,19 @@ test('secure media keeps Ads content behind the server entitlement check', async
 })
 
 
+test('Shortener preview respects the persisted enabled flag and configured provider order', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
+    'utf8'
+  )
+  const previewStart = source.indexOf('async function previewUnlock')
+  const start = source.indexOf('const settings = await getAdminSettings()', previewStart)
+  const context = source.slice(start, source.indexOf('const { storyId, episodeNumber }', start))
+  assert.match(context, /if \(!settings\.shortenerEnabled\)/)
+  assert.match(context, /getProviderOrder\(settings\)\.length/)
+  assert.match(context, /Shortener unlock is currently disabled/)
+})
+
 test('server unlock flow is range-aware and keeps secure access on the existing API path', () => {
   const source = readFileSync(
     resolve(process.cwd(), 'server/shortenerUnlock.mjs'),

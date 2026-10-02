@@ -58,7 +58,13 @@ test('Long story episode lists use a compact dynamic 50-episode range selector',
   assert.match(app, /setStoryEpisodeRangeStart\(range\.start\)/)
   assert.match(app, /setStoryEpisodeVisibleEnd\(range\.endExclusive\)/)
   assert.match(app, /Load More Episodes/)
+  assert.match(app, /const selectedRangeIndex = rangeStarts\.findIndex\(/)
+  assert.match(app, /const nextRange =/)
+  assert.match(app, /setStoryEpisodeRangeStart\(nextRange\.start\)/)
+  assert.match(app, /setStoryEpisodeVisibleEnd\(nextRange\.endExclusive\)/)
   assert.match(css, /\.episode-range-select \{/)
+  assert.match(css, /\.episode-range-select option \{/)
+  assert.match(css, /color-scheme: dark/)
   assert.match(css, /\.episode-load-more \{/)
 })
 
@@ -67,6 +73,17 @@ test('Story Details Back to Stories returns to the existing Stories section insi
   assert.match(app, /const closeStoryDetails =/)
   assert.match(app, /setPage\('home'\)/)
   assert.match(app, /document\.getElementById\('stories'\)\?\.scrollIntoView/)
+})
+
+test('Admin cloud settings preserve the persisted Ads enabled boolean', () => {
+  const panel = read('src/AdminPanel.jsx')
+  const cloudStart = panel.indexOf('const loadCloudSettings')
+  const cloudEnd = panel.indexOf('setSettingsLoading(false)', cloudStart)
+  assert.ok(cloudStart >= 0 && cloudEnd > cloudStart)
+  const cloudBlock = panel.slice(cloudStart, cloudEnd)
+  assert.match(cloudBlock, /ads: \{/)
+  assert.match(cloudBlock, /\.\.\..*DEFAULT_ADMIN_SETTINGS\.ads/)
+  assert.doesNotMatch(cloudBlock, /ads: normalizeShortenerSettings\(/)
 })
 test('Admin delete awaits the database operation and deletes by primary-key identity', () => {
   const panel = read('src/AdminPanel.jsx')
