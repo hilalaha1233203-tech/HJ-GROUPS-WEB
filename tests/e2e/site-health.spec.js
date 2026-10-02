@@ -35,7 +35,7 @@ async function collectHealth(page, action) {
 
   try {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(1500)
+    await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
     await action()
     await page.waitForTimeout(1000)
   } finally {
@@ -307,6 +307,46 @@ test.describe('HJ GROUPS TTS health', () => {
 })
 
 test.describe('HJ GROUPS Telegram streaming health', () => {
+  test('Latest Episodes renders the 10 newest uploaded episodes globally in upload order', async ({ page }) => {
+    const episodeResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'GET' &&
+        response.url().includes('/rest/v1/episodes')
+    )
+
+    await page.goto('/?qa-latest=' + Date.now(), { waitUntil: 'domcontentloaded' })
+    await expect(page.getByText('Latest Episodes', { exact: true })).toBeVisible({ timeout: 20_000 })
+
+    const response = await episodeResponsePromise
+    expect(response.ok()).toBe(true)
+
+    const rows = await response.json()
+    expect(Array.isArray(rows)).toBe(true)
+
+    const validRows = rows.filter((row) => {
+      const messageId = row?.telegram_message_id
+      const importKey = String(row?.telegram_import_key || '').trim()
+      const canonical = messageId ? String(row?.story_id) + ':' + String(messageId) : ''
+      const duplicate = Boolean(messageId && importKey && canonical && importKey !== canonical)
+      return !duplicate
+    })
+
+    const expected = validRows
+      .slice()
+      .sort((a, b) => {
+        const aTime = Date.parse(a?.created_at || '')
+        const bTime = Date.parse(b?.created_at || '')
+        if (Number.isFinite(aTime) && Number.isFinite(bTime) && bTime !== aTime) return bTime - aTime
+        if (Number.isFinite(aTime) !== Number.isFinite(bTime)) return Number.isFinite(bTime) ? -1 : 1
+        return (Number(b?.id) || 0) - (Number(a?.id) || 0)
+      })
+      .slice(0, 10)
+
+    const renderedTitles = await page.locator('.latest-list .latest-item h3').allTextContents()
+    expect(renderedTitles.length).toBe(Math.min(10, expected.length))
+    expect(renderedTitles).toEqual(expected.map((row) => row.title))
+  })
+
   test('streaming server health and CORS preflight', async ({ request }) => {
     const streamingURL = String(
       process.env.PLAYWRIGHT_STREAMING_URL || 'https://hj-telegram-streaming.onrender.com'
@@ -336,11 +376,16 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     ).toBe(process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com')
   })
 
-  test('public latest audio episode accepts browser range playback without 416 or 5xx', async ({ page }) => {
+  test('public preview audio episode accepts browser range playback without 416 or 5xx', async ({ page }) => {
     await page.goto('/?qa-media=' + Date.now(), { waitUntil: 'domcontentloaded' })
 
-    const latestPlay = page.locator('.latest-list .latest-item .latest-play').first()
-    await expect(latestPlay).toBeVisible()
+    const storyCard = page.locator('.story-card').first()
+    await expect(storyCard).toBeVisible({ timeout: 20_000 })
+    await storyCard.click()
+
+    await expect(page.locator('.episode-range-select')).toBeVisible({ timeout: 20_000 })
+    const episodeOne = page.locator('.details-episodes button').filter({ hasText: /01/ }).first()
+    await expect(episodeOne).toBeVisible()
 
     await page.route(/\/audio\/message\//i, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 800))
@@ -352,7 +397,7 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
       { timeout: 20_000 }
     )
 
-    await latestPlay.click()
+    await episodeOne.click()
 
     await expect(page.locator('.media-loading-toast')).toContainText(
       'This episode will load in a few seconds depending on your network.'
@@ -374,5 +419,44 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
       async () => audio.evaluate((element) => element.readyState),
       { timeout: 10_000 }
     ).toBeGreaterThan(0)
+  })
+
+  test('mobile episode range selector and Load More stay visible and functional', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/?qa-range=' + Date.now(), { waitUntil: 'domcontentloaded' })
+
+    const storyCard = page.locator('.story-card').first()
+    await expect(storyCard).toBeVisible({ timeout: 20_000 })
+    await storyCard.click()
+
+    const rangeSelect = page.getByLabel('Episode ranges')
+    await expect(rangeSelect).toBeVisible({ timeout: 20_000 })
+
+    const selectStyles = await rangeSelect.evaluate((element) => {
+      const styles = getComputedStyle(element)
+      return {
+        color: styles.color,
+        backgroundColor: styles.backgroundColor,
+      }
+    })
+    expect(selectStyles.color).toBe('rgb(255, 255, 255)')
+    expect(selectStyles.backgroundColor).toBe('rgb(20, 20, 43)')
+
+    const viewport = await page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }))
+    expect(viewport.scrollWidth).toBeLessThanOrEqual(viewport.width)
+
+    const caption = page.locator('.episode-range-caption')
+    await expect(caption).toContainText('Showing episodes 1-50')
+
+    const moreButton = page.getByRole('button', { name: /Load More Episodes/i })
+    if (await moreButton.count()) {
+      await expect(moreButton).toBeVisible()
+      await moreButton.click()
+      await expect(caption).toContainText('Showing episodes 51-100')
+      await expect(page.locator('.details-episodes button').first()).toContainText('51')
+    }
   })
 })
