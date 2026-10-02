@@ -70,6 +70,16 @@ test.describe('HJ GROUPS admin health', () => {
     await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Import/i)).toBeVisible()
     await expect(adminOverlay.getByLabel('Audio story status')).toBeVisible()
+    await expect(adminOverlay.getByLabel('Audio story genres')).toBeVisible()
+    const genrePicker = adminOverlay.locator('.genre-multi-select').first()
+    const genreCheckboxes = genrePicker.locator('input[type="checkbox"]')
+    expect(await genreCheckboxes.count()).toBe(17)
+    for (const index of [1, 2, 3, 4]) {
+      await genreCheckboxes.nth(index).check()
+    }
+    await expect(genreCheckboxes).toHaveCount(17)
+    await expect(genrePicker.getByText('5/5 selected', { exact: true })).toBeVisible()
+    await expect(genreCheckboxes.nth(5)).toBeDisabled()
     const audioStorySection = page.locator('section.admin-section').filter({ hasText: /Add New Audio Story|Edit Audio Story/i }).first()
     const audioStoryForm = audioStorySection.locator('form.admin-form').first()
     await expect(audioStoryForm.locator('select').nth(0)).toBeVisible()
