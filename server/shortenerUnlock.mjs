@@ -1051,21 +1051,35 @@ async function completeUnlock(req, res) {
     .eq('content_id', intent.content_id)
     .maybeSingle()
 
-  const finalBookExpiry = chooseUnlockExpiry(existingBook?.expires_at, newExpiry)
-  const { error: bookUpsertError } = await getServiceClient()
+  if (existingBook?.expires_at && isEntitlementActive(existingBook.expires_at, Date.now())) {
+    await markIntentCompleted(intent.id)
+    clearCookie(res, 'hj_unlock_code')
+    return json(res, 200, {
+      ok: true,
+      contentType: intent.content_type,
+      contentId: intent.content_id,
+      expiresAt: existingBook.expires_at,
+      storyId: null,
+      episodeNumber: null,
+      episodeNumbers: [],
+      unlockCount: 1,
+      reusedExisting: true,
+    })
+  }
+
+  const finalBookExpiry = newExpiry
+  const { error: bookInsertError } = await getServiceClient()
     .from('shortener_unlocks')
-    .upsert({
+    .insert({
       user_id: user.id,
       content_type: intent.content_type,
       content_id: intent.content_id,
+      provider: intent.provider || 'arolinks',
       expires_at: finalBookExpiry,
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: 'user_id,content_type,content_id',
     })
 
-  if (bookUpsertError) return json(res, 500, { error: 'Unable to save temporary access.' })
-
+  if (bookInsertError) return json(res, 500, { error: 'Unable to save temporary access.' })
   await markIntentCompleted(intent.id)
   clearCookie(res, 'hj_unlock_code')
   return json(res, 200, {
