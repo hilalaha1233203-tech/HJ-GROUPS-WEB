@@ -3567,6 +3567,11 @@ export function App() {
 
       setAdProviderOptions(options)
       setAdUnlockPreview(options[0]?.preview || null)
+      if (!options.length) {
+        pendingUnlockRef.current = null
+        setAdModalOpen(false)
+        window.alert('No unlock provider is currently available for this content.')
+      }
     } catch {
       setAdProviderOptions([])
     }
