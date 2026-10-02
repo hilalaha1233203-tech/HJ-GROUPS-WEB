@@ -1182,6 +1182,26 @@ async function hasActivePurchase(userId, content) {
   ))
 }
 
+async function findActiveRewardedAdUnlock(userId, contentType, contentId, content) {
+  const db = getServiceClient()
+  const nowIso = new Date().toISOString()
+  const exact = await db.from('ad_unlocks')
+    .select('id,expires_at,story_id,start_episode_number,end_episode_number')
+    .eq('user_id',userId).eq('provider','rewarded_ad').eq('content_type',contentType).eq('content_id',contentId)
+    .gt('expires_at',nowIso).maybeSingle()
+  if (exact.error) throw new Error('Unable to verify Ads access.')
+  if (exact.data?.expires_at) return exact.data
+  if (!isAdsEnabled(content) || !['audio','video'].includes(contentType)) return null
+  const {storyId,episodeNumber}=await getEpisodeUnlockContext(contentType,content)
+  const range=await db.from('ad_unlocks')
+    .select('id,expires_at,story_id,start_episode_number,end_episode_number')
+    .eq('user_id',userId).eq('provider','rewarded_ad').eq('content_type',contentType).eq('story_id',storyId)
+    .lte('start_episode_number',episodeNumber).gte('end_episode_number',episodeNumber).gt('expires_at',nowIso)
+    .order('expires_at',{ascending:false}).limit(1).maybeSingle()
+  if(range.error) throw new Error('Unable to verify Ads access.')
+  return range.data || null
+}
+
 async function checkAccess(req, res, body) {
   const user = await authenticate(req)
   const contentType = String(body?.contentType || '').trim().toLowerCase()
@@ -1196,17 +1216,22 @@ async function checkAccess(req, res, body) {
     return json(res, 200, { ok: true, source: 'admin' })
   }
 
-  if (isAdsEnabled(content)) {
-    const adUnlock = await findActiveShortenerUnlock(user.id, contentType, contentId, content)
-    if (adUnlock?.expires_at) {
-      return json(res, 200, {
-        ok: true,
-        source: 'shortener_unlock',
-        expiresAt: adUnlock.expires_at,
-        unlockStartEpisode: adUnlock.start_episode_number ?? null,
-        unlockEndEpisode: adUnlock.end_episode_number ?? null,
-      })
-    }
+  const [shortenerUnlock, rewardedAdUnlock] = await Promise.all([
+    findActiveShortenerUnlock(user.id, contentType, contentId, content),
+    findActiveRewardedAdUnlock(user.id, contentType, contentId, content),
+  ])
+
+  const active = [shortenerUnlock, rewardedAdUnlock].filter(Boolean).sort(
+    (a, b) => new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime()
+  )[0]
+  if (active?.expires_at) {
+    return json(res, 200, {
+      ok: true,
+      source: shortenerUnlock?.id === active.id ? 'shortener_unlock' : 'ad_unlock',
+      expiresAt: active.expires_at,
+      unlockStartEpisode: active.start_episode_number ?? null,
+      unlockEndEpisode: active.end_episode_number ?? null,
+    })
   }
 
   if (await hasActivePurchase(user.id, content)) {
@@ -1215,6 +1240,7 @@ async function checkAccess(req, res, body) {
 
   return json(res, 403, { error: 'Temporary or paid access required.' })
 }
+
 
 async function listEntitlements(req, res) {
   const user = await authenticate(req)
