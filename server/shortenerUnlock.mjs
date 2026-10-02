@@ -974,55 +974,37 @@ async function completeUnlock(req, res) {
     )
 
     if (existingRange) {
-      const finalExpiry = chooseUnlockExpiry(existingRange.expires_at, newExpiry)
-      const updates = {
-        expires_at: finalExpiry,
-        updated_at: new Date().toISOString(),
-      }
+      const contained =
+        Number(existingRange.start_episode_number) <= unlockStartEpisode &&
+        Number(existingRange.end_episode_number) >= unlockEndEpisode
 
-      // A legacy single-episode row can be upgraded in-place to the new
-      // range representation without creating a second entitlement row.
-      if (!existingRange.start_episode_number || existingRange.content_id === intent.content_id) {
-        updates.story_id = storyId
-        updates.start_episode_number = unlockStartEpisode
-        updates.end_episode_number = unlockEndEpisode
-      }
-
-      const { error: updateError } = await getServiceClient()
-        .from('shortener_unlocks')
-        .update(updates)
-        .eq('id', existingRange.id)
-
-      if (updateError) return json(res, 500, { error: 'Unable to update temporary access.' })
-
-      episodeNumbers = existingRange.start_episode_number && existingRange.end_episode_number
-        ? await getExistingEpisodeNumbers(
+      if (contained) {
+        const coveredNumbers = await getExistingEpisodeNumbers(
           intent.content_type,
           existingRange.story_id,
           existingRange.start_episode_number,
           existingRange.end_episode_number
         )
-        : episodeNumbers
-
-      await markIntentCompleted(intent.id)
-      clearCookie(res, 'hj_unlock_code')
-      return json(res, 200, {
-        ok: true,
-        contentType: intent.content_type,
-        contentId: existingRange.content_id,
-        expiresAt: finalExpiry,
-        storyId: existingRange.story_id ?? storyId,
-        episodeNumber: existingRange.start_episode_number ?? episodeNumber,
-        unlockCount: existingRange.start_episode_number
-          ? (existingRange.end_episode_number - existingRange.start_episode_number + 1)
-          : plan.unlockCount,
-        unlockStartEpisode: existingRange.start_episode_number ?? unlockStartEpisode,
-        unlockEndEpisode: existingRange.end_episode_number ?? unlockEndEpisode,
-        episodeNumbers,
-        reusedExisting: true,
-      })
+        await markIntentCompleted(intent.id)
+        clearCookie(res, 'hj_unlock_code')
+        return json(res, 200, {
+          ok: true,
+          contentType: intent.content_type,
+          contentId: existingRange.content_id,
+          expiresAt: existingRange.expires_at,
+          storyId: existingRange.story_id ?? storyId,
+          episodeNumber,
+          unlockCount: existingRange.end_episode_number - existingRange.start_episode_number + 1,
+          unlockStartEpisode: existingRange.start_episode_number,
+          unlockEndEpisode: existingRange.end_episode_number,
+          episodeNumbers: coveredNumbers,
+          reusedExisting: true,
+        })
+      }
+      // Partial overlap is retained as a separate provider entitlement.
+      // The effective access check below treats both active ranges as playable;
+      // neither record's expiry is silently extended.
     }
-
     if (!episodeNumbers.includes(episodeNumber)) {
       episodeNumbers.push(episodeNumber)
       episodeNumbers.sort((a, b) => a - b)
@@ -1030,17 +1012,16 @@ async function completeUnlock(req, res) {
 
     const { error: insertError } = await getServiceClient()
       .from('shortener_unlocks')
-      .upsert({
+      .insert({
         user_id: user.id,
         content_type: intent.content_type,
         content_id: intent.content_id,
+        provider: intent.provider || 'arolinks',
         expires_at: newExpiry,
         story_id: storyId,
         start_episode_number: unlockStartEpisode,
         end_episode_number: unlockEndEpisode,
         updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,content_type,content_id',
       })
 
     if (insertError) return json(res, 500, { error: 'Unable to save temporary access.' })
