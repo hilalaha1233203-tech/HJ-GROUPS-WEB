@@ -30,10 +30,10 @@ test.describe('HJ GROUPS admin health', () => {
     })
 
     await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(1200)
+    await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
 
     const login = page.getByRole('button', { name: /login/i }).first()
-    await expect(login).toBeVisible()
+    await expect(login).toBeVisible({ timeout: 20_000 })
     await login.click()
 
     await expect(page.getByText('Password Login', { exact: true })).toBeVisible()
