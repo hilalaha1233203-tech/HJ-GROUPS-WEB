@@ -3386,6 +3386,7 @@ export function App() {
     if (payload?.alreadyGranted) {
       pendingUnlockRef.current = null
       setAdUnlockPreview(null)
+      setAdProviderOptions([])
       setAdModalOpen(false)
       pending.onGranted?.()
       return
@@ -9710,9 +9711,10 @@ export function App() {
       {adModalOpen && (
         <AdUnlockModal
           onClose={handleAdCancel}
-          onUnlock={startShortenerUnlock}
-          providerLabel="AroLinks / Earn4Link"
+          onUnlock={(provider) => provider === 'ads' ? startRewardedAdUnlock() : startShortenerUnlock()}
+          providerLabel={adProviderOptions[0]?.label || 'Unlock'}
           unlockPreview={adUnlockPreview}
+          providerOptions={adProviderOptions}
         />
       )}
 
