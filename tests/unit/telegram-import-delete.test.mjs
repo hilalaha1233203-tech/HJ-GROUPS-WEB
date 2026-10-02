@@ -117,3 +117,14 @@ test('secure media path still uses Telegram message identity', () => {
   assert.match(secureMedia, /telegram_message_id/)
   assert.match(secureMedia, /STREAMING_SERVER_URL/)
 })
+
+ 
+test('Episode Analytics is compact by default and searchable by episode or title', () => {
+  const panel = read('src/AdminPanel.jsx')
+  assert.match(panel, /analyticsEpisodeSearch/)
+  assert.match(panel, /analyticsEpisodePickerOpen/)
+  assert.match(panel, /Search and select an episode for analytics/)
+  assert.match(panel, /Search episode number or title/)
+  assert.match(panel, /Select an episode to view its analytics/)
+  assert.doesNotMatch(panel, /\{\(analyticsData\.episodes \|\| \[\]\)\.map\(/)
+})
