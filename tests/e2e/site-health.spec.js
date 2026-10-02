@@ -57,6 +57,95 @@ function mergeHealth(items) {
   }
 }
 
+test.describe('HJ GROUPS audio story description health', () => {
+  const stories = [
+    { id: 9001, title: 'QA Empty Description', genre: 'Fantasy', language: 'Tamil', description: '' },
+    { id: 9002, title: 'QA Short Description', genre: 'Fantasy', language: 'Tamil', description: 'A short story description.' },
+    { id: 9003, title: 'QA Medium Description', genre: 'Fantasy', language: 'Tamil', description: 'This is a medium story description that is long enough to exercise normal card wrapping without reaching the Read More threshold.' },
+    { id: 9004, title: 'QA Long Description', genre: 'Fantasy', language: 'Tamil', description: 'Long description '.repeat(20) },
+    { id: 9005, title: 'QA Very Long Description', genre: 'Fantasy', language: 'Tamil', description: 'Very long description '.repeat(60) },
+  ]
+
+  async function mockStoryCatalogue(page) {
+    await page.route('https://yajkfglagnyvenddyvok.supabase.co/rest/v1/stories*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(stories.map((story) => ({
+          ...story,
+          cover_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80',
+          cover_path: '',
+          status: 'available',
+        }))),
+      })
+    })
+
+    await page.route('https://yajkfglagnyvenddyvok.supabase.co/rest/v1/episodes*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '[]',
+      })
+    })
+  }
+
+  test('Read More is independent per story and stays compact without mobile overflow', async ({ page }) => {
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error?.message || String(error)))
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text())
+    })
+
+    await mockStoryCatalogue(page)
+    await page.goto('/?qa-description=' + Date.now(), { waitUntil: 'domcontentloaded' })
+    await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
+
+    for (const story of stories.slice(0, 3)) {
+      const card = page.locator('.story-card').filter({ hasText: story.title }).first()
+      await expect(card).toBeVisible()
+      await expect(card.locator('.story-description-toggle')).toHaveCount(0)
+      if (story.description) {
+        await expect(card.locator('.story-card-description')).toHaveText(story.description)
+      }
+    }
+
+    const longCard = page.locator('.story-card').filter({ hasText: stories[3].title }).first()
+    const veryLongCard = page.locator('.story-card').filter({ hasText: stories[4].title }).first()
+    const longDescription = longCard.locator('.story-card-description')
+    const veryLongDescription = veryLongCard.locator('.story-card-description')
+
+    await expect(longCard.getByRole('button', { name: 'Read More' })).toBeVisible()
+    await expect(veryLongCard.getByRole('button', { name: 'Read More' })).toBeVisible()
+    await expect(longDescription).toHaveText(stories[3].description.slice(0, 180).trimEnd() + '…')
+    await expect(veryLongDescription).toHaveText(stories[4].description.slice(0, 180).trimEnd() + '…')
+
+    await longCard.getByRole('button', { name: 'Read More' }).click()
+    await expect(longDescription).toHaveText(stories[3].description)
+    await expect(longCard.getByRole('button', { name: 'Read Less' })).toBeVisible()
+    await expect(veryLongCard.getByRole('button', { name: 'Read More' })).toBeVisible()
+    await expect(veryLongDescription).toHaveText(stories[4].description.slice(0, 180).trimEnd() + '…')
+
+    await longCard.getByRole('button', { name: 'Read Less' }).click()
+    await expect(longDescription).toHaveText(stories[3].description.slice(0, 180).trimEnd() + '…')
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+
+    const collapsedHeight = await veryLongCard.boundingBox().then((box) => box?.height || 0)
+    await veryLongCard.getByRole('button', { name: 'Read More' }).click()
+    await expect(veryLongDescription).toHaveText(stories[4].description)
+    await expect(veryLongCard.getByRole('button', { name: 'Read Less' })).toBeVisible()
+    const expandedHeight = await veryLongCard.boundingBox().then((box) => box?.height || 0)
+    expect(expandedHeight).toBeGreaterThan(collapsedHeight)
+
+    await veryLongCard.getByRole('button', { name: 'Read Less' }).click()
+    await expect(veryLongDescription).toHaveText(stories[4].description.slice(0, 180).trimEnd() + '…')
+    await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+
+    expect(errors).toEqual([])
+  })
+})
+
 test.describe('HJ GROUPS public website health', () => {
   test('home shell loads', async ({ page }) => {
     const health = await collectHealth(page, async () => {
