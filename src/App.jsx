@@ -1038,14 +1038,16 @@ export function App() {
         const payload = await response.json()
         if (!payload?.ok || !payload.expiresAt) return
 
-        void trackUserActivity('shortener_unlock_completed', {
+        if (payload?.source === 'shortener_unlock' || payload?.reusedExisting !== true) {
+          void trackUserActivity('shortener_unlock_completed', {
           story_id: payload?.storyId ?? null,
           episode_id: payload?.contentType === 'audio' ? payload?.contentId ?? null : null,
           video_episode_id: payload?.contentType === 'video' ? payload?.contentId ?? null : null,
           book_id: payload?.contentType === 'book' ? payload?.contentId ?? null : null,
           access_type: 'ads',
           metadata: { provider: payload?.provider || 'shortener', source: 'shortener_completion' },
-        }, `shortener-complete:${payload?.contentType}:${payload?.contentId}:${payload?.expiresAt}`)
+          }, `shortener-complete:${payload?.contentType}:${payload?.contentId}:${payload?.expiresAt}`)
+        }
 
         cacheServerAdUnlock({
           content_type: payload.contentType,
