@@ -47,9 +47,13 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     interstitialAdUnitId: '',
     unlockDurationMinutes: 360,
     episodeUnlockRules: DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule })),
-    shortenerEnabled: false,
-    primaryShortener: 'arolinks',
-    fallbackShortener: 'earn4link',
+  },
+  shortener: {
+    enabled: false,
+    primaryProvider: 'arolinks',
+    fallbackProvider: 'earn4link',
+    unlockDurationMinutes: 360,
+    episodeUnlockRules: DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule })),
   },
   payments: {
     enabled: false,
@@ -84,6 +88,19 @@ const readAdminSettings = () => {
         ...(stored?.ads || {}),
         episodeUnlockRules: normalizeAdUnlockRules(stored?.ads?.episodeUnlockRules),
       },
+      shortener: normalizeShortenerSettings({
+        ...DEFAULT_ADMIN_SETTINGS.shortener,
+        ...(stored?.shortener || {}),
+        enabled: stored?.shortener?.enabled === true || stored?.ads?.shortenerEnabled === true,
+        primaryProvider: stored?.shortener?.primaryProvider || stored?.ads?.primaryShortener,
+        fallbackProvider: Object.prototype.hasOwnProperty.call(stored?.shortener || {}, 'fallbackProvider')
+          ? stored.shortener.fallbackProvider
+          : stored?.ads?.fallbackShortener,
+        unlockDurationMinutes: Number(stored?.shortener?.unlockDurationMinutes || stored?.ads?.unlockDurationMinutes) || 360,
+        episodeUnlockRules: normalizeAdUnlockRules(
+          stored?.shortener?.episodeUnlockRules || stored?.ads?.episodeUnlockRules
+        ),
+      }),
       payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored?.payments || {}) },
     }
   } catch {
