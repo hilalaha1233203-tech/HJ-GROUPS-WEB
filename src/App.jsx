@@ -12,6 +12,7 @@ import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
 import { showRewardedAd } from './lib/rewardedAds'
 import { getAnalyticsSessionId, normalizeStoryAnalyticsId, trackUserActivity } from './lib/analytics'
+import { contentStatusLabel, normalizeContentStatus } from './lib/contentStatus.js'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
 
@@ -1486,6 +1487,7 @@ export function App() {
       cover_url: story.cover || null,
       cover_path: story.coverPath || '',
       description: story.description || '',
+      status: normalizeContentStatus(story.status),
     }
 
     let result = await supabase
@@ -1531,6 +1533,7 @@ export function App() {
         cover_url: updates.cover || null,
         cover_path: updates.coverPath || '',
         description: updates.description || '',
+        status: normalizeContentStatus(updates.status),
       }
 
       let result = await supabase.from('stories').update(next).eq('id', supabaseId)
@@ -1999,6 +2002,7 @@ export function App() {
       language: book.language || 'Tamil',
       access_type: serializeAccessType(book.accessType),
       volumes: Array.isArray(book.volumes) ? book.volumes : [],
+      status: normalizeContentStatus(book.status),
     }
 
     let result = await supabase.from('books').insert(row).select('*').single()
@@ -2069,6 +2073,7 @@ export function App() {
         language: updates.language || 'Tamil',
         access_type: serializeAccessType(updates.accessType),
         volumes: Array.isArray(updates.volumes) ? updates.volumes : [],
+        status: normalizeContentStatus(updates.status),
       }
 
       let result = await supabase.from('books').update(next).eq('id', supabaseId)
@@ -2116,6 +2121,7 @@ export function App() {
       telegram_message_id: video.telegram_message_id ? Number(video.telegram_message_id) : null,
       language: video.language || 'Tamil',
       access_type: serializeAccessType(video.accessType),
+      status: normalizeContentStatus(video.status),
     }
 
     let result = await supabase
@@ -2180,6 +2186,7 @@ export function App() {
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
         language: updates.language || 'Tamil',
         access_type: serializeAccessType(updates.accessType),
+        status: normalizeContentStatus(updates.status),
       }
 
       let result = await supabase.from('video_stories').update(next).eq('id', supabaseId)
@@ -7708,7 +7715,7 @@ export function App() {
                       <div className="story-overlay" />
 
                       <span className="story-status">
-                        Ongoing
+                        {contentStatusLabel(story.status)}
                       </span>
 
                       <button
@@ -8533,6 +8540,7 @@ export function App() {
                     </span>
                     <div className="media-catalog-cover">
                       <img src={book.cover} alt={book.title} />
+                      <span className="content-status-badge">{contentStatusLabel(book.status)}</span>
                     </div>
                     <strong>{book.title}</strong>
                     <small>{book.author || book.category || 'Book'}</small>
@@ -8600,6 +8608,7 @@ export function App() {
                     </span>
                     <div className="media-catalog-cover">
                       <img src={story.cover} alt={story.title} />
+                      <span className="content-status-badge">{contentStatusLabel(story.status)}</span>
                       <span className="media-catalog-play">▶</span>
                     </div>
                     <strong>{story.title}</strong>
