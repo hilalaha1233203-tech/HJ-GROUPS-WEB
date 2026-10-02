@@ -455,6 +455,8 @@ async function findActiveShortenerUnlock(userId, contentType, contentId, content
     .eq('content_type', contentType)
     .eq('content_id', contentId)
     .gt('expires_at', nowIso)
+    .order('expires_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   if (exactError) throw new Error('Unable to verify existing temporary access.')
