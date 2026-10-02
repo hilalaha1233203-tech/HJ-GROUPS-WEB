@@ -3,7 +3,7 @@ import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
 import { normalizeShortenerSettings } from './lib/shortenerProviders'
 import { CONTENT_STATUS_OPTIONS, normalizeContentStatus } from './lib/contentStatus.js'
-import { ANALYTICS_BATCH_SIZES, getEpisodeAnalyticsBatch, summarizeEpisodeAnalyticsBatch } from './lib/analytics.js'
+import { ANALYTICS_BATCH_SIZES, getEpisodeAnalyticsBatch, summarizeEpisodeAnalyticsBatch } from './lib/analyticsBatch.js'
 import {
   DEFAULT_AD_UNLOCK_RULES,
   normalizeAdUnlockRules,
