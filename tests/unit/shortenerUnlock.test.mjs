@@ -399,7 +399,7 @@ test('final completion requires the authenticated completion endpoint to consume
   assert.match(block, /hj_unlock_code/)
   assert.match(block, /status !== 'pending'/)
   assert.match(block, /from\('shortener_unlocks'\)/)
-  assert.match(block, /upsert/)
+  assert.match(block, /insert/)
 })
 
 test('unlock completion cannot accept arbitrary browser expiry values', () => {
