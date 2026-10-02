@@ -645,13 +645,17 @@ main {
 ========================================================= */
 
 .story-details-page {
+  width: 100%;
   max-width: 1250px;
+  min-width: 0;
 
   min-height: 80vh;
 
   margin: auto;
 
   padding: 45px 6vw 120px;
+
+  box-sizing: border-box;
 }
 
 .back-btn {
@@ -667,10 +671,14 @@ main {
 }
 
 .story-details-content {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
   display: grid;
 
   grid-template-columns:
-    350px 1fr;
+    minmax(0, 350px) minmax(0, 1fr);
 
   gap: 65px;
 
@@ -678,6 +686,10 @@ main {
 }
 
 .story-details-cover {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
   overflow: hidden;
 
   border-radius: 20px;
@@ -697,6 +709,11 @@ main {
   object-fit: cover;
 }
 
+.story-details-info {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .story-details-info h1 {
   margin: 0 0 20px;
 
@@ -707,11 +724,16 @@ main {
 }
 
 .story-description {
+  width: 100%;
   max-width: 650px;
+  min-width: 0;
 
   color: #858aa2;
 
   line-height: 1.8;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .story-details-meta {
@@ -739,35 +761,38 @@ main {
 }
 
 .episode-range-nav {
-  display: flex;
-  gap: 7px;
-  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 2px 1px 8px;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
 }
 
-.episode-range-nav button {
-  flex: 0 0 auto;
-  min-width: 58px;
-  padding: 7px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.episode-range-select {
+  width: auto;
+  max-width: 100%;
+  min-width: 104px;
+  min-height: 40px;
+  padding: 7px 32px 7px 12px;
+  border: 1px solid rgba(124, 131, 255, 0.38);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.025);
-  color: #8b91aa;
-  font-size: 11px;
+  background: rgba(124, 131, 255, 0.10);
+  color: #fff;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1.2;
+  box-sizing: border-box;
 }
 
-.episode-range-nav button:hover {
-  border-color: rgba(124, 131, 255, 0.45);
-  color: #dfe2ff;
-}
-
-.episode-range-nav button.active {
+.episode-range-select:hover,
+.episode-range-select:focus-visible {
   border-color: rgba(124, 131, 255, 0.72);
   background: rgba(124, 131, 255, 0.16);
-  color: #fff;
+  outline: none;
+}
+
+.episode-range-select:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
 .episode-range-caption {
@@ -3210,7 +3235,7 @@ body:has(.reader-overlay:not(.reader-minimized)),
 
   .story-details-content {
     grid-template-columns:
-      280px 1fr;
+      minmax(0, 1fr);
 
     gap: 40px;
   }
@@ -3325,21 +3350,51 @@ body:has(.reader-overlay:not(.reader-minimized)),
   }
 
   .story-details-page {
+    width: 100%;
+    max-width: 100%;
     padding:
       30px 20px 110px;
   }
 
   .story-details-content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     grid-template-columns:
-      1fr;
+      minmax(0, 1fr);
 
     gap: 30px;
   }
 
   .story-details-cover {
-    width: 260px;
+    width: min(260px, 100%);
+    max-width: 100%;
 
     margin: auto;
+  }
+
+  .story-details-info {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .story-details-info > .primary-btn,
+  .story-details-info > .details-library-btn {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .episode-range-nav {
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .episode-range-select {
+    width: auto;
+    max-width: 100%;
+    min-width: 104px;
   }
 
   .story-details-info {
@@ -3532,7 +3587,8 @@ body:has(.reader-overlay:not(.reader-minimized)),
   }
 
   .story-details-cover {
-    width: 230px;
+    width: min(230px, 100%);
+    max-width: 100%;
   }
 
   .auth-page,
