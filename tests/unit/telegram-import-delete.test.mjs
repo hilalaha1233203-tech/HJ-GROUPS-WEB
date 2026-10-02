@@ -128,3 +128,28 @@ test('Episode Analytics is compact by default and searchable by episode or title
   assert.match(panel, /Select an episode to view its analytics/)
   assert.doesNotMatch(panel, /\{\(analyticsData\.episodes \|\| \[\]\)\.map\(/)
 })
+
+
+test('Latest Episodes is based on upload timestamp and limited to the newest ten uploads', () => {
+  const app = read('src/App.jsx')
+  const telegram = read('src/lib/telegramContent.js')
+  assert.match(telegram, /created_at: ep\\.created_at \\|\\| null/)
+  assert.match(app, /const latestEpisodes = stories/)
+  assert.match(app, /\\.sort\\(\\(a, b\\) =>/)
+  assert.match(app, /return bTime - aTime/)
+  assert.match(app, /\\.slice\\(0, 10\\)/)
+  assert.match(app, /latestEpisodes\\.map\\(\\(\\{ story, episode \\}\\) =>/)
+})
+
+test('Episode Analytics requires story selection first and supports blank or multi-term episode search', () => {
+  const panel = read('src/AdminPanel.jsx')
+  assert.match(panel, /analyticsStorySearch/)
+  assert.match(panel, /analyticsSelectedStoryId/)
+  assert.match(panel, /analyticsStoryPickerOpen/)
+  assert.match(panel, /First select a story, then select an episode/)
+  assert.match(panel, /storySearchTerms\\.every/)
+  assert.match(panel, /episodeSearchTerms\\.every/)
+  assert.match(panel, /const storyMatches = stories\\.filter/)
+  assert.match(panel, /const episodeMatches = storyEpisodes\\.filter/)
+  assert.doesNotMatch(panel, /Type an episode number or title to search\\./)
+})
