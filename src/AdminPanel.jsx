@@ -439,6 +439,10 @@ function AdminPanel({
     : DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule }))
 
   const adUnlockRuleValidation = validateAdUnlockRules(adUnlockRules)
+  const shortenerUnlockRules = Array.isArray(adminSettings.shortener?.episodeUnlockRules)
+    ? adminSettings.shortener.episodeUnlockRules
+    : DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule }))
+  const shortenerRuleValidation = validateAdUnlockRules(shortenerUnlockRules)
 
   const updateAdminSetting = (section, key, value) => {
     setAdminSettings((current) => ({
@@ -501,10 +505,59 @@ function AdminPanel({
     setSettingsDirty(true)
   }
 
+  const updateShortenerUnlockRule = (index, key, value) => {
+    setAdminSettings((current) => ({
+      ...current,
+      shortener: {
+        ...current.shortener,
+        episodeUnlockRules: normalizeAdUnlockRules(current.shortener?.episodeUnlockRules).map((rule, ruleIndex) => (
+          ruleIndex === index ? { ...rule, [key]: value === '' ? null : value } : rule
+        )),
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
+  const addShortenerUnlockRule = () => {
+    if (shortenerUnlockRules.some((rule) => rule.endEpisode == null || String(rule.endEpisode).trim() === '')) {
+      showToast('Set an End Episode on the unlimited Shortener rule before adding another rule.', 'error')
+      return
+    }
+    const finiteEnds = shortenerUnlockRules.map((rule) => Number(rule.endEpisode)).filter((value) => Number.isInteger(value) && value >= 1)
+    const lastEnd = finiteEnds.length ? Math.max(...finiteEnds) : null
+    const nextStart = Number.isInteger(lastEnd) ? lastEnd + 1 : ''
+    setAdminSettings((current) => ({
+      ...current,
+      shortener: {
+        ...current.shortener,
+        episodeUnlockRules: [
+          ...normalizeAdUnlockRules(current.shortener?.episodeUnlockRules),
+          { startEpisode: nextStart, endEpisode: null, unlockCount: 1 },
+        ],
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
+  const deleteShortenerUnlockRule = (index) => {
+    setAdminSettings((current) => ({
+      ...current,
+      shortener: {
+        ...current.shortener,
+        episodeUnlockRules: normalizeAdUnlockRules(current.shortener?.episodeUnlockRules).filter((_, ruleIndex) => ruleIndex !== index),
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
   const saveAdminSettings = async () => {
     const ruleValidation = validateAdUnlockRules(adminSettings.ads?.episodeUnlockRules)
     if (!ruleValidation.valid) {
       showToast(ruleValidation.errors[0] || 'Fix the Ads episode unlock rules before saving.', 'error')
+      return
+    }
+    if (!shortenerRuleValidation.valid) {
+      showToast(shortenerRuleValidation.errors[0] || 'Fix the Shortener episode unlock rules before saving.', 'error')
       return
     }
 
@@ -513,6 +566,13 @@ function AdminPanel({
       ads: {
         ...adminSettings.ads,
         episodeUnlockRules: ruleValidation.normalizedRules,
+      },
+      shortener: {
+        ...normalizeShortenerSettings(adminSettings.shortener),
+        enabled: adminSettings.shortener?.enabled === true,
+        shortenerEnabled: adminSettings.shortener?.enabled === true,
+        unlockDurationMinutes: Math.min(1440, Math.max(1, Number(adminSettings.shortener?.unlockDurationMinutes) || 360)),
+        episodeUnlockRules: shortenerRuleValidation.normalizedRules,
       },
     }
 
