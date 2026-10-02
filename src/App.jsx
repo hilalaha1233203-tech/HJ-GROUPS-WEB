@@ -4296,6 +4296,12 @@ export function App() {
       setStoryEpisodeRangeStart(0)
       setStoryEpisodeVisibleEnd(50)
       setPage('home')
+      requestAnimationFrame(() => {
+        document.getElementById('stories')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+      })
     }
 
   const addToLibrary =
@@ -7990,50 +7996,65 @@ export function App() {
                     const rangeStarts = []
 
                     for (let index = 0; index < allEpisodes.length; index += 50) {
-                      rangeStarts.push(index)
+                      const endExclusive = Math.min(index + 50, allEpisodes.length)
+                      const firstEpisode = allEpisodes[index]
+                      const lastEpisode = allEpisodes[endExclusive - 1]
+                      const firstNumber = Number.isFinite(Number(firstEpisode?.number))
+                        ? Number(firstEpisode.number)
+                        : index + 1
+                      const lastNumber = Number.isFinite(Number(lastEpisode?.number))
+                        ? Number(lastEpisode.number)
+                        : endExclusive
+                      rangeStarts.push({
+                        start: index,
+                        endExclusive,
+                        label: `${firstNumber}-${lastNumber}`,
+                      })
                     }
 
+                    const selectedRange =
+                      rangeStarts.find((range) => range.start === storyEpisodeRangeStart) ||
+                      rangeStarts[0] ||
+                      null
+                    const selectedRangeStart = selectedRange?.start ?? 0
                     const visibleEnd = Math.min(
                       storyEpisodeVisibleEnd,
-                      allEpisodes.length
+                      selectedRange?.endExclusive ?? allEpisodes.length
                     )
                     const visibleEpisodes = allEpisodes.slice(
-                      storyEpisodeRangeStart,
+                      selectedRangeStart,
                       visibleEnd
                     )
 
                     return (
                       <>
-                        {rangeStarts.length > 1 && (
-                          <div
-                            className="episode-range-nav"
+                        <div
+                          className="episode-range-nav"
+                          aria-label="Episode ranges"
+                        >
+                          <select
+                            className="episode-range-select"
                             aria-label="Episode ranges"
+                            value={String(selectedRangeStart)}
+                            onChange={(event) => {
+                              const start = Number(event.target.value)
+                              const range = rangeStarts.find((item) => item.start === start)
+                              if (!range) return
+                              setStoryEpisodeRangeStart(range.start)
+                              setStoryEpisodeVisibleEnd(range.endExclusive)
+                            }}
+                            disabled={rangeStarts.length <= 1}
                           >
-                            {rangeStarts.map((start) => {
-                              const end = Math.min(start + 50, allEpisodes.length)
-                              const active = start === storyEpisodeRangeStart
-
-                              return (
-                                <button
-                                  type="button"
-                                  key={start}
-                                  className={active ? 'active' : ''}
-                                  onClick={() => {
-                                    setStoryEpisodeRangeStart(start)
-                                    setStoryEpisodeVisibleEnd(
-                                      Math.min(start + 50, allEpisodes.length)
-                                    )
-                                  }}
-                                >
-                                  {start + 1}-{end}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
+                            {rangeStarts.map((range) => (
+                              <option key={range.start} value={String(range.start)}>
+                                {range.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
                         <div className="episode-range-caption">
-                          Showing episodes {allEpisodes.length ? storyEpisodeRangeStart + 1 : 0}-{visibleEnd} of {allEpisodes.length}
+                          Showing episodes {selectedRange ? selectedRange.label : '0-0'} of {allEpisodes.length}
                         </div>
 
                         <div className="details-episodes">
