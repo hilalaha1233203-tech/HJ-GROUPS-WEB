@@ -2181,7 +2181,6 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                             <div><small>Total Plays</small><strong>{batchSummary.total_plays}</strong></div>
                             <div><small>Completed</small><strong>{batchSummary.completed_plays}</strong></div>
                             <div><small>Ad Starts</small><strong>{batchSummary.ad_unlock_starts}</strong></div>
-                            <div><small>Actual Unlocks</small><strong>{batchSummary.actual_unlocks}</strong></div>
                             <div><small>Avg Plays / Episode</small><strong>{batchSummary.average_plays_per_episode.toFixed(1)}</strong></div>
                           </div>
                           <div style={{ overflowX: 'auto' }}>
