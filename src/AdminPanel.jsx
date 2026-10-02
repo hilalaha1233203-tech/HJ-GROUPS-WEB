@@ -2017,68 +2017,162 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   return (
                     <section className="admin-section admin-episode-analytics" style={{ marginTop: '18px' }}>
                       <h3>🎧 Episode Analytics</h3>
+
                       <div className="admin-episode-analytics-picker">
                         <div className="admin-episode-analytics-picker-head">
-                          <button type="button" className="admin-episode-picker-button" onClick={() => setAnalyticsStoryPickerOpen((open) => !open)} aria-expanded={analyticsStoryPickerOpen} aria-label="Search and select a story for analytics">
+                          <button
+                            type="button"
+                            className="admin-episode-picker-button"
+                            onClick={() => setAnalyticsStoryPickerOpen((open) => !open)}
+                            aria-expanded={analyticsStoryPickerOpen}
+                            aria-label="Search and select a story for analytics"
+                          >
                             {selectedStory ? `📚 ${selectedStory.title || 'Untitled Story'}` : '📚 Select Story'}
                             <span aria-hidden="true">{analyticsStoryPickerOpen ? '⌃' : '⌄'}</span>
                           </button>
-                          {selectedStory && <button type="button" className="secondary-btn admin-episode-picker-clear" onClick={() => {
-                            setAnalyticsSelectedStoryId(null); setAnalyticsStorySearch(''); setAnalyticsEpisodeSearch(''); setAnalyticsSelectedEpisodeId(null); setAnalyticsBatchEpisodeIds([])
-                            setAnalyticsStoryPickerOpen(false); setAnalyticsEpisodePickerOpen(false)
-                          }}>Clear</button>}
+                          {selectedStory && (
+                            <button
+                              type="button"
+                              className="secondary-btn admin-episode-picker-clear"
+                              onClick={() => {
+                                setAnalyticsSelectedStoryId(null)
+                                setAnalyticsStorySearch('')
+                                setAnalyticsEpisodeSearch('')
+                                setAnalyticsSelectedEpisodeId(null)
+                                setAnalyticsBatchEpisodeIds([])
+                                setAnalyticsStoryPickerOpen(false)
+                                setAnalyticsEpisodePickerOpen(false)
+                              }}
+                            >
+                              Clear
+                            </button>
+                          )}
                         </div>
+
                         {analyticsStoryPickerOpen && (
                           <div className="admin-episode-picker-panel">
-                            <input type="search" value={analyticsStorySearch} onChange={(event) => setAnalyticsStorySearch(event.target.value)} placeholder="Search story title…" aria-label="Search stories" autoComplete="off" />
+                            <input
+                              type="search"
+                              value={analyticsStorySearch}
+                              onChange={(event) => setAnalyticsStorySearch(event.target.value)}
+                              placeholder="Search story title…"
+                              aria-label="Search stories"
+                              autoComplete="off"
+                            />
                             <div className="admin-episode-picker-results">
                               {storyMatches.length ? storyMatches.map((story) => (
-                                <button key={story.id} type="button" className={Number(story.id) === Number(analyticsSelectedStoryId) ? 'selected' : ''} onClick={() => {
-                                  setAnalyticsSelectedStoryId(story.id); setAnalyticsStorySearch(''); setAnalyticsSelectedEpisodeId(null); setAnalyticsBatchEpisodeIds([]); setAnalyticsEpisodeSearch(''); setAnalyticsStoryPickerOpen(false); setAnalyticsEpisodePickerOpen(false)
-                                }}>
+                                <button
+                                  key={story.id}
+                                  type="button"
+                                  className={Number(story.id) === Number(analyticsSelectedStoryId) ? 'selected' : ''}
+                                  onClick={() => {
+                                    setAnalyticsSelectedStoryId(story.id)
+                                    setAnalyticsStorySearch('')
+                                    setAnalyticsSelectedEpisodeId(null)
+                                    setAnalyticsBatchEpisodeIds([])
+                                    setAnalyticsEpisodeSearch('')
+                                    setAnalyticsStoryPickerOpen(false)
+                                    setAnalyticsEpisodePickerOpen(false)
+                                  }}
+                                >
                                   <strong>{story.title || 'Untitled Story'}</strong>
                                   <span>{story.story_views ?? 0} story views · {story.episode_plays ?? 0} episode plays</span>
                                 </button>
-                              )) : <span className="admin-episode-picker-empty">No matching stories.</span>}
+                              )) : (
+                                <span className="admin-episode-picker-empty">No matching stories.</span>
+                              )}
                             </div>
                           </div>
                         )}
                       </div>
+
                       {selectedStory && (
                         <div className="admin-episode-analytics-picker">
                           <div className="admin-episode-analytics-picker-head">
-                            <button type="button" className="admin-episode-picker-button" onClick={() => setAnalyticsEpisodePickerOpen((open) => !open)} aria-expanded={analyticsEpisodePickerOpen} aria-label="Search and select an episode for analytics">
-                              {selectedEpisode ? `🎧 Episode ${selectedEpisode.episode_number} · ${selectedEpisode.title || 'Untitled'}` : '🎧 Select Episode'}
+                            <button
+                              type="button"
+                              className="admin-episode-picker-button"
+                              onClick={() => setAnalyticsEpisodePickerOpen((open) => !open)}
+                              aria-expanded={analyticsEpisodePickerOpen}
+                              aria-label="Search and select an episode for analytics"
+                            >
+                              {selectedEpisode
+                                ? `🎧 Episode ${selectedEpisode.episode_number} · ${selectedEpisode.title || 'Untitled'}`
+                                : '🎧 Select Episode'}
                               <span aria-hidden="true">{analyticsEpisodePickerOpen ? '⌃' : '⌄'}</span>
                             </button>
-                            {selectedEpisode && <button type="button" className="secondary-btn admin-episode-picker-clear" onClick={() => {
-                              setAnalyticsSelectedEpisodeId(null); setAnalyticsBatchEpisodeIds([]); setAnalyticsEpisodeSearch(''); setAnalyticsEpisodePickerOpen(false)
-                            }}>Clear</button>}
+                            {selectedEpisode && (
+                              <button
+                                type="button"
+                                className="secondary-btn admin-episode-picker-clear"
+                                onClick={() => {
+                                  setAnalyticsSelectedEpisodeId(null)
+                                  setAnalyticsBatchEpisodeIds([])
+                                  setAnalyticsEpisodeSearch('')
+                                  setAnalyticsEpisodePickerOpen(false)
+                                }}
+                              >
+                                Clear
+                              </button>
+                            )}
                           </div>
+
                           {analyticsEpisodePickerOpen && (
                             <div className="admin-episode-picker-panel">
-                              <input type="search" value={analyticsEpisodeSearch} onChange={(event) => setAnalyticsEpisodeSearch(event.target.value)} placeholder="Search episode number or title…" aria-label="Search episodes" autoComplete="off" />
+                              <input
+                                type="search"
+                                value={analyticsEpisodeSearch}
+                                onChange={(event) => setAnalyticsEpisodeSearch(event.target.value)}
+                                placeholder="Search episode number or title…"
+                                aria-label="Search episodes"
+                                autoComplete="off"
+                              />
                               <label className="admin-analytics-batch-size">
                                 Episodes per batch
-                                <select aria-label="Analytics batch size" value={analyticsBatchSize} onChange={(event) => setAnalyticsBatchSize(Number(event.target.value))}>
-                                  {ANALYTICS_BATCH_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+                                <select
+                                  aria-label="Analytics batch size"
+                                  value={analyticsBatchSize}
+                                  onChange={(event) => setAnalyticsBatchSize(Number(event.target.value))}
+                                >
+                                  {ANALYTICS_BATCH_SIZES.map((size) => (
+                                    <option key={size} value={size}>{size}</option>
+                                  ))}
                                 </select>
                               </label>
                               <div className="admin-episode-picker-results">
                                 {episodeMatches.length ? episodeMatches.map((row) => (
-                                  <button key={row.id} type="button" className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''} onClick={() => setAnalyticsSelectedEpisodeId(row.id)}>
-                                    <strong>Episode {row.episode_number}</strong><span>{row.title || 'Untitled'}</span>
+                                  <button
+                                    key={row.id}
+                                    type="button"
+                                    className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''}
+                                    onClick={() => {
+                                      setAnalyticsSelectedEpisodeId(row.id)
+                                    }}
+                                  >
+                                    <strong>Episode {row.episode_number}</strong>
+                                    <span>{row.title || 'Untitled'}</span>
                                   </button>
-                                )) : <span className="admin-episode-picker-empty">{episodeSearch ? 'No matching episodes.' : 'No episodes found for this story.'}</span>}
+                                )) : (
+                                  <span className="admin-episode-picker-empty">
+                                    {episodeSearch ? 'No matching episodes.' : 'No episodes found for this story.'}
+                                  </span>
+                                )}
                               </div>
                               <div className="admin-analytics-picker-actions">
-                                <button type="button" className="primary-btn" onClick={applyEpisodeBatch} disabled={!selectedEpisode}>✓ OK — Show Batch</button>
-                                <span>{selectedEpisode ? `Starting Episode ${selectedEpisode.episode_number} · next ${analyticsBatchSize} existing episodes` : 'Select a starting episode first.'}</span>
+                                <button type="button" className="primary-btn" onClick={applyEpisodeBatch} disabled={!selectedEpisode}>
+                                  ✓ OK — Show Batch
+                                </button>
+                                <span>
+                                  {selectedEpisode
+                                    ? `Starting Episode ${selectedEpisode.episode_number} · next ${analyticsBatchSize} existing episodes`
+                                    : 'Select a starting episode first.'}
+                                </span>
                               </div>
                             </div>
                           )}
                         </div>
                       )}
+
                       {appliedBatchEpisodes.length ? (
                         <>
                           <div className="admin-analytics-batch-summary">
@@ -2093,13 +2187,28 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                           <div style={{ overflowX: 'auto' }}>
                             <table className="admin-table">
                               <thead><tr><th>Episode</th><th>Title</th><th>Total Plays</th><th>Unique Viewers</th><th>Completed Plays</th><th>Ad Starts</th><th>Ad Completions</th><th>Actual Unlocks</th></tr></thead>
-                              <tbody>{appliedBatchEpisodes.map((row) => (
-                                <tr key={row.id}><td>{row.episode_number}</td><td>{row.title || 'Untitled'}</td><td>{row.total_plays}</td><td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td><td>{row.completed_plays}</td><td>{row.ad_unlock_starts}</td><td>{row.ad_unlock_completions}</td><td>{row.actual_unlocks ?? 0}</td></tr>
-                              ))}</tbody>
+                              <tbody>
+                                {appliedBatchEpisodes.map((row) => (
+                                  <tr key={row.id}>
+                                    <td>{row.episode_number}</td>
+                                    <td>{row.title || 'Untitled'}</td>
+                                    <td>{row.total_plays}</td>
+                                    <td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td>
+                                    <td>{row.completed_plays}</td>
+                                    <td>{row.ad_unlock_starts}</td>
+                                    <td>{row.ad_unlock_completions}</td>
+                                    <td>{row.actual_unlocks ?? 0}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
                             </table>
                           </div>
                         </>
-                      ) : <p className="admin-episode-picker-empty">{selectedEpisode ? 'Select an episode to view its analytics. Choose a batch size and press OK.' : 'First select a story, then select an episode.'}</p>}
+                      ) : (
+                        <p className="admin-episode-picker-empty">
+                          {selectedEpisode ? 'Select an episode to view its analytics. Choose a batch size and press OK.' : 'First select a story, then select an episode.'}
+                        </p>
+                      )}
                     </section>
                   )
                 })()}
