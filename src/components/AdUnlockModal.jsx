@@ -3,81 +3,80 @@ import { useState } from 'react'
 function AdUnlockModal({
   onClose,
   onUnlock,
-  providerLabel = 'Ad shortener',
+  providerLabel = 'Unlock',
   unlockPreview = null,
+  providerOptions = null,
 }) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [loadingProvider, setLoadingProvider] = useState('')
 
-  const startUnlock = async () => {
-    setLoading(true)
-    setError('')
-
+  const options = Array.isArray(providerOptions) ? providerOptions.filter(Boolean) : []
+  const handleSelect = async (provider) => {
+    setLoadingProvider(provider)
     try {
-      await onUnlock?.()
-    } catch (unlockError) {
-      setError(String(unlockError?.message || 'Unable to start the ad unlock flow.'))
-      setLoading(false)
+      await onUnlock?.(provider)
+    } finally {
+      setLoadingProvider('')
     }
   }
 
   return (
     <div className="ad-unlock-overlay">
       <div className="ad-unlock-card">
-        <h3>📺 Unlock with an Ad</h3>
+        <h3>{options.length > 1 ? 'Unlock Episode' : '📺 Unlock with an Ad'}</h3>
 
-        <p>
-          Complete the {providerLabel} link flow to unlock this content for the
-          configured temporary duration.
-        </p>
-
-        {unlockPreview?.unlockStartEpisode != null && unlockPreview?.unlockEndEpisode != null ? (
-          <p className="ad-unlock-range-note">
-            This ad unlock will temporarily cover Episodes{' '}
-            <strong>{unlockPreview.unlockStartEpisode}–{unlockPreview.unlockEndEpisode}</strong>{' '}
-            ({unlockPreview.unlockCount} configured per ad).
-            {Array.isArray(unlockPreview.episodeNumbers) && unlockPreview.episodeNumbers.length
-              ? <> {unlockPreview.episodeNumbers.length} existing episodes are currently included in this story.</>
-              : null}
-            {unlockPreview.durationMinutes
-              ? <> Duration: <strong>{unlockPreview.durationMinutes} minutes</strong>.</>
-              : null}
-          </p>
+        {options.length > 1 ? (
+          <>
+            <p>Choose how you want to unlock:</p>
+            <div className="ad-unlock-actions" style={{ display: 'grid', gap: '10px' }}>
+              {options.map((option) => (
+                <button
+                  key={option.provider}
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => handleSelect(option.provider)}
+                  disabled={Boolean(loadingProvider)}
+                >
+                  {loadingProvider === option.provider
+                    ? 'Opening…'
+                    : `${option.icon || '🔓'} ${option.label} — Unlock ${option.unlockCount} episode${option.unlockCount === 1 ? '' : 's'}`}
+                </button>
+              ))}
+            </div>
+            <p className="ad-unlock-countdown">
+              {options.map((option) => `${option.label}: Episodes ${option.unlockStartEpisode}–${option.unlockEndEpisode}`).join(' · ')}
+            </p>
+          </>
         ) : (
-          <p className="ad-unlock-range-note">
-            Checking the current episode unlock rule…
-          </p>
+          <>
+            <p>
+              {providerLabel} will unlock {unlockPreview?.unlockCount || 1} episode{(unlockPreview?.unlockCount || 1) === 1 ? '' : 's'} starting from Episode {unlockPreview?.episodeNumber ?? 'current'}.
+            </p>
+            {unlockPreview?.unlockStartEpisode != null && unlockPreview?.unlockEndEpisode != null && (
+              <p className="ad-unlock-countdown">
+                Episodes {unlockPreview.unlockStartEpisode}–{unlockPreview.unlockEndEpisode}
+              </p>
+            )}
+            <div className="ad-unlock-actions">
+              <button type="button" className="secondary-btn" onClick={onClose} disabled={Boolean(loadingProvider)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => handleSelect(options[0]?.provider || 'shortener')}
+                disabled={Boolean(loadingProvider)}
+              >
+                {loadingProvider ? 'Opening…' : 'Continue to Unlock'}
+              </button>
+            </div>
+          </>
         )}
 
-        <p className="ad-unlock-countdown">
-          You will return to HJ GROUPS automatically after the provider flow.
-        </p>
-
-        {error && (
-          <p className="auth-error" role="alert">
-            {error}
-          </p>
-        )}
-
-        <div className="ad-unlock-actions">
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={onClose}
-            disabled={loading}
-          >
+        {options.length > 1 && (
+          <button type="button" className="secondary-btn" onClick={onClose} disabled={Boolean(loadingProvider)}>
             Cancel
           </button>
-
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={startUnlock}
-            disabled={loading}
-          >
-            {loading ? 'Opening…' : 'Continue to Unlock'}
-          </button>
-        </div>
+        )}
       </div>
     </div>
   )

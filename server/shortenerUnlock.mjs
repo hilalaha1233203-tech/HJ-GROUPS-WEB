@@ -144,19 +144,22 @@ async function getAdminSettings() {
     .maybeSingle()
 
   if (error) throw new Error('Unable to load shortener settings.')
-  const ads = data?.value?.ads
-  const ruleValidation = validateAdUnlockRules(ads?.episodeUnlockRules)
+  const value = data?.value || {}
+  const shortener = value.shortener || value.ads || {}
+  const ruleValidation = validateAdUnlockRules(
+    shortener.episodeUnlockRules || shortener.shortenerEpisodeUnlockRules
+  )
   if (!ruleValidation.valid) {
-    throw new Error('Ads episode unlock rules are invalid: ' + ruleValidation.errors.join(' '))
+    throw new Error('Shortener episode unlock rules are invalid: ' + ruleValidation.errors.join(' '))
   }
 
   return {
-    shortenerEnabled: ads?.shortenerEnabled === true,
-    primary: String(ads?.primaryShortener || 'arolinks').trim().toLowerCase(),
-    fallback: String(ads?.fallbackShortener || 'earn4link').trim().toLowerCase(),
+    shortenerEnabled: shortener.enabled === true || shortener.shortenerEnabled === true,
+    primary: String(shortener.primaryProvider || shortener.primaryShortener || 'arolinks').trim().toLowerCase(),
+    fallback: String(shortener.fallbackProvider || shortener.fallbackShortener || 'earn4link').trim().toLowerCase(),
     unlockDurationMinutes: Math.min(
       1440,
-      Math.max(1, Number(ads?.unlockDurationMinutes) || 360)
+      Math.max(1, Number(shortener.unlockDurationMinutes || shortener.shortenerUnlockDurationMinutes) || 360)
     ),
     episodeUnlockRules: ruleValidation.normalizedRules,
   }
@@ -441,17 +444,19 @@ async function getExistingEpisodeNumbers(contentType, storyId, startEpisode, end
   )].sort((a, b) => a - b)
 }
 
-async function findActiveAdUnlock(userId, contentType, contentId, content) {
+async function findActiveShortenerUnlock(userId, contentType, contentId, content) {
   const db = getServiceClient()
   const nowIso = new Date().toISOString()
 
   const { data: exact, error: exactError } = await db
-    .from('ad_unlocks')
+    .from('shortener_unlocks')
     .select('id, content_id, expires_at, story_id, start_episode_number, end_episode_number')
     .eq('user_id', userId)
     .eq('content_type', contentType)
     .eq('content_id', contentId)
     .gt('expires_at', nowIso)
+    .order('expires_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   if (exactError) throw new Error('Unable to verify existing temporary access.')
@@ -473,7 +478,7 @@ async function findActiveAdUnlock(userId, contentType, contentId, content) {
   const { storyId, episodeNumber } = await getEpisodeUnlockContext(contentType, content)
 
   const { data: range, error: rangeError } = await db
-    .from('ad_unlocks')
+    .from('shortener_unlocks')
     .select('id, content_id, expires_at, story_id, start_episode_number, end_episode_number')
     .eq('user_id', userId)
     .eq('content_type', contentType)
@@ -546,7 +551,7 @@ async function getOrCreateShortLink(contentType, contentId, order) {
       // Keep the currently active link intact if regeneration fails. Users
       // should never lose a working permanent link because a replacement
       // provider request timed out or returned an invalid response.
-      throw new Error('Ad unlock is temporarily unavailable. Please try again later.')
+      throw new Error('Shortener unlock is temporarily unavailable. Please try again later.')
     }
 
     // If a link already exists but its provider chain is stale, replace that
@@ -721,10 +726,10 @@ async function getExistingAccess(user, contentType, contentId, content) {
   }
 
   if (isAdsEnabled(content)) {
-    const adUnlock = await findActiveAdUnlock(user.id, contentType, contentId, content)
+    const adUnlock = await findActiveShortenerUnlock(user.id, contentType, contentId, content)
     if (adUnlock?.expires_at) {
       return {
-        source: 'ad_unlock',
+        source: 'shortener_unlock',
         expiresAt: adUnlock.expires_at,
         storyId: adUnlock.story_id ?? null,
         unlockStartEpisode: adUnlock.start_episode_number ?? null,
@@ -807,7 +812,7 @@ async function startUnlock(req, res, body) {
 
   const settings = await getAdminSettings()
   if (!settings.shortenerEnabled) {
-    return json(res, 503, { error: 'Ad unlock is currently disabled.' })
+    return json(res, 503, { error: 'Shortener unlock is currently disabled.' })
   }
 
   const order = getProviderOrder(settings)
@@ -820,7 +825,7 @@ async function startUnlock(req, res, body) {
   try {
     linkResult = await getOrCreateShortLink(contentType, contentId, order)
   } catch {
-    return json(res, 503, { error: 'Ad unlock is temporarily unavailable. Please try again later.' })
+    return json(res, 503, { error: 'Shortener unlock is temporarily unavailable. Please try again later.' })
   }
 
   const link = linkResult.link
@@ -861,7 +866,7 @@ async function completeUnlock(req, res) {
 
   const { data: intent, error } = await getServiceClient()
     .from('ad_unlock_intents')
-    .select('id, user_id, content_type, content_id, status, expires_at')
+    .select('id, user_id, content_type, content_id, provider, status, expires_at')
     .eq('token_hash', tokenHash)
     .maybeSingle()
 
@@ -902,7 +907,7 @@ async function completeUnlock(req, res) {
     let existingEndEpisode = existingAccess.unlockEndEpisode ?? null
     let existingEpisodeNumbers = []
 
-    if (existingAccess.source === 'ad_unlock' && ['audio', 'video'].includes(intent.content_type)) {
+    if (existingAccess.source === 'shortener_unlock' && ['audio', 'video'].includes(intent.content_type)) {
       const context = await getEpisodeUnlockContext(intent.content_type, content)
       existingStoryId = existingStoryId ?? context.storyId
       existingEpisodeNumber = existingEpisodeNumber ?? context.episodeNumber
@@ -938,6 +943,7 @@ async function completeUnlock(req, res) {
       episodeNumbers: existingEpisodeNumbers,
       alreadyGranted: true,
       source: existingAccess.source,
+      provider: intent.provider || null,
     })
   }
 
@@ -963,7 +969,7 @@ async function completeUnlock(req, res) {
       plan.endEpisode
     )
 
-    const existingRange = await findActiveAdUnlock(
+    const existingRange = await findActiveShortenerUnlock(
       user.id,
       intent.content_type,
       intent.content_id,
@@ -971,73 +977,54 @@ async function completeUnlock(req, res) {
     )
 
     if (existingRange) {
-      const finalExpiry = chooseUnlockExpiry(existingRange.expires_at, newExpiry)
-      const updates = {
-        expires_at: finalExpiry,
-        updated_at: new Date().toISOString(),
-      }
+      const contained =
+        Number(existingRange.start_episode_number) <= unlockStartEpisode &&
+        Number(existingRange.end_episode_number) >= unlockEndEpisode
 
-      // A legacy single-episode row can be upgraded in-place to the new
-      // range representation without creating a second entitlement row.
-      if (!existingRange.start_episode_number || existingRange.content_id === intent.content_id) {
-        updates.story_id = storyId
-        updates.start_episode_number = unlockStartEpisode
-        updates.end_episode_number = unlockEndEpisode
-      }
-
-      const { error: updateError } = await getServiceClient()
-        .from('ad_unlocks')
-        .update(updates)
-        .eq('id', existingRange.id)
-
-      if (updateError) return json(res, 500, { error: 'Unable to update temporary access.' })
-
-      episodeNumbers = existingRange.start_episode_number && existingRange.end_episode_number
-        ? await getExistingEpisodeNumbers(
+      if (contained) {
+        const coveredNumbers = await getExistingEpisodeNumbers(
           intent.content_type,
           existingRange.story_id,
           existingRange.start_episode_number,
           existingRange.end_episode_number
         )
-        : episodeNumbers
-
-      await markIntentCompleted(intent.id)
-      clearCookie(res, 'hj_unlock_code')
-      return json(res, 200, {
-        ok: true,
-        contentType: intent.content_type,
-        contentId: existingRange.content_id,
-        expiresAt: finalExpiry,
-        storyId: existingRange.story_id ?? storyId,
-        episodeNumber: existingRange.start_episode_number ?? episodeNumber,
-        unlockCount: existingRange.start_episode_number
-          ? (existingRange.end_episode_number - existingRange.start_episode_number + 1)
-          : plan.unlockCount,
-        unlockStartEpisode: existingRange.start_episode_number ?? unlockStartEpisode,
-        unlockEndEpisode: existingRange.end_episode_number ?? unlockEndEpisode,
-        episodeNumbers,
-        reusedExisting: true,
-      })
+        await markIntentCompleted(intent.id)
+        clearCookie(res, 'hj_unlock_code')
+        return json(res, 200, {
+          ok: true,
+          contentType: intent.content_type,
+          contentId: existingRange.content_id,
+          expiresAt: existingRange.expires_at,
+          storyId: existingRange.story_id ?? storyId,
+          episodeNumber,
+          unlockCount: existingRange.end_episode_number - existingRange.start_episode_number + 1,
+          unlockStartEpisode: existingRange.start_episode_number,
+          unlockEndEpisode: existingRange.end_episode_number,
+          episodeNumbers: coveredNumbers,
+          reusedExisting: true,
+        })
+      }
+      // Partial overlap is retained as a separate provider entitlement.
+      // The effective access check below treats both active ranges as playable;
+      // neither record's expiry is silently extended.
     }
-
     if (!episodeNumbers.includes(episodeNumber)) {
       episodeNumbers.push(episodeNumber)
       episodeNumbers.sort((a, b) => a - b)
     }
 
     const { error: insertError } = await getServiceClient()
-      .from('ad_unlocks')
-      .upsert({
+      .from('shortener_unlocks')
+      .insert({
         user_id: user.id,
         content_type: intent.content_type,
         content_id: intent.content_id,
+        provider: intent.provider || 'arolinks',
         expires_at: newExpiry,
         story_id: storyId,
         start_episode_number: unlockStartEpisode,
         end_episode_number: unlockEndEpisode,
         updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,content_type,content_id',
       })
 
     if (insertError) return json(res, 500, { error: 'Unable to save temporary access.' })
@@ -1049,6 +1036,7 @@ async function completeUnlock(req, res) {
       contentType: intent.content_type,
       contentId: intent.content_id,
       expiresAt: newExpiry,
+      provider: intent.provider || null,
       storyId,
       episodeNumber,
       unlockCount: plan.unlockCount,
@@ -1060,28 +1048,42 @@ async function completeUnlock(req, res) {
   }
 
   const { data: existingBook } = await getServiceClient()
-    .from('ad_unlocks')
+    .from('shortener_unlocks')
     .select('expires_at')
     .eq('user_id', user.id)
     .eq('content_type', intent.content_type)
     .eq('content_id', intent.content_id)
-    .maybeSingle()
+    .order('expires_at', { ascending: false }).limit(1).maybeSingle()
 
-  const finalBookExpiry = chooseUnlockExpiry(existingBook?.expires_at, newExpiry)
-  const { error: bookUpsertError } = await getServiceClient()
-    .from('ad_unlocks')
-    .upsert({
+  if (existingBook?.expires_at && isEntitlementActive(existingBook.expires_at, Date.now())) {
+    await markIntentCompleted(intent.id)
+    clearCookie(res, 'hj_unlock_code')
+    return json(res, 200, {
+      ok: true,
+      contentType: intent.content_type,
+      contentId: intent.content_id,
+      expiresAt: existingBook.expires_at,
+      storyId: null,
+      episodeNumber: null,
+      episodeNumbers: [],
+      unlockCount: 1,
+      reusedExisting: true,
+    })
+  }
+
+  const finalBookExpiry = newExpiry
+  const { error: bookInsertError } = await getServiceClient()
+    .from('shortener_unlocks')
+    .insert({
       user_id: user.id,
       content_type: intent.content_type,
       content_id: intent.content_id,
+      provider: intent.provider || 'arolinks',
       expires_at: finalBookExpiry,
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: 'user_id,content_type,content_id',
     })
 
-  if (bookUpsertError) return json(res, 500, { error: 'Unable to save temporary access.' })
-
+  if (bookInsertError) return json(res, 500, { error: 'Unable to save temporary access.' })
   await markIntentCompleted(intent.id)
   clearCookie(res, 'hj_unlock_code')
   return json(res, 200, {
@@ -1089,6 +1091,7 @@ async function completeUnlock(req, res) {
     contentType: intent.content_type,
     contentId: intent.content_id,
     expiresAt: finalBookExpiry,
+    provider: intent.provider || null,
     storyId: null,
     episodeNumber: null,
     episodeNumbers: [],
@@ -1184,6 +1187,26 @@ async function hasActivePurchase(userId, content) {
   ))
 }
 
+async function findActiveRewardedAdUnlock(userId, contentType, contentId, content) {
+  const db = getServiceClient()
+  const nowIso = new Date().toISOString()
+  const exact = await db.from('ad_unlocks')
+    .select('id,expires_at,story_id,start_episode_number,end_episode_number')
+    .eq('user_id',userId).eq('provider','rewarded_ad').eq('content_type',contentType).eq('content_id',contentId)
+    .gt('expires_at',nowIso).maybeSingle()
+  if (exact.error) throw new Error('Unable to verify Ads access.')
+  if (exact.data?.expires_at) return exact.data
+  if (!isAdsEnabled(content) || !['audio','video'].includes(contentType)) return null
+  const {storyId,episodeNumber}=await getEpisodeUnlockContext(contentType,content)
+  const range=await db.from('ad_unlocks')
+    .select('id,expires_at,story_id,start_episode_number,end_episode_number')
+    .eq('user_id',userId).eq('provider','rewarded_ad').eq('content_type',contentType).eq('story_id',storyId)
+    .lte('start_episode_number',episodeNumber).gte('end_episode_number',episodeNumber).gt('expires_at',nowIso)
+    .order('expires_at',{ascending:false}).limit(1).maybeSingle()
+  if(range.error) throw new Error('Unable to verify Ads access.')
+  return range.data || null
+}
+
 async function checkAccess(req, res, body) {
   const user = await authenticate(req)
   const contentType = String(body?.contentType || '').trim().toLowerCase()
@@ -1198,17 +1221,22 @@ async function checkAccess(req, res, body) {
     return json(res, 200, { ok: true, source: 'admin' })
   }
 
-  if (isAdsEnabled(content)) {
-    const adUnlock = await findActiveAdUnlock(user.id, contentType, contentId, content)
-    if (adUnlock?.expires_at) {
-      return json(res, 200, {
-        ok: true,
-        source: 'ad_unlock',
-        expiresAt: adUnlock.expires_at,
-        unlockStartEpisode: adUnlock.start_episode_number ?? null,
-        unlockEndEpisode: adUnlock.end_episode_number ?? null,
-      })
-    }
+  const [shortenerUnlock, rewardedAdUnlock] = await Promise.all([
+    findActiveShortenerUnlock(user.id, contentType, contentId, content),
+    findActiveRewardedAdUnlock(user.id, contentType, contentId, content),
+  ])
+
+  const active = [shortenerUnlock, rewardedAdUnlock].filter(Boolean).sort(
+    (a, b) => new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime()
+  )[0]
+  if (active?.expires_at) {
+    return json(res, 200, {
+      ok: true,
+      source: shortenerUnlock?.id === active.id ? 'shortener_unlock' : 'ad_unlock',
+      expiresAt: active.expires_at,
+      unlockStartEpisode: active.start_episode_number ?? null,
+      unlockEndEpisode: active.end_episode_number ?? null,
+    })
   }
 
   if (await hasActivePurchase(user.id, content)) {
@@ -1218,10 +1246,11 @@ async function checkAccess(req, res, body) {
   return json(res, 403, { error: 'Temporary or paid access required.' })
 }
 
+
 async function listEntitlements(req, res) {
   const user = await authenticate(req)
   const { data, error } = await getServiceClient()
-    .from('ad_unlocks')
+    .from('shortener_unlocks')
     .select('id, content_type, content_id, expires_at, story_id, start_episode_number, end_episode_number')
     .eq('user_id', user.id)
     .gt('expires_at', new Date().toISOString())
@@ -1427,7 +1456,7 @@ export async function handleShortenerRequest(req, res, url, readBody) {
         ? 503
         : /Supabase auth verification failed/i.test(message)
           ? 502
-          : /Ads episode unlock rules are invalid/i.test(message)
+          : /Shortener episode unlock rules are invalid/i.test(message)
             ? 503
             : 500
     return json(res, statusCode, {

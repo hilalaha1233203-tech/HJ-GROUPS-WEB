@@ -10,7 +10,8 @@ import Auth from './Auth'
 import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
-import { getAnalyticsSessionId, trackUserActivity } from './lib/analytics'
+import { showRewardedAd } from './lib/rewardedAds'
+import { getAnalyticsSessionId, normalizeStoryAnalyticsId, trackUserActivity } from './lib/analytics'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
 
@@ -949,6 +950,8 @@ export function App() {
 
   const [adUnlockPreview, setAdUnlockPreview] = useState(null)
 
+  const [adProviderOptions, setAdProviderOptions] = useState([])
+
   const [paymentTarget, setPaymentTarget] = useState(null)
 
   const pendingUnlockRef = useRef(null)
@@ -963,7 +966,8 @@ export function App() {
       return
     }
 
-    if (unlock?.storyId == null || unlock?.content_type == null) return
+    const storyId = unlock?.storyId ?? unlock?.story_id ?? null
+    if (storyId == null || unlock?.content_type == null) return
 
     const kind = unlock.content_type === 'video' ? 'video-episode' : 'episode'
     const episodeNumbers = Array.isArray(unlock.episodeNumbers) && unlock.episodeNumbers.length
@@ -974,7 +978,7 @@ export function App() {
       const numericEpisode = Number(episodeNumber)
       if (!Number.isInteger(numericEpisode) || numericEpisode < 1) continue
       saveUnlockedAdUntil(
-        adsKeyFor(kind, unlock.storyId, numericEpisode),
+        adsKeyFor(kind, storyId, numericEpisode),
         exactExpiry
       )
     }
@@ -989,22 +993,24 @@ export function App() {
         const { data: { session } = {} } = await supabase.auth.getSession()
         if (!session?.access_token) return
 
-        const response = await fetch('/api/shortener/entitlements', {
-          method: 'GET',
-          credentials: 'include',
-          headers: { Authorization: 'Bearer ' + session.access_token },
-          cache: 'no-store',
-        })
+        const headers = { Authorization: 'Bearer ' + session.access_token }
+        const [shortenerResponse, adsResponse] = await Promise.all([
+          fetch('/api/shortener/entitlements', { method: 'GET', credentials: 'include', headers, cache: 'no-store' }),
+          fetch('/api/ads/entitlements', { method: 'GET', credentials: 'include', headers, cache: 'no-store' }),
+        ])
 
-        if (!response.ok) return
-        const payload = await response.json()
-        for (const unlock of Array.isArray(payload?.unlocks) ? payload.unlocks : []) {
-          cacheServerAdUnlock(unlock)
+        if (shortenerResponse.ok) {
+          const payload = await shortenerResponse.json()
+          for (const unlock of Array.isArray(payload?.unlocks) ? payload.unlocks : []) cacheServerAdUnlock(unlock)
+        }
+        if (adsResponse.ok) {
+          const payload = await adsResponse.json()
+          for (const unlock of Array.isArray(payload?.unlocks) ? payload.unlocks : []) cacheServerAdUnlock(unlock)
         }
 
         if (mounted) setUnlockedAds(loadUnlockedAds())
       } catch (error) {
-        console.warn('Temporary ad unlock sync failed:', error)
+        console.warn('Temporary unlock sync failed:', error)
       }
     }
 
@@ -1032,14 +1038,16 @@ export function App() {
         const payload = await response.json()
         if (!payload?.ok || !payload.expiresAt) return
 
-        void trackUserActivity('ad_unlock_completed', {
+        if (payload?.source === 'shortener_unlock' || payload?.reusedExisting === false) {
+          void trackUserActivity('shortener_unlock_completed', {
           story_id: payload?.storyId ?? null,
           episode_id: payload?.contentType === 'audio' ? payload?.contentId ?? null : null,
           video_episode_id: payload?.contentType === 'video' ? payload?.contentId ?? null : null,
           book_id: payload?.contentType === 'book' ? payload?.contentId ?? null : null,
           access_type: 'ads',
-          metadata: { source: 'shortener_completion' },
-        }, `ad-complete:${payload?.contentType}:${payload?.contentId}:${payload?.expiresAt}`)
+          metadata: { provider: payload?.provider || 'shortener', source: 'shortener_completion' },
+          }, `shortener-complete:${payload?.contentType}:${payload?.contentId}:${payload?.expiresAt}`)
+        }
 
         cacheServerAdUnlock({
           content_type: payload.contentType,
@@ -1063,7 +1071,7 @@ export function App() {
           const rangeLabel = payload.unlockStartEpisode != null && payload.unlockEndEpisode != null
             ? ` Episodes ${payload.unlockStartEpisode}–${payload.unlockEndEpisode}${payload.episodeNumbers?.length ? ` (${payload.episodeNumbers.length} existing episodes)` : ''}`
             : ''
-          window.alert(`✓ Ad unlock complete.${rangeLabel} Available for ${durationLabel}.`)
+          window.alert(`✓ Shortener unlock complete.${rangeLabel} Available for ${durationLabel}.`)
         }
       } catch (error) {
         console.warn('Temporary ad unlock completion failed:', error)
@@ -3341,7 +3349,7 @@ export function App() {
       throw new Error('Please log in before starting an ad unlock.')
     }
 
-    void trackUserActivity('ad_unlock_started', {
+    void trackUserActivity('shortener_unlock_started', {
       story_id: pending.item?.story_id ?? pending.item?.storyId ?? pending.storyId ?? null,
       episode_id: pending.contentType === 'audio' ? pending.item?.id : null,
       video_episode_id: pending.contentType === 'video' ? pending.item?.id : null,
@@ -3383,6 +3391,7 @@ export function App() {
     if (payload?.alreadyGranted) {
       pendingUnlockRef.current = null
       setAdUnlockPreview(null)
+      setAdProviderOptions([])
       setAdModalOpen(false)
       pending.onGranted?.()
       return
@@ -3401,12 +3410,105 @@ export function App() {
     window.location.assign(payload.shortUrl)
   }
 
+  const startRewardedAdUnlock = async () => {
+    const pending = pendingUnlockRef.current
+    if (!pending?.item?.id || !pending?.contentType) throw new Error('Unlock target is unavailable.')
+
+    const { data: { session } = {} } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      setLoginOpen(true)
+      throw new Error('Please log in before starting an Ads unlock.')
+    }
+
+    const response = await fetch('/api/ads/start', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({
+        contentType: pending.contentType,
+        contentId: pending.item.id,
+      }),
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(String(payload?.error || 'Rewarded Ads are temporarily unavailable.'))
+
+    if (payload?.alreadyGranted) {
+      pendingUnlockRef.current = null
+      setAdUnlockPreview(null)
+      setAdProviderOptions([])
+      setAdModalOpen(false)
+      pending.onGranted?.()
+      return
+    }
+
+    void trackUserActivity('ad_unlock_started', {
+      story_id: pending.item?.story_id ?? pending.item?.storyId ?? pending.storyId ?? payload?.storyId ?? null,
+      episode_id: pending.contentType === 'audio' ? pending.item?.id : null,
+      video_episode_id: pending.contentType === 'video' ? pending.item?.id : null,
+      access_type: 'ads',
+      metadata: { provider: payload?.provider || 'google', content_type: pending.contentType },
+    })
+
+    setAdModalOpen(false)
+    try {
+      await showRewardedAd({
+        adUnitPath: payload.rewardedAdUnitId,
+        onGranted: async () => {
+          const completion = await fetch('/api/ads/complete', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + session.access_token,
+            },
+            body: JSON.stringify({ token: payload.token }),
+          })
+          const completed = await completion.json().catch(() => null)
+          if (!completion.ok || !completed?.ok || !completed?.expiresAt) {
+            throw new Error(String(completed?.error || 'Ads completion could not be verified.'))
+          }
+
+          void trackUserActivity('ad_unlock_completed', {
+            story_id: completed?.storyId ?? null,
+            episode_id: completed?.contentType === 'audio' ? completed?.contentId ?? null : null,
+            video_episode_id: completed?.contentType === 'video' ? completed?.contentId ?? null : null,
+            access_type: 'ads',
+            metadata: { provider: payload?.provider || 'google' },
+          }, `ad-complete:${completed?.contentType}:${completed?.contentId}:${completed?.expiresAt}`)
+
+          cacheServerAdUnlock({
+            content_type: completed.contentType,
+            content_id: completed.contentId,
+            expiresAt: completed.expiresAt,
+            storyId: completed.storyId,
+            episodeNumber: completed.episodeNumber,
+            episodeNumbers: completed.episodeNumbers,
+            unlockStartEpisode: completed.unlockStartEpisode,
+            unlockEndEpisode: completed.unlockEndEpisode,
+          })
+
+          pendingUnlockRef.current = null
+          setAdUnlockPreview(null)
+          setAdProviderOptions([])
+          setUnlockedAds(loadUnlockedAds())
+          pending.onGranted?.()
+        },
+      })
+    } catch (error) {
+      setAdModalOpen(false)
+      throw error
+    }
+  }
+
   const loadAdUnlockPreview = async (item, resolvedContentType, onGranted) => {
     try {
       const { data: { session } = {} } = await supabase.auth.getSession()
       if (!session?.access_token || !item?.id) return
 
-      const response = await fetch('/api/shortener/preview', {
+      const request = (path) => fetch(path, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -3420,24 +3522,60 @@ export function App() {
         cache: 'no-store',
       })
 
-      const payload = await response.json().catch(() => null)
-      if (!response.ok || !payload?.ok) return
+      const [adsResponse, shortenerResponse] = await Promise.all([
+        request('/api/ads/preview'),
+        request('/api/shortener/preview'),
+      ])
+      const [adsPayload, shortenerPayload] = await Promise.all([
+        adsResponse.json().catch(() => null),
+        shortenerResponse.json().catch(() => null),
+      ])
 
       const pending = pendingUnlockRef.current
       if (!pending || pending.item?.id !== item.id || pending.contentType !== resolvedContentType) return
 
-      if (payload.alreadyGranted) {
+      const options = []
+      if (adsResponse.ok && adsPayload?.ok && !adsPayload.alreadyGranted) {
+        options.push({
+          provider: 'ads',
+          icon: '📺',
+          label: 'Watch Ad',
+          unlockCount: adsPayload.unlockCount,
+          unlockStartEpisode: adsPayload.unlockStartEpisode,
+          unlockEndEpisode: adsPayload.unlockEndEpisode,
+          preview: adsPayload,
+        })
+      }
+      if (shortenerResponse.ok && shortenerPayload?.ok && !shortenerPayload.alreadyGranted) {
+        options.push({
+          provider: 'shortener',
+          icon: '🔗',
+          label: 'Complete Shortener',
+          unlockCount: shortenerPayload.unlockCount,
+          unlockStartEpisode: shortenerPayload.unlockStartEpisode,
+          unlockEndEpisode: shortenerPayload.unlockEndEpisode,
+          preview: shortenerPayload,
+        })
+      }
+
+      if (adsPayload?.alreadyGranted || shortenerPayload?.alreadyGranted) {
         pendingUnlockRef.current = null
         setAdUnlockPreview(null)
+        setAdProviderOptions([])
         setAdModalOpen(false)
         onGranted?.()
         return
       }
 
-      setAdUnlockPreview(payload)
+      setAdProviderOptions(options)
+      setAdUnlockPreview(options[0]?.preview || null)
+      if (!options.length) {
+        pendingUnlockRef.current = null
+        setAdModalOpen(false)
+        window.alert('No unlock provider is currently available for this content.')
+      }
     } catch {
-      // Preview is advisory only. The server will recalculate the rule during
-      // the actual /api/shortener/start + /api/shortener/complete flow.
+      setAdProviderOptions([])
     }
   }
 
@@ -3527,6 +3665,7 @@ export function App() {
       pendingUnlockRef.current =
         null
       setAdUnlockPreview(null)
+      setAdProviderOptions([])
       setAdModalOpen(false)
     }
 
@@ -4133,7 +4272,7 @@ export function App() {
   const openStoryDetails =
     (story) => {
       void trackUserActivity('story_view', {
-        story_id: Number.isFinite(Number(story && story.id)) ? Number(story.id) : null,
+        story_id: normalizeStoryAnalyticsId(story && (story.id ?? story.story_id)),
         metadata: { source: 'story_details' },
       })
 
@@ -9579,9 +9718,10 @@ export function App() {
       {adModalOpen && (
         <AdUnlockModal
           onClose={handleAdCancel}
-          onUnlock={startShortenerUnlock}
-          providerLabel="AroLinks / Earn4Link"
+          onUnlock={(provider) => provider === 'ads' ? startRewardedAdUnlock() : startShortenerUnlock()}
+          providerLabel={adProviderOptions[0]?.label || 'Unlock'}
           unlockPreview={adUnlockPreview}
+          providerOptions={adProviderOptions}
         />
       )}
 

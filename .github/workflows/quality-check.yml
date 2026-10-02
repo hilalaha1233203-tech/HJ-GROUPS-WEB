@@ -57,7 +57,7 @@ jobs:
           exit 1
 
       - name: Verify shortener server syntax
-        run: node --check server.mjs && node --check server/shortenerUnlock.mjs
+        run: node --check server.mjs && node --check server/shortenerUnlock.mjs && node --check server/rewardedAdUnlock.mjs
 
       - name: Verify Supabase migration filenames
         run: |
@@ -157,6 +157,12 @@ jobs:
             ['src/AdminPanel.jsx', 'Earn4Link'],
             ['server/shortenerUnlock.mjs', 'AROLINKS_API_TOKEN'],
             ['server/shortenerUnlock.mjs', 'EARN4LINK_API_TOKEN'],
+            ['server/rewardedAdUnlock.mjs', 'UNLOCK_TOKEN_SECRET'],
+            ['server/rewardedAdUnlock.mjs', 'SUPABASE_SERVICE_ROLE_KEY'],
+            ['src/App.jsx', '/api/ads/start'],
+            ['src/App.jsx', '/api/ads/complete'],
+            ['src/App.jsx', 'shortener_unlock_started'],
+            ['src/App.jsx', 'shortener_unlock_completed'],
             ['src/App.jsx', '/api/shortener/start'],
             ['src/App.jsx', '/api/shortener/complete'],
             ['src/lib/secureMedia.js', '/api/shortener/access'],

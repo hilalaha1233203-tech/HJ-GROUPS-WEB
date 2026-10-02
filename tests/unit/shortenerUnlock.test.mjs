@@ -368,8 +368,8 @@ test('a direct unlock route cannot grant abandoned-flow access', () => {
   const complete = source.indexOf('async function completeUnlock')
   assert.ok(start >= 0 && complete > start)
   const startBlock = source.slice(start, complete)
-  assert.equal(startBlock.includes(".from('ad_unlocks')"), false)
-  assert.equal(startBlock.includes("ad_unlocks"), false)
+  assert.equal(startBlock.includes(".from('shortener_unlocks')"), false)
+  assert.equal(startBlock.includes("shortener_unlocks"), false)
   assert.equal(startBlock.includes("createIntent"), true)
 })
 
@@ -398,8 +398,8 @@ test('final completion requires the authenticated completion endpoint to consume
   assert.match(block, /await authenticate\(req\)/)
   assert.match(block, /hj_unlock_code/)
   assert.match(block, /status !== 'pending'/)
-  assert.match(block, /from\('ad_unlocks'\)/)
-  assert.match(block, /upsert/)
+  assert.match(block, /from\('shortener_unlocks'\)/)
+  assert.match(block, /insert/)
 })
 
 test('unlock completion cannot accept arbitrary browser expiry values', () => {
@@ -480,7 +480,7 @@ test('server unlock flow is range-aware and keeps secure access on the existing 
   assert.match(source, /start_episode_number/)
   assert.match(source, /end_episode_number/)
   assert.match(source, /getExistingEpisodeNumbers\(/)
-  assert.match(source, /findActiveAdUnlock\(/)
+  assert.match(source, /findActiveShortenerUnlock\(/)
   assert.match(source, /\.eq\('story_id', storyId\)/)
   assert.match(source, /\.lte\('start_episode_number', episodeNumber\)/)
   assert.match(source, /\.gte\('end_episode_number', episodeNumber\)/)
@@ -524,11 +524,11 @@ test('legacy active Ads entitlement is enriched with story and episode identity 
   assert.ok(source.includes('episodeNumbers: existingEpisodeNumbers'))
 })
 
-test('Ads rule configuration errors are treated as server configuration failures', () => {
+test('Shortener rule configuration errors are treated as server configuration failures', () => {
   const source = readFileSync(
     resolve(process.cwd(), 'server/shortenerUnlock.mjs'),
     'utf8'
   )
 
-  assert.match(source, /Ads episode unlock rules are invalid/)
+  assert.match(source, /Shortener episode unlock rules are invalid/)
 })

@@ -47,9 +47,13 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     interstitialAdUnitId: '',
     unlockDurationMinutes: 360,
     episodeUnlockRules: DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule })),
-    shortenerEnabled: false,
-    primaryShortener: 'arolinks',
-    fallbackShortener: 'earn4link',
+  },
+  shortener: {
+    enabled: false,
+    primaryProvider: 'arolinks',
+    fallbackProvider: 'earn4link',
+    unlockDurationMinutes: 360,
+    episodeUnlockRules: DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule })),
   },
   payments: {
     enabled: false,
@@ -84,6 +88,19 @@ const readAdminSettings = () => {
         ...(stored?.ads || {}),
         episodeUnlockRules: normalizeAdUnlockRules(stored?.ads?.episodeUnlockRules),
       },
+      shortener: normalizeShortenerSettings({
+        ...DEFAULT_ADMIN_SETTINGS.shortener,
+        ...(stored?.shortener || {}),
+        enabled: stored?.shortener?.enabled === true || stored?.ads?.shortenerEnabled === true,
+        primaryProvider: stored?.shortener?.primaryProvider || stored?.ads?.primaryShortener,
+        fallbackProvider: Object.prototype.hasOwnProperty.call(stored?.shortener || {}, 'fallbackProvider')
+          ? stored.shortener.fallbackProvider
+          : stored?.ads?.fallbackShortener,
+        unlockDurationMinutes: Number(stored?.shortener?.unlockDurationMinutes || stored?.ads?.unlockDurationMinutes) || 360,
+        episodeUnlockRules: normalizeAdUnlockRules(
+          stored?.shortener?.episodeUnlockRules || stored?.ads?.episodeUnlockRules
+        ),
+      }),
       payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored?.payments || {}) },
     }
   } catch {
@@ -439,6 +456,10 @@ function AdminPanel({
     : DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule }))
 
   const adUnlockRuleValidation = validateAdUnlockRules(adUnlockRules)
+  const shortenerUnlockRules = Array.isArray(adminSettings.shortener?.episodeUnlockRules)
+    ? adminSettings.shortener.episodeUnlockRules
+    : DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule }))
+  const shortenerRuleValidation = validateAdUnlockRules(shortenerUnlockRules)
 
   const updateAdminSetting = (section, key, value) => {
     setAdminSettings((current) => ({
@@ -501,10 +522,59 @@ function AdminPanel({
     setSettingsDirty(true)
   }
 
+  const updateShortenerUnlockRule = (index, key, value) => {
+    setAdminSettings((current) => ({
+      ...current,
+      shortener: {
+        ...current.shortener,
+        episodeUnlockRules: normalizeAdUnlockRules(current.shortener?.episodeUnlockRules).map((rule, ruleIndex) => (
+          ruleIndex === index ? { ...rule, [key]: value === '' ? null : value } : rule
+        )),
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
+  const addShortenerUnlockRule = () => {
+    if (shortenerUnlockRules.some((rule) => rule.endEpisode == null || String(rule.endEpisode).trim() === '')) {
+      showToast('Set an End Episode on the unlimited Shortener rule before adding another rule.', 'error')
+      return
+    }
+    const finiteEnds = shortenerUnlockRules.map((rule) => Number(rule.endEpisode)).filter((value) => Number.isInteger(value) && value >= 1)
+    const lastEnd = finiteEnds.length ? Math.max(...finiteEnds) : null
+    const nextStart = Number.isInteger(lastEnd) ? lastEnd + 1 : ''
+    setAdminSettings((current) => ({
+      ...current,
+      shortener: {
+        ...current.shortener,
+        episodeUnlockRules: [
+          ...normalizeAdUnlockRules(current.shortener?.episodeUnlockRules),
+          { startEpisode: nextStart, endEpisode: null, unlockCount: 1 },
+        ],
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
+  const deleteShortenerUnlockRule = (index) => {
+    setAdminSettings((current) => ({
+      ...current,
+      shortener: {
+        ...current.shortener,
+        episodeUnlockRules: normalizeAdUnlockRules(current.shortener?.episodeUnlockRules).filter((_, ruleIndex) => ruleIndex !== index),
+      },
+    }))
+    setSettingsDirty(true)
+  }
+
   const saveAdminSettings = async () => {
     const ruleValidation = validateAdUnlockRules(adminSettings.ads?.episodeUnlockRules)
     if (!ruleValidation.valid) {
       showToast(ruleValidation.errors[0] || 'Fix the Ads episode unlock rules before saving.', 'error')
+      return
+    }
+    if (!shortenerRuleValidation.valid) {
+      showToast(shortenerRuleValidation.errors[0] || 'Fix the Shortener episode unlock rules before saving.', 'error')
       return
     }
 
@@ -513,6 +583,13 @@ function AdminPanel({
       ads: {
         ...adminSettings.ads,
         episodeUnlockRules: ruleValidation.normalizedRules,
+      },
+      shortener: {
+        ...normalizeShortenerSettings(adminSettings.shortener),
+        enabled: adminSettings.shortener?.enabled === true,
+        shortenerEnabled: adminSettings.shortener?.enabled === true,
+        unlockDurationMinutes: Math.min(1440, Math.max(1, Number(adminSettings.shortener?.unlockDurationMinutes) || 360)),
+        episodeUnlockRules: shortenerRuleValidation.normalizedRules,
       },
     }
 
@@ -1969,15 +2046,15 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <label className="admin-settings-toggle">
                     <input
                       type="checkbox"
-                      checked={adminSettings.ads.shortenerEnabled === true}
-                      onChange={(e) => updateAdminSetting('ads', 'shortenerEnabled', e.target.checked)}
+                      checked={adminSettings.shortener?.enabled === true}
+                      onChange={(e) => updateAdminSetting('shortener', 'enabled', e.target.checked)}
                     />
                     <span>Enable shortener routing</span>
                   </label>
                   <label>Primary shortener
                     <select
-                      value={adminSettings.ads.primaryShortener || 'arolinks'}
-                      onChange={(e) => updateAdminSetting('ads', 'primaryShortener', e.target.value)}
+                      value={adminSettings.shortener?.primaryProvider || 'arolinks'}
+                      onChange={(e) => updateAdminSetting('shortener', 'primaryProvider', e.target.value)}
                     >
                       <option value="arolinks">AroLinks</option>
                       <option value="earn4link">Earn4Link</option>
@@ -1985,8 +2062,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   </label>
                   <label>Fallback shortener
                     <select
-                      value={adminSettings.ads.fallbackShortener || 'earn4link'}
-                      onChange={(e) => updateAdminSetting('ads', 'fallbackShortener', e.target.value)}
+                      value={adminSettings.shortener?.fallbackProvider ?? 'earn4link'}
+                      onChange={(e) => updateAdminSetting('shortener', 'fallbackProvider', e.target.value)}
                     >
                       <option value="">None</option>
                       <option value="arolinks">AroLinks</option>
@@ -1994,8 +2071,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     </select>
                   </label>
                   <small className="admin-settings-note">
-                    Primary: <strong>{adminSettings.ads.primaryShortener === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong>
-                    {adminSettings.ads.fallbackShortener ? <> → <strong>{adminSettings.ads.fallbackShortener === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong></> : null}.
+                    Primary: <strong>{adminSettings.shortener?.primaryProvider === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong>
+                    {adminSettings.shortener?.fallbackProvider ? <> → <strong>{adminSettings.shortener.fallbackProvider === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong></> : null}.
                     Routing is disabled by default. Use only for provider-approved link flows. The provider redirect is treated only as the completion signal because these providers do not expose a completion webhook to HJ GROUPS.
                   </small>
                 </div>
@@ -2066,6 +2143,39 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     Complete an ad on Episode 14 with a 5-count rule to temporarily unlock 14–18.
                     Only episodes that actually exist in that story are included.
                   </div>
+                </div>
+
+                <div className="admin-ad-unlock-rules">
+                  <div className="admin-ad-unlock-rules-head">
+                    <div>
+                      <strong>Shortener Unlock Episode Rules</strong>
+                      <small>Rule matching uses the actual starting episode for the Shortener unlock.</small>
+                    </div>
+                    <button type="button" className="admin-settings-inline-button" onClick={addShortenerUnlockRule}>+ Add Rule</button>
+                  </div>
+                  <div className="admin-ad-unlock-rule-table">
+                    <div className="admin-ad-unlock-rule-row header">
+                      <span>Start Episode</span><span>End Episode</span><span>Episodes Per Completion</span><span>Action</span>
+                    </div>
+                    {shortenerUnlockRules.map((rule, index) => (
+                      <div className="admin-ad-unlock-rule-row" key={String(index)}>
+                        <input type="number" min="1" step="1" value={rule.startEpisode ?? ''} onChange={(e) => updateShortenerUnlockRule(index, 'startEpisode', e.target.value)} aria-label={`Shortener rule ${index + 1} start episode`} />
+                        <input type="number" min="1" step="1" value={rule.endEpisode ?? ''} onChange={(e) => updateShortenerUnlockRule(index, 'endEpisode', e.target.value)} placeholder="∞ No upper limit" aria-label={`Shortener rule ${index + 1} end episode`} />
+                        <input type="number" min="1" step="1" value={rule.unlockCount ?? ''} onChange={(e) => updateShortenerUnlockRule(index, 'unlockCount', e.target.value)} aria-label={`Shortener rule ${index + 1} episodes per completion`} />
+                        <button type="button" className="admin-delete" onClick={() => deleteShortenerUnlockRule(index)} aria-label={`Delete Shortener unlock rule ${index + 1}`}>🗑</button>
+                      </div>
+                    ))}
+                  </div>
+                  {!shortenerRuleValidation.valid && (
+                    <div className="admin-ad-unlock-rule-errors" role="alert">
+                      {shortenerRuleValidation.errors.map((error) => <span key={error}>⚠ {error}</span>)}
+                    </div>
+                  )}
+                </div>
+                <div className="admin-settings-form-grid">
+                  <label>Shortener unlock duration (minutes)
+                    <input type="number" min="1" max="1440" value={adminSettings.shortener?.unlockDurationMinutes || 360} onChange={(e) => updateAdminSetting('shortener', 'unlockDurationMinutes', Number(e.target.value) || 360)} />
+                  </label>
                 </div>
 
                 <div className="shortener-health-panel" aria-live="polite">
