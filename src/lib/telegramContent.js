@@ -50,6 +50,7 @@ function normalizeStories(storyRows, episodeRows) {
       language: ep.language || 'Tamil',
       available: ep.available !== undefined ? ep.available : true,
       accessType: ep.access_type,
+      created_at: ep.created_at || null,
     })
     episodesByStory.set(ep.story_id, list)
   }
