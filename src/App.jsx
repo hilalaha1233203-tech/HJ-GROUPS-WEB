@@ -1420,6 +1420,23 @@ export function App() {
     ...publicTelegramStories,
   ]
 
+  const latestEpisodes = stories
+    .flatMap((story) => (story.episodes || []).map((episode) => ({ story, episode })))
+    .sort((a, b) => {
+      const aTime = Date.parse(a.episode?.created_at || '')
+      const bTime = Date.parse(b.episode?.created_at || '')
+      if (Number.isFinite(aTime) && Number.isFinite(bTime) && bTime !== aTime) {
+        return bTime - aTime
+      }
+      if (Number.isFinite(aTime) !== Number.isFinite(bTime)) {
+        return Number.isFinite(bTime) ? -1 : 1
+      }
+      const aId = Number(a.episode?.id)
+      const bId = Number(b.episode?.id)
+      return (Number.isFinite(bId) ? bId : 0) - (Number.isFinite(aId) ? aId : 0)
+    })
+    .slice(0, 10)
+
   const adminPanelStories = [
     ...adminStories,
     ...telegramStories,
@@ -4050,9 +4067,9 @@ export function App() {
     const playbackSession = analyticsPlaybackSessionRef.current
     const isVideo = episode.type === 'video'
     void trackUserActivity(isVideo ? 'video_play' : 'episode_play', {
-      story_id: Number.isFinite(Number(story?.id)) ? Number(story.id) : null,
+      story_id: normalizeStoryAnalyticsId(story && story.id),
       episode_id: isVideo ? null : (Number.isFinite(Number(episode.id)) ? Number(episode.id) : null),
-      video_story_id: isVideo ? (Number.isFinite(Number(story?.id)) ? Number(story.id) : null) : null,
+      video_story_id: isVideo ? normalizeStoryAnalyticsId(story && story.id) : null,
       video_episode_id: isVideo ? (Number.isFinite(Number(episode.id)) ? Number(episode.id) : null) : null,
       access_type: episode.accessType ?? episode.access_type ?? null,
       metadata: { episode_number: episode.number ?? episode.episode_number ?? null },
@@ -4086,9 +4103,9 @@ export function App() {
         const isVideo = episode.type === 'video'
         if (playbackSession) {
           void trackUserActivity(isVideo ? 'video_complete' : 'episode_complete', {
-            story_id: Number.isFinite(Number(story?.id)) ? Number(story.id) : null,
+            story_id: normalizeStoryAnalyticsId(story && story.id),
             episode_id: isVideo ? null : (Number.isFinite(Number(episode.id)) ? Number(episode.id) : null),
-            video_story_id: isVideo ? (Number.isFinite(Number(story?.id)) ? Number(story.id) : null) : null,
+            video_story_id: isVideo ? normalizeStoryAnalyticsId(story && story.id) : null,
             video_episode_id: isVideo ? (Number.isFinite(Number(episode.id)) ? Number(episode.id) : null) : null,
             metadata: { episode_number: episode.number ?? episode.episode_number ?? null },
           }, `complete:${playbackSession}`)
@@ -7826,76 +7843,47 @@ export function App() {
             </h2>
 
             <div className="latest-list">
-              {stories.map(
-                (story) => {
-                  const episode =
-                    story.episodes?.find(
-                      (
-                        item
-                      ) =>
-                        item.available !==
-                        false &&
-                        canAccessContent(
-                          item,
-                          adsKeyFor(
-                            'episode',
-                            story.id,
-                            item.number
-                          )
-                        )
-                    )
+              {latestEpisodes.map(({ story, episode }) => (
+                <div
+                  className="latest-item"
+                  key={`${story.id}-${episode.id}`}
+                >
+                  <div className="latest-number">
+                    {String(
+                      episode.number
+                    ).padStart(
+                      2,
+                      '0'
+                    )}
+                  </div>
 
-                  if (
-                    !episode
-                  ) {
-                    return null
-                  }
-
-                  return (
-                    <div
-                      className="latest-item"
-                      key={
-                        story.id
+                  <div className="latest-info">
+                    <small>
+                      {
+                        story.title
                       }
-                    >
-                      <div className="latest-number">
-                        {String(
-                          episode.number
-                        ).padStart(
-                          2,
-                          '0'
-                        )}
-                      </div>
+                    </small>
 
-                      <div className="latest-info">
-                        <small>
-                          {
-                            story.title
-                          }
-                        </small>
+                    <h3>
+                      {
+                        episode.title
+                      }
+                    </h3>
+                  </div>
 
-                        <h3>
-                          {
-                            episode.title
-                          }
-                        </h3>
-                      </div>
-
-                      <button
-                        className="latest-play"
-                        onClick={() =>
-                          openPlayer(
-                            story,
-                            episode
-                          )
-                        }
-                      >
-                        ▶
-                      </button>
-                    </div>
-                  )
-                }
-              )}
+                  <button
+                    className="latest-play"
+                    onClick={() =>
+                      openPlayer(
+                        story,
+                        episode
+                      )
+                    }
+                  >
+                    ▶
+                  </button>
+                </div>
+              ))}
             </div>
           </section>
         </main>
