@@ -992,22 +992,24 @@ export function App() {
         const { data: { session } = {} } = await supabase.auth.getSession()
         if (!session?.access_token) return
 
-        const response = await fetch('/api/shortener/entitlements', {
-          method: 'GET',
-          credentials: 'include',
-          headers: { Authorization: 'Bearer ' + session.access_token },
-          cache: 'no-store',
-        })
+        const headers = { Authorization: 'Bearer ' + session.access_token }
+        const [shortenerResponse, adsResponse] = await Promise.all([
+          fetch('/api/shortener/entitlements', { method: 'GET', credentials: 'include', headers, cache: 'no-store' }),
+          fetch('/api/ads/entitlements', { method: 'GET', credentials: 'include', headers, cache: 'no-store' }),
+        ])
 
-        if (!response.ok) return
-        const payload = await response.json()
-        for (const unlock of Array.isArray(payload?.unlocks) ? payload.unlocks : []) {
-          cacheServerAdUnlock(unlock)
+        if (shortenerResponse.ok) {
+          const payload = await shortenerResponse.json()
+          for (const unlock of Array.isArray(payload?.unlocks) ? payload.unlocks : []) cacheServerAdUnlock(unlock)
+        }
+        if (adsResponse.ok) {
+          const payload = await adsResponse.json()
+          for (const unlock of Array.isArray(payload?.unlocks) ? payload.unlocks : []) cacheServerAdUnlock(unlock)
         }
 
         if (mounted) setUnlockedAds(loadUnlockedAds())
       } catch (error) {
-        console.warn('Temporary ad unlock sync failed:', error)
+        console.warn('Temporary unlock sync failed:', error)
       }
     }
 
