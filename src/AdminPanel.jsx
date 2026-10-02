@@ -2,6 +2,7 @@ import FileUploadField from './components/FileUploadField'
 import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
 import { normalizeShortenerSettings } from './lib/shortenerProviders'
+import { CONTENT_STATUS_OPTIONS, normalizeContentStatus } from './lib/contentStatus.js'
 import {
   DEFAULT_AD_UNLOCK_RULES,
   normalizeAdUnlockRules,
@@ -277,6 +278,8 @@ function AdminPanel({
   const [analyticsEpisodeSearch, setAnalyticsEpisodeSearch] = useState('')
   const [analyticsEpisodePickerOpen, setAnalyticsEpisodePickerOpen] = useState(false)
   const [analyticsSelectedEpisodeId, setAnalyticsSelectedEpisodeId] = useState(null)
+  const [analyticsBatchSize, setAnalyticsBatchSize] = useState(10)
+  const [analyticsBatchEpisodeIds, setAnalyticsBatchEpisodeIds] = useState([])
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsError, setAnalyticsError] = useState('')
 
@@ -685,6 +688,7 @@ function AdminPanel({
   const [storyCover, setStoryCover] = useState('')
   const [storyCoverUploading, setStoryCoverUploading] = useState(false)
   const [storyDescription, setStoryDescription] = useState('')
+  const [storyStatus, setStoryStatus] = useState('ongoing')
 
   /* =====================================================
      EPISODE FORM
@@ -745,6 +749,7 @@ const [bookFileUploading, setBookFileUploading] = useState(false)
 const [bookCoverPath, setBookCoverPath] = useState('')
 
 const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().content.defaultBookAccess)
+  const [bookStatus, setBookStatus] = useState('ongoing')
   const [bookTelegramUrl, setBookTelegramUrl] = useState('')
 
   // Multi-volume books: one parent book can contain many PDF/EPUB volumes.
@@ -828,6 +833,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   const [videoAccessType, setVideoAccessType] = useState(() => readAdminSettings().content.defaultVideoAccess)
   const [videoEpisodeTitle, setVideoEpisodeTitle] = useState('Episode 01')
   const [videoTelegramUrl, setVideoTelegramUrl] = useState('')
+  const [videoStatus, setVideoStatus] = useState('ongoing')
   
   const [videoBulkMessages, setVideoBulkMessages] = useState([])
   const [videoBulkSelectedIds, setVideoBulkSelectedIds] = useState([])
@@ -1112,6 +1118,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setStoryLanguage('Tamil')
     setStoryCover('')
     setStoryDescription('')
+    setStoryStatus('ongoing')
   }
 
   const startEditStory = (story) => {
@@ -1121,6 +1128,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setStoryLanguage(story.language || 'Tamil')
     setStoryCover(story.cover || '')
     setStoryDescription(story.description || '')
+    setStoryStatus(normalizeContentStatus(story.status))
     window.scrollTo({ top: 0, behavior: 'smooth' })
     showToast('Editing story — form moved to top')
   }
@@ -1141,6 +1149,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
           language: storyLanguage,
           cover: storyCover.trim(),
           description: storyDescription.trim(),
+          status: storyStatus,
         })
         showToast('Story updated successfully')
       } else {
@@ -1150,6 +1159,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
           language: storyLanguage,
           cover: storyCover.trim(),
           description: storyDescription.trim(),
+          status: storyStatus,
           episodes: [],
         })
         showToast('Story added successfully')
@@ -1272,6 +1282,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   setBookAccessType('free')
   setBookTelegramUrl('')
   setBookVolumes([])
+  setBookStatus('ongoing')
 }
 
   const startEditBook = (book) => {
@@ -1292,6 +1303,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   setBookTelegramUrl(book.telegram_message_id ? `https://t.me/c/id/${book.telegram_message_id}` : '')
 
   setBookAccessType(resolveAccessType(book))
+  setBookStatus(normalizeContentStatus(book.status))
   setBookVolumes(Array.isArray(book.volumes) ? book.volumes.map((v, index) => ({ id: makeAdminEntityId() + index, title: v.title || `Volume ${index + 1}`, file: v.file || '', filePath: v.filePath || '' })) : [])
 
   window.scrollTo({
@@ -1336,6 +1348,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     filePath: bookFilePath || '',
 
     accessType: bookAccessType,
+    status: bookStatus,
     telegram_message_id: bookTelegramMessageId,
     volumes: validVolumes.map((v, index) => ({
       number: index + 1,
@@ -1646,6 +1659,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setVideoAccessType('free')
     setVideoEpisodeTitle('Episode 01')
     setVideoTelegramUrl('')
+    setVideoStatus('ongoing')
     setVideoBulkMessages([])
     setVideoBulkSelectedIds([])
     setVideoBulkTitleOverrides({})
@@ -1664,6 +1678,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setVideoEpisodeTitle(firstEpisode?.title || 'Episode 01')
     setVideoTelegramUrl(firstEpisode?.telegram_message_id ? `https://t.me/c/id/${firstEpisode.telegram_message_id}` : '')
     setVideoAccessType(resolveAccessType(video))
+    setVideoStatus(normalizeContentStatus(video.status))
 
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1692,6 +1707,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         language: videoLanguage,
         cover: videoCover.trim(),
         accessType: videoAccessType,
+        status: videoStatus,
       })
 
       if (currentVideo?.episodes?.length) {
@@ -1721,6 +1737,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         category: videoCategory,
         cover: videoCover.trim(),
         accessType: videoAccessType,
+        status: videoStatus,
         episodes: [
           {
             number: 1,
@@ -1980,166 +1997,108 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   const selectedEpisode = storyEpisodes.find(
                     (row) => Number(row.id) === Number(analyticsSelectedEpisodeId)
                   ) || null
+                  const selectedEpisodeIndex = selectedEpisode
+                    ? storyEpisodes.findIndex((row) => Number(row.id) === Number(selectedEpisode.id))
+                    : -1
+                  const appliedBatchEpisodes = storyEpisodes.filter((row) =>
+                    analyticsBatchEpisodeIds.some((id) => Number(id) === Number(row.id))
+                  )
+                  const batchSummary = summarizeEpisodeAnalyticsBatch(appliedBatchEpisodes)
+                  const batchStart = appliedBatchEpisodes[0] || null
+                  const batchEnd = appliedBatchEpisodes[appliedBatchEpisodes.length - 1] || null
+                  const applyEpisodeBatch = () => {
+                    if (selectedEpisodeIndex < 0) return
+                    const batch = getEpisodeAnalyticsBatch(storyEpisodes, selectedEpisode.id, analyticsBatchSize)
+                    setAnalyticsBatchEpisodeIds(batch.map((row) => row.id))
+                    setAnalyticsEpisodePickerOpen(false)
+                  }
 
                   return (
                     <section className="admin-section admin-episode-analytics" style={{ marginTop: '18px' }}>
                       <h3>🎧 Episode Analytics</h3>
-
                       <div className="admin-episode-analytics-picker">
                         <div className="admin-episode-analytics-picker-head">
-                          <button
-                            type="button"
-                            className="admin-episode-picker-button"
-                            onClick={() => setAnalyticsStoryPickerOpen((open) => !open)}
-                            aria-expanded={analyticsStoryPickerOpen}
-                            aria-label="Search and select a story for analytics"
-                          >
+                          <button type="button" className="admin-episode-picker-button" onClick={() => setAnalyticsStoryPickerOpen((open) => !open)} aria-expanded={analyticsStoryPickerOpen} aria-label="Search and select a story for analytics">
                             {selectedStory ? `📚 ${selectedStory.title || 'Untitled Story'}` : '📚 Select Story'}
                             <span aria-hidden="true">{analyticsStoryPickerOpen ? '⌃' : '⌄'}</span>
                           </button>
-                          {selectedStory && (
-                            <button
-                              type="button"
-                              className="secondary-btn admin-episode-picker-clear"
-                              onClick={() => {
-                                setAnalyticsSelectedStoryId(null)
-                                setAnalyticsStorySearch('')
-                                setAnalyticsEpisodeSearch('')
-                                setAnalyticsSelectedEpisodeId(null)
-                                setAnalyticsStoryPickerOpen(false)
-                                setAnalyticsEpisodePickerOpen(false)
-                              }}
-                            >
-                              Clear
-                            </button>
-                          )}
+                          {selectedStory && <button type="button" className="secondary-btn admin-episode-picker-clear" onClick={() => {
+                            setAnalyticsSelectedStoryId(null); setAnalyticsStorySearch(''); setAnalyticsEpisodeSearch(''); setAnalyticsSelectedEpisodeId(null); setAnalyticsBatchEpisodeIds([])
+                            setAnalyticsStoryPickerOpen(false); setAnalyticsEpisodePickerOpen(false)
+                          }}>Clear</button>}
                         </div>
-
                         {analyticsStoryPickerOpen && (
                           <div className="admin-episode-picker-panel">
-                            <input
-                              type="search"
-                              value={analyticsStorySearch}
-                              onChange={(event) => setAnalyticsStorySearch(event.target.value)}
-                              placeholder="Search story title…"
-                              aria-label="Search stories"
-                              autoComplete="off"
-                            />
+                            <input type="search" value={analyticsStorySearch} onChange={(event) => setAnalyticsStorySearch(event.target.value)} placeholder="Search story title…" aria-label="Search stories" autoComplete="off" />
                             <div className="admin-episode-picker-results">
                               {storyMatches.length ? storyMatches.map((story) => (
-                                <button
-                                  key={story.id}
-                                  type="button"
-                                  className={Number(story.id) === Number(analyticsSelectedStoryId) ? 'selected' : ''}
-                                  onClick={() => {
-                                    setAnalyticsSelectedStoryId(story.id)
-                                    setAnalyticsStorySearch('')
-                                    setAnalyticsSelectedEpisodeId(null)
-                                    setAnalyticsEpisodeSearch('')
-                                    setAnalyticsStoryPickerOpen(false)
-                                    setAnalyticsEpisodePickerOpen(false)
-                                  }}
-                                >
+                                <button key={story.id} type="button" className={Number(story.id) === Number(analyticsSelectedStoryId) ? 'selected' : ''} onClick={() => {
+                                  setAnalyticsSelectedStoryId(story.id); setAnalyticsStorySearch(''); setAnalyticsSelectedEpisodeId(null); setAnalyticsBatchEpisodeIds([]); setAnalyticsEpisodeSearch(''); setAnalyticsStoryPickerOpen(false); setAnalyticsEpisodePickerOpen(false)
+                                }}>
                                   <strong>{story.title || 'Untitled Story'}</strong>
                                   <span>{story.story_views ?? 0} story views · {story.episode_plays ?? 0} episode plays</span>
                                 </button>
-                              )) : (
-                                <span className="admin-episode-picker-empty">No matching stories.</span>
-                              )}
+                              )) : <span className="admin-episode-picker-empty">No matching stories.</span>}
                             </div>
                           </div>
                         )}
                       </div>
-
                       {selectedStory && (
                         <div className="admin-episode-analytics-picker">
                           <div className="admin-episode-analytics-picker-head">
-                            <button
-                              type="button"
-                              className="admin-episode-picker-button"
-                              onClick={() => setAnalyticsEpisodePickerOpen((open) => !open)}
-                              aria-expanded={analyticsEpisodePickerOpen}
-                              aria-label="Search and select an episode for analytics"
-                            >
-                              {selectedEpisode
-                                ? `🎧 Episode ${selectedEpisode.episode_number} · ${selectedEpisode.title || 'Untitled'}`
-                                : '🎧 Select Episode'}
+                            <button type="button" className="admin-episode-picker-button" onClick={() => setAnalyticsEpisodePickerOpen((open) => !open)} aria-expanded={analyticsEpisodePickerOpen} aria-label="Search and select an episode for analytics">
+                              {selectedEpisode ? `🎧 Episode ${selectedEpisode.episode_number} · ${selectedEpisode.title || 'Untitled'}` : '🎧 Select Episode'}
                               <span aria-hidden="true">{analyticsEpisodePickerOpen ? '⌃' : '⌄'}</span>
                             </button>
-                            {selectedEpisode && (
-                              <button
-                                type="button"
-                                className="secondary-btn admin-episode-picker-clear"
-                                onClick={() => {
-                                  setAnalyticsSelectedEpisodeId(null)
-                                  setAnalyticsEpisodeSearch('')
-                                  setAnalyticsEpisodePickerOpen(false)
-                                }}
-                              >
-                                Clear
-                              </button>
-                            )}
+                            {selectedEpisode && <button type="button" className="secondary-btn admin-episode-picker-clear" onClick={() => {
+                              setAnalyticsSelectedEpisodeId(null); setAnalyticsBatchEpisodeIds([]); setAnalyticsEpisodeSearch(''); setAnalyticsEpisodePickerOpen(false)
+                            }}>Clear</button>}
                           </div>
-
                           {analyticsEpisodePickerOpen && (
                             <div className="admin-episode-picker-panel">
-                              <input
-                                type="search"
-                                value={analyticsEpisodeSearch}
-                                onChange={(event) => setAnalyticsEpisodeSearch(event.target.value)}
-                                placeholder="Search episode number or title…"
-                                aria-label="Search episodes"
-                                autoComplete="off"
-                              />
+                              <input type="search" value={analyticsEpisodeSearch} onChange={(event) => setAnalyticsEpisodeSearch(event.target.value)} placeholder="Search episode number or title…" aria-label="Search episodes" autoComplete="off" />
+                              <label className="admin-analytics-batch-size">
+                                Episodes per batch
+                                <select aria-label="Analytics batch size" value={analyticsBatchSize} onChange={(event) => setAnalyticsBatchSize(Number(event.target.value))}>
+                                  {ANALYTICS_BATCH_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+                                </select>
+                              </label>
                               <div className="admin-episode-picker-results">
                                 {episodeMatches.length ? episodeMatches.map((row) => (
-                                  <button
-                                    key={row.id}
-                                    type="button"
-                                    className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''}
-                                    onClick={() => {
-                                      setAnalyticsSelectedEpisodeId(row.id)
-                                      setAnalyticsEpisodeSearch('')
-                                      setAnalyticsEpisodePickerOpen(false)
-                                    }}
-                                  >
-                                    <strong>Episode {row.episode_number}</strong>
-                                    <span>{row.title || 'Untitled'}</span>
+                                  <button key={row.id} type="button" className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''} onClick={() => setAnalyticsSelectedEpisodeId(row.id)}>
+                                    <strong>Episode {row.episode_number}</strong><span>{row.title || 'Untitled'}</span>
                                   </button>
-                                )) : (
-                                  <span className="admin-episode-picker-empty">
-                                    {episodeSearch ? 'No matching episodes.' : 'No episodes found for this story.'}
-                                  </span>
-                                )}
+                                )) : <span className="admin-episode-picker-empty">{episodeSearch ? 'No matching episodes.' : 'No episodes found for this story.'}</span>}
+                              </div>
+                              <div className="admin-analytics-picker-actions">
+                                <button type="button" className="primary-btn" onClick={applyEpisodeBatch} disabled={!selectedEpisode}>✓ OK — Show Batch</button>
+                                <span>{selectedEpisode ? `Starting Episode ${selectedEpisode.episode_number} · next ${analyticsBatchSize} existing episodes` : 'Select a starting episode first.'}</span>
                               </div>
                             </div>
                           )}
                         </div>
                       )}
-
-                      {selectedEpisode ? (
-                        <div style={{ overflowX: 'auto' }}>
-                          <table className="admin-table">
-                            <thead><tr><th>Episode</th><th>Title</th><th>Total Plays</th><th>Unique Viewers</th><th>Completed Plays</th><th>Ad Starts</th><th>Ad Completions</th><th>Actual Unlocks</th></tr></thead>
-                            <tbody>
-                              <tr>
-                                <td>{selectedEpisode.episode_number}</td>
-                                <td>{selectedEpisode.title || 'Untitled'}</td>
-                                <td>{selectedEpisode.total_plays}</td>
-                                <td>{Number(selectedEpisode.logged_in_unique_viewers || 0) + Number(selectedEpisode.anonymous_unique_viewers || 0)}</td>
-                                <td>{selectedEpisode.completed_plays}</td>
-                                <td>{selectedEpisode.ad_unlock_starts}</td>
-                                <td>{selectedEpisode.ad_unlock_completions}</td>
-                                <td>{selectedEpisode.actual_unlocks ?? 0}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="admin-episode-picker-empty">
-                          {selectedStory ? 'Select an episode to view its analytics.' : 'First select a story, then select an episode.'}
-                        </p>
-                      )}
+                      {appliedBatchEpisodes.length ? (
+                        <>
+                          <div className="admin-analytics-batch-summary">
+                            <div><small>Batch</small><strong>Episodes {batchStart?.episode_number}–{batchEnd?.episode_number}</strong></div>
+                            <div><small>Episodes</small><strong>{batchSummary.episode_count}</strong></div>
+                            <div><small>Total Plays</small><strong>{batchSummary.total_plays}</strong></div>
+                            <div><small>Completed</small><strong>{batchSummary.completed_plays}</strong></div>
+                            <div><small>Ad Starts</small><strong>{batchSummary.ad_unlock_starts}</strong></div>
+                            <div><small>Actual Unlocks</small><strong>{batchSummary.actual_unlocks}</strong></div>
+                            <div><small>Avg Plays / Episode</small><strong>{batchSummary.average_plays_per_episode.toFixed(1)}</strong></div>
+                          </div>
+                          <div style={{ overflowX: 'auto' }}>
+                            <table className="admin-table">
+                              <thead><tr><th>Episode</th><th>Title</th><th>Total Plays</th><th>Unique Viewers</th><th>Completed Plays</th><th>Ad Starts</th><th>Ad Completions</th><th>Actual Unlocks</th></tr></thead>
+                              <tbody>{appliedBatchEpisodes.map((row) => (
+                                <tr key={row.id}><td>{row.episode_number}</td><td>{row.title || 'Untitled'}</td><td>{row.total_plays}</td><td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td><td>{row.completed_plays}</td><td>{row.ad_unlock_starts}</td><td>{row.ad_unlock_completions}</td><td>{row.actual_unlocks ?? 0}</td></tr>
+                              ))}</tbody>
+                            </table>
+                          </div>
+                        </>
+                      ) : <p className="admin-episode-picker-empty">{selectedEpisode ? 'Choose the batch size and press OK to view the episode batch.' : 'First select a story, then select an episode.'}</p>}
                     </section>
                   )
                 })()}
@@ -2549,6 +2508,15 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <select value={storyLanguage} onChange={(e) => setStoryLanguage(e.target.value)}>
                     {LANGUAGE_OPTIONS.map((language) => (
                       <option key={language} value={language}>{language}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Status
+                  <select aria-label="Audio story status" value={storyStatus} onChange={(e) => setStoryStatus(e.target.value)}>
+                    {CONTENT_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
                 </label>
@@ -3061,6 +3029,15 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   </select>
                 </label>
 
+                <label>
+                  Status
+                  <select aria-label="Book status" value={bookStatus} onChange={(e) => setBookStatus(e.target.value)}>
+                    {CONTENT_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+
                 <FileUploadField
                   label="Choose Cover Image"
                   kind="image"
@@ -3209,6 +3186,15 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <select value={videoLanguage} onChange={(e) => setVideoLanguage(e.target.value)}>
                     {LANGUAGE_OPTIONS.map((language) => (
                       <option key={language} value={language}>{language}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Status
+                  <select aria-label="Video story status" value={videoStatus} onChange={(e) => setVideoStatus(e.target.value)}>
+                    {CONTENT_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
                 </label>
