@@ -429,7 +429,7 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     await expect(storyCard).toBeVisible({ timeout: 20_000 })
     await storyCard.click()
 
-    const rangeSelect = page.getByLabel('Episode ranges')
+    const rangeSelect = page.locator('select[aria-label="Episode ranges"]').first()
     await expect(rangeSelect).toBeVisible({ timeout: 20_000 })
 
     const selectStyles = await rangeSelect.evaluate((element) => {
