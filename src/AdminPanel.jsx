@@ -2029,15 +2029,15 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <label className="admin-settings-toggle">
                     <input
                       type="checkbox"
-                      checked={adminSettings.ads.shortenerEnabled === true}
-                      onChange={(e) => updateAdminSetting('ads', 'shortenerEnabled', e.target.checked)}
+                      checked={adminSettings.shortener?.enabled === true}
+                      onChange={(e) => updateAdminSetting('shortener', 'enabled', e.target.checked)}
                     />
                     <span>Enable shortener routing</span>
                   </label>
                   <label>Primary shortener
                     <select
-                      value={adminSettings.ads.primaryShortener || 'arolinks'}
-                      onChange={(e) => updateAdminSetting('ads', 'primaryShortener', e.target.value)}
+                      value={adminSettings.shortener?.primaryProvider || 'arolinks'}
+                      onChange={(e) => updateAdminSetting('shortener', 'primaryProvider', e.target.value)}
                     >
                       <option value="arolinks">AroLinks</option>
                       <option value="earn4link">Earn4Link</option>
@@ -2045,8 +2045,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   </label>
                   <label>Fallback shortener
                     <select
-                      value={adminSettings.ads.fallbackShortener || 'earn4link'}
-                      onChange={(e) => updateAdminSetting('ads', 'fallbackShortener', e.target.value)}
+                      value={adminSettings.shortener?.fallbackProvider ?? 'earn4link'}
+                      onChange={(e) => updateAdminSetting('shortener', 'fallbackProvider', e.target.value)}
                     >
                       <option value="">None</option>
                       <option value="arolinks">AroLinks</option>
@@ -2054,8 +2054,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     </select>
                   </label>
                   <small className="admin-settings-note">
-                    Primary: <strong>{adminSettings.ads.primaryShortener === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong>
-                    {adminSettings.ads.fallbackShortener ? <> → <strong>{adminSettings.ads.fallbackShortener === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong></> : null}.
+                    Primary: <strong>{adminSettings.shortener?.primaryProvider === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong>
+                    {adminSettings.shortener?.fallbackProvider ? <> → <strong>{adminSettings.shortener.fallbackProvider === 'arolinks' ? 'AroLinks' : 'Earn4Link'}</strong></> : null}.
                     Routing is disabled by default. Use only for provider-approved link flows. The provider redirect is treated only as the completion signal because these providers do not expose a completion webhook to HJ GROUPS.
                   </small>
                 </div>
@@ -2126,6 +2126,39 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     Complete an ad on Episode 14 with a 5-count rule to temporarily unlock 14–18.
                     Only episodes that actually exist in that story are included.
                   </div>
+                </div>
+
+                <div className="admin-ad-unlock-rules">
+                  <div className="admin-ad-unlock-rules-head">
+                    <div>
+                      <strong>Shortener Unlock Episode Rules</strong>
+                      <small>Rule matching uses the actual starting episode for the Shortener unlock.</small>
+                    </div>
+                    <button type="button" className="admin-settings-inline-button" onClick={addShortenerUnlockRule}>+ Add Rule</button>
+                  </div>
+                  <div className="admin-ad-unlock-rule-table">
+                    <div className="admin-ad-unlock-rule-row header">
+                      <span>Start Episode</span><span>End Episode</span><span>Episodes Per Completion</span><span>Action</span>
+                    </div>
+                    {shortenerUnlockRules.map((rule, index) => (
+                      <div className="admin-ad-unlock-rule-row" key={String(index)}>
+                        <input type="number" min="1" step="1" value={rule.startEpisode ?? ''} onChange={(e) => updateShortenerUnlockRule(index, 'startEpisode', e.target.value)} aria-label={`Shortener rule ${index + 1} start episode`} />
+                        <input type="number" min="1" step="1" value={rule.endEpisode ?? ''} onChange={(e) => updateShortenerUnlockRule(index, 'endEpisode', e.target.value)} placeholder="∞ No upper limit" aria-label={`Shortener rule ${index + 1} end episode`} />
+                        <input type="number" min="1" step="1" value={rule.unlockCount ?? ''} onChange={(e) => updateShortenerUnlockRule(index, 'unlockCount', e.target.value)} aria-label={`Shortener rule ${index + 1} episodes per completion`} />
+                        <button type="button" className="admin-delete" onClick={() => deleteShortenerUnlockRule(index)} aria-label={`Delete Shortener unlock rule ${index + 1}`}>🗑</button>
+                      </div>
+                    ))}
+                  </div>
+                  {!shortenerRuleValidation.valid && (
+                    <div className="admin-ad-unlock-rule-errors" role="alert">
+                      {shortenerRuleValidation.errors.map((error) => <span key={error}>⚠ {error}</span>)}
+                    </div>
+                  )}
+                </div>
+                <div className="admin-settings-form-grid">
+                  <label>Shortener unlock duration (minutes)
+                    <input type="number" min="1" max="1440" value={adminSettings.shortener?.unlockDurationMinutes || 360} onChange={(e) => updateAdminSetting('shortener', 'unlockDurationMinutes', Number(e.target.value) || 360)} />
+                  </label>
                 </div>
 
                 <div className="shortener-health-panel" aria-live="polite">
