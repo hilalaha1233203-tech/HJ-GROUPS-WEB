@@ -1038,7 +1038,7 @@ export function App() {
         const payload = await response.json()
         if (!payload?.ok || !payload.expiresAt) return
 
-        if (payload?.source === 'shortener_unlock' || payload?.reusedExisting !== true) {
+        if (payload?.source === 'shortener_unlock' || payload?.reusedExisting === false) {
           void trackUserActivity('shortener_unlock_completed', {
           story_id: payload?.storyId ?? null,
           episode_id: payload?.contentType === 'audio' ? payload?.contentId ?? null : null,
