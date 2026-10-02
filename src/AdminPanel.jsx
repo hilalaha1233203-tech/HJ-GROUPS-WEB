@@ -3,6 +3,7 @@ import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
 import { normalizeShortenerSettings } from './lib/shortenerProviders'
 import { CONTENT_STATUS_OPTIONS, normalizeContentStatus } from './lib/contentStatus.js'
+import { MAX_GENRES, normalizeGenreSelection, serializeGenreSelection } from './lib/genreSelection.js'
 import { ANALYTICS_BATCH_SIZES, getEpisodeAnalyticsBatch, summarizeEpisodeAnalyticsBatch } from './lib/analyticsBatch.js'
 import {
   DEFAULT_AD_UNLOCK_RULES,
@@ -114,8 +115,6 @@ const GENRE_OPTIONS = [
   'Fantasy', 'Action', 'Adventure', 'Romance', 'Mystery', 'Thriller',
   'Sci-Fi', 'Horror', 'Comedy', 'Drama', 'Historical', 'Mythology',
   'Crime', 'Supernatural', 'System', 'Isekai', 'Cultivation',
-  'Martial Arts', 'School', 'Family', 'Spiritual', 'Kids', 'Biography',
-  'Other',
 ]
 
 const BOOK_GENRE_OPTIONS = [
@@ -219,6 +218,58 @@ function AccessTypeField({ groupName, label = 'Access Types', value, onChange })
           </label>
         ))}
       </div>
+    </div>
+  )
+}
+
+function GenreMultiSelect({ value, onChange }) {
+  const selectedGenres = normalizeGenreSelection(value)
+
+  const toggleGenre = (genre, checked) => {
+    if (checked) {
+      if (selectedGenres.includes(genre) || selectedGenres.length >= MAX_GENRES) return
+      onChange([...selectedGenres, genre])
+      return
+    }
+
+    if (selectedGenres.length <= 1) return
+    onChange(selectedGenres.filter((item) => item !== genre))
+  }
+
+  return (
+    <div className="genre-multi-select" aria-label="Audio story genres">
+      <div className="genre-multi-select-head">
+        <span>Genre</span>
+        <small>{selectedGenres.length}/{MAX_GENRES} selected</small>
+      </div>
+
+      <div className="genre-multi-select-selected" aria-live="polite">
+        {selectedGenres.join(' · ')}
+      </div>
+
+      <div className="genre-multi-select-options">
+        {GENRE_OPTIONS.map((genre) => {
+          const checked = selectedGenres.includes(genre)
+          const disabled = !checked && selectedGenres.length >= MAX_GENRES
+
+          return (
+            <label key={genre} className={`genre-multi-select-option${checked ? ' selected' : ''}`}>
+              <input
+                type="checkbox"
+                name={`story-genre-${genre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                checked={checked}
+                disabled={disabled}
+                onChange={(event) => toggleGenre(genre, event.target.checked)}
+              />
+              <span>{genre}</span>
+            </label>
+          )
+        })}
+      </div>
+
+      <small className="genre-multi-select-hint">
+        Select up to {MAX_GENRES} genres. At least one genre must stay selected.
+      </small>
     </div>
   )
 }
@@ -684,7 +735,7 @@ function AdminPanel({
   ===================================================== */
 
   const [storyTitle, setStoryTitle] = useState('')
-  const [storyGenre, setStoryGenre] = useState('Fantasy')
+  const [storyGenre, setStoryGenre] = useState(['Fantasy'])
   const [storyLanguage, setStoryLanguage] = useState('Tamil')
   const [storyCover, setStoryCover] = useState('')
   const [storyCoverUploading, setStoryCoverUploading] = useState(false)
@@ -1115,7 +1166,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   const resetStoryForm = () => {
     setEditingStoryId(null)
     setStoryTitle('')
-    setStoryGenre('Fantasy')
+    setStoryGenre(['Fantasy'])
     setStoryLanguage('Tamil')
     setStoryCover('')
     setStoryDescription('')
@@ -1125,7 +1176,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   const startEditStory = (story) => {
     setEditingStoryId(story.id)
     setStoryTitle(story.title || '')
-    setStoryGenre(story.genre || 'Fantasy')
+    setStoryGenre(normalizeGenreSelection(story.genre, ['Fantasy']))
     setStoryLanguage(story.language || 'Tamil')
     setStoryCover(story.cover || '')
     setStoryDescription(story.description || '')
@@ -1146,7 +1197,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       if (editingStoryId) {
         await onUpdateStory(editingStoryId, {
           title: storyTitle.trim(),
-          genre: storyGenre,
+          genre: serializeGenreSelection(storyGenre),
           language: storyLanguage,
           cover: storyCover.trim(),
           description: storyDescription.trim(),
@@ -1156,7 +1207,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       } else {
         await onAddStory({
           title: storyTitle.trim(),
-          genre: storyGenre,
+          genre: serializeGenreSelection(storyGenre),
           language: storyLanguage,
           cover: storyCover.trim(),
           description: storyDescription.trim(),
@@ -2603,14 +2654,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
               <form onSubmit={submitStory} className="admin-form">
                 <input placeholder="Story title" value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} />
 
-                <label>
-                  Genre
-                  <select value={storyGenre} onChange={(e) => setStoryGenre(e.target.value)}>
-                    {GENRE_OPTIONS.map((genre) => (
-                      <option key={genre} value={genre}>{genre}</option>
-                    ))}
-                  </select>
-                </label>
+                <GenreMultiSelect value={storyGenre} onChange={setStoryGenre} />
 
                 <label>
                   Language
