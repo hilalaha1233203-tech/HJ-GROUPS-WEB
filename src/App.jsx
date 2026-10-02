@@ -4133,7 +4133,11 @@ export function App() {
   const openStoryDetails =
     (story) => {
       void trackUserActivity('story_view', {
-        story_id: Number.isFinite(Number(story && story.id)) ? Number(story.id) : null,
+        story_id: (() => {
+          const raw = String(story?.id ?? story?.story_id ?? '').trim()
+          const parsed = raw.startsWith('tg-story-') ? Number(raw.slice('tg-story-'.length)) : Number(raw)
+          return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+        })(),
         metadata: { source: 'story_details' },
       })
 
