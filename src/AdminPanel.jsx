@@ -271,6 +271,8 @@ function AdminPanel({
   const [shortenerHealthRefresh, setShortenerHealthRefresh] = useState(0)
   const [analyticsRange, setAnalyticsRange] = useState('7d')
   const [analyticsData, setAnalyticsData] = useState(null)
+  const [analyticsEpisodeSearch, setAnalyticsEpisodeSearch] = useState('')
+  const [analyticsSelectedEpisodeId, setAnalyticsSelectedEpisodeId] = useState(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsError, setAnalyticsError] = useState('')
 
@@ -1935,12 +1937,110 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     {(analyticsData.stories || []).map((row) => <tr key={row.id}><td>{row.title || 'Untitled'}</td><td>{row.story_views}</td><td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td><td>{row.episode_plays}</td><td>{Number(row.logged_in_episode_viewers || 0) + Number(row.anonymous_episode_viewers || 0)}</td><td>{row.episode_completions}</td><td>{row.ad_unlock_starts}</td><td>{row.ad_unlock_completions}</td></tr>)}
                   </tbody></table></div>
                 </section>
-                <section className="admin-section" style={{ marginTop: '18px' }}>
-                  <h3>🎧 Episode Analytics</h3>
-                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Episode</th><th>Title</th><th>Total Plays</th><th>Unique Viewers</th><th>Completed Plays</th><th>Ad Starts</th><th>Ad Completions</th><th>Actual Unlocks</th></tr></thead><tbody>
-                    {(analyticsData.episodes || []).map((row) => <tr key={row.id}><td>{row.episode_number}</td><td>{row.title || 'Untitled'}</td><td>{row.total_plays}</td><td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td><td>{row.completed_plays}</td><td>{row.ad_unlock_starts}</td><td>{row.ad_unlock_completions}</td><td>{row.actual_unlocks ?? 0}</td></tr>)}
-                  </tbody></table></div>
-                </section>
+                {(() => {
+                  const episodes = Array.isArray(analyticsData.episodes) ? analyticsData.episodes : []
+                  const storiesById = new Map(
+                    (analyticsData.stories || []).map((story) => [Number(story.id), story.title || 'Untitled Story'])
+                  )
+                  const search = analyticsEpisodeSearch.trim().toLowerCase()
+                  const matches = search
+                    ? episodes.filter((row) => {
+                      const storyTitle = storiesById.get(Number(row.story_id)) || ''
+                      return [
+                        row.episode_number,
+                        row.title,
+                        storyTitle,
+                      ].some((value) => String(value ?? '').toLowerCase().includes(search))
+                    }).slice(0, 30)
+                    : []
+                  const selectedEpisode = episodes.find(
+                    (row) => Number(row.id) === Number(analyticsSelectedEpisodeId)
+                  ) || null
+
+                  return (
+                    <section className="admin-section admin-episode-analytics" style={{ marginTop: '18px' }}>
+                      <h3>🎧 Episode Analytics</h3>
+                      <div className="admin-episode-analytics-picker">
+                        <div className="admin-episode-analytics-picker-head">
+                          <button
+                            type="button"
+                            className="admin-episode-picker-button"
+                            onClick={() => setAnalyticsEpisodeSearch((value) => value)}
+                            aria-label="Search and select an episode for analytics"
+                          >
+                            {selectedEpisode
+                              ? `Episode ${selectedEpisode.episode_number} · ${selectedEpisode.title || 'Untitled'}`
+                              : '🔎 Select Episode Analytics'}
+                            <span aria-hidden="true">⌄</span>
+                          </button>
+                          {selectedEpisode && (
+                            <button
+                              type="button"
+                              className="secondary-btn admin-episode-picker-clear"
+                              onClick={() => setAnalyticsSelectedEpisodeId(null)}
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        <div className="admin-episode-picker-panel">
+                          <input
+                            type="search"
+                            value={analyticsEpisodeSearch}
+                            onChange={(event) => setAnalyticsEpisodeSearch(event.target.value)}
+                            placeholder="Search episode number or title…"
+                            aria-label="Search episodes"
+                            autoComplete="off"
+                          />
+                          {search ? (
+                            <div className="admin-episode-picker-results">
+                              {matches.length ? matches.map((row) => (
+                                <button
+                                  key={row.id}
+                                  type="button"
+                                  className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''}
+                                  onClick={() => {
+                                    setAnalyticsSelectedEpisodeId(row.id)
+                                    setAnalyticsEpisodeSearch('')
+                                  }}
+                                >
+                                  <strong>Episode {row.episode_number}</strong>
+                                  <span>{row.title || 'Untitled'} · {storiesById.get(Number(row.story_id)) || 'Untitled Story'}</span>
+                                </button>
+                              )) : (
+                                <span className="admin-episode-picker-empty">No matching episodes.</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="admin-episode-picker-empty">Type an episode number or title to search.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedEpisode ? (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className="admin-table">
+                            <thead><tr><th>Episode</th><th>Title</th><th>Total Plays</th><th>Unique Viewers</th><th>Completed Plays</th><th>Ad Starts</th><th>Ad Completions</th><th>Actual Unlocks</th></tr></thead>
+                            <tbody>
+                              <tr>
+                                <td>{selectedEpisode.episode_number}</td>
+                                <td>{selectedEpisode.title || 'Untitled'}</td>
+                                <td>{selectedEpisode.total_plays}</td>
+                                <td>{Number(selectedEpisode.logged_in_unique_viewers || 0) + Number(selectedEpisode.anonymous_unique_viewers || 0)}</td>
+                                <td>{selectedEpisode.completed_plays}</td>
+                                <td>{selectedEpisode.ad_unlock_starts}</td>
+                                <td>{selectedEpisode.ad_unlock_completions}</td>
+                                <td>{selectedEpisode.actual_unlocks ?? 0}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="admin-episode-picker-empty">Select an episode to view its analytics.</p>
+                      )}
+                    </section>
+                  )
+                })()}
                 <section className="admin-section" style={{ marginTop: '18px' }}>
                   <h3>📢 Ad Analytics</h3>
                   <p style={{ opacity: 0.75 }}>Started ≠ Completed ≠ Actual Unlock. Actual Unlock is read from the existing HJ GROUPS <code>ad_unlocks</code> state.</p>
