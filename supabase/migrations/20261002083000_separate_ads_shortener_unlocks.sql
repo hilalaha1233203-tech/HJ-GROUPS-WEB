@@ -15,6 +15,29 @@ drop index if exists public.ad_unlocks_user_content_idx;
 create index if not exists ad_unlocks_provider_active_idx
   on public.ad_unlocks (user_id, provider, content_type, story_id, start_episode_number, end_episode_number, expires_at);
 
+
+create table if not exists public.rewarded_ad_unlock_intents (
+  id bigint generated always as identity primary key,
+  token_hash text not null unique,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  content_type text not null check (content_type in ('audio','video')),
+  content_id bigint not null,
+  story_id bigint null,
+  start_episode_number integer null,
+  end_episode_number integer null,
+  status text not null default 'pending' check (status in ('pending','completed','expired')),
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  completed_at timestamptz null
+);
+
+alter table public.rewarded_ad_unlock_intents enable row level security;
+drop policy if exists "Deny client access - rewarded ad intents" on public.rewarded_ad_unlock_intents;
+create policy "Deny client access - rewarded ad intents"
+  on public.rewarded_ad_unlock_intents for all using (false) with check (false);
+revoke all on table public.rewarded_ad_unlock_intents from anon, authenticated;
+grant all on table public.rewarded_ad_unlock_intents to service_role;
+
 create table if not exists public.shortener_unlocks (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
