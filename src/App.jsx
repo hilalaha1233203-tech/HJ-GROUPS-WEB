@@ -3404,12 +3404,105 @@ export function App() {
     window.location.assign(payload.shortUrl)
   }
 
+  const startRewardedAdUnlock = async () => {
+    const pending = pendingUnlockRef.current
+    if (!pending?.item?.id || !pending?.contentType) throw new Error('Unlock target is unavailable.')
+
+    const { data: { session } = {} } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      setLoginOpen(true)
+      throw new Error('Please log in before starting an Ads unlock.')
+    }
+
+    const response = await fetch('/api/ads/start', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({
+        contentType: pending.contentType,
+        contentId: pending.item.id,
+      }),
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(String(payload?.error || 'Rewarded Ads are temporarily unavailable.'))
+
+    if (payload?.alreadyGranted) {
+      pendingUnlockRef.current = null
+      setAdUnlockPreview(null)
+      setAdProviderOptions([])
+      setAdModalOpen(false)
+      pending.onGranted?.()
+      return
+    }
+
+    void trackUserActivity('ad_unlock_started', {
+      story_id: pending.item?.story_id ?? pending.item?.storyId ?? pending.storyId ?? payload?.storyId ?? null,
+      episode_id: pending.contentType === 'audio' ? pending.item?.id : null,
+      video_episode_id: pending.contentType === 'video' ? pending.item?.id : null,
+      access_type: 'ads',
+      metadata: { provider: payload?.provider || 'google', content_type: pending.contentType },
+    })
+
+    setAdModalOpen(false)
+    try {
+      await showRewardedAd({
+        adUnitPath: payload.rewardedAdUnitId,
+        onGranted: async () => {
+          const completion = await fetch('/api/ads/complete', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + session.access_token,
+            },
+            body: JSON.stringify({ token: payload.token }),
+          })
+          const completed = await completion.json().catch(() => null)
+          if (!completion.ok || !completed?.ok || !completed?.expiresAt) {
+            throw new Error(String(completed?.error || 'Ads completion could not be verified.'))
+          }
+
+          void trackUserActivity('ad_unlock_completed', {
+            story_id: completed?.storyId ?? null,
+            episode_id: completed?.contentType === 'audio' ? completed?.contentId ?? null : null,
+            video_episode_id: completed?.contentType === 'video' ? completed?.contentId ?? null : null,
+            access_type: 'ads',
+            metadata: { provider: payload?.provider || 'google' },
+          }, `ad-complete:${completed?.contentType}:${completed?.contentId}:${completed?.expiresAt}`)
+
+          cacheServerAdUnlock({
+            content_type: completed.contentType,
+            content_id: completed.contentId,
+            expiresAt: completed.expiresAt,
+            storyId: completed.storyId,
+            episodeNumber: completed.episodeNumber,
+            episodeNumbers: completed.episodeNumbers,
+            unlockStartEpisode: completed.unlockStartEpisode,
+            unlockEndEpisode: completed.unlockEndEpisode,
+          })
+
+          pendingUnlockRef.current = null
+          setAdUnlockPreview(null)
+          setAdProviderOptions([])
+          setUnlockedAds(loadUnlockedAds())
+          pending.onGranted?.()
+        },
+      })
+    } catch (error) {
+      setAdModalOpen(false)
+      throw error
+    }
+  }
+
   const loadAdUnlockPreview = async (item, resolvedContentType, onGranted) => {
     try {
       const { data: { session } = {} } = await supabase.auth.getSession()
       if (!session?.access_token || !item?.id) return
 
-      const response = await fetch('/api/shortener/preview', {
+      const request = (path) => fetch(path, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -3423,24 +3516,55 @@ export function App() {
         cache: 'no-store',
       })
 
-      const payload = await response.json().catch(() => null)
-      if (!response.ok || !payload?.ok) return
+      const [adsResponse, shortenerResponse] = await Promise.all([
+        request('/api/ads/preview'),
+        request('/api/shortener/preview'),
+      ])
+      const [adsPayload, shortenerPayload] = await Promise.all([
+        adsResponse.json().catch(() => null),
+        shortenerResponse.json().catch(() => null),
+      ])
 
       const pending = pendingUnlockRef.current
       if (!pending || pending.item?.id !== item.id || pending.contentType !== resolvedContentType) return
 
-      if (payload.alreadyGranted) {
+      const options = []
+      if (adsResponse.ok && adsPayload?.ok && !adsPayload.alreadyGranted) {
+        options.push({
+          provider: 'ads',
+          icon: '📺',
+          label: 'Watch Ad',
+          unlockCount: adsPayload.unlockCount,
+          unlockStartEpisode: adsPayload.unlockStartEpisode,
+          unlockEndEpisode: adsPayload.unlockEndEpisode,
+          preview: adsPayload,
+        })
+      }
+      if (shortenerResponse.ok && shortenerPayload?.ok && !shortenerPayload.alreadyGranted) {
+        options.push({
+          provider: 'shortener',
+          icon: '🔗',
+          label: 'Complete Shortener',
+          unlockCount: shortenerPayload.unlockCount,
+          unlockStartEpisode: shortenerPayload.unlockStartEpisode,
+          unlockEndEpisode: shortenerPayload.unlockEndEpisode,
+          preview: shortenerPayload,
+        })
+      }
+
+      if (adsPayload?.alreadyGranted || shortenerPayload?.alreadyGranted) {
         pendingUnlockRef.current = null
         setAdUnlockPreview(null)
+        setAdProviderOptions([])
         setAdModalOpen(false)
         onGranted?.()
         return
       }
 
-      setAdUnlockPreview(payload)
+      setAdProviderOptions(options)
+      setAdUnlockPreview(options[0]?.preview || null)
     } catch {
-      // Preview is advisory only. The server will recalculate the rule during
-      // the actual /api/shortener/start + /api/shortener/complete flow.
+      setAdProviderOptions([])
     }
   }
 
