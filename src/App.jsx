@@ -14,6 +14,7 @@ import AdUnlockModal from './components/AdUnlockModal'
 import { showRewardedAd } from './lib/rewardedAds'
 import { getAnalyticsSessionId, linkAnalyticsSessionToUser, normalizeStoryAnalyticsId, trackUserActivity } from './lib/analytics'
 import { contentStatusLabel, normalizeContentStatus } from './lib/contentStatus.js'
+import { applyAppearanceToDocument } from './lib/appearance.js'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
 
@@ -2837,14 +2838,17 @@ export function App() {
         if (!response.ok) return
         const payload = await response.json()
         const value = String(payload?.website?.supportTelegramUrl || '').trim()
-        if (mounted) setSupportTelegramUrl(value)
+        if (mounted) {
+          setSupportTelegramUrl(value)
+          applyAppearanceToDocument(payload?.appearance || {})
+        }
       } catch (error) {
         console.warn('Public settings load failed:', error)
       }
     }
     loadPublicSettings()
     return () => { mounted = false }
-  }, [])
+  }, []))
 
   useEffect(() => {
     if (!user) {
