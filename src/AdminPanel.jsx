@@ -345,7 +345,7 @@ function AdminPanel({
   const [securityError, setSecurityError] = useState('')
   const [manualSecurityRunning, setManualSecurityRunning] = useState(false)
   const [manualSecurityResult, setManualSecurityResult] = useState(null)
-  const [securityProgress, setSecurityProgress] = useState({ progress_percent: 0, completed_checks: 0, total_checks: 7, current_check: null, checks: [] })
+  const [securityProgress, setSecurityProgress] = useState({ progress_percent: 0, completed_checks: 0, total_checks: 0, current_check: null, checks: [] })
   const [playwrightState, setPlaywrightState] = useState({ status: 'not_run', run: null, tests: null, jobs: [], error: '' })
   const [playwrightLoading, setPlaywrightLoading] = useState(false)
   const [analyticsData, setAnalyticsData] = useState(null)
@@ -445,14 +445,16 @@ function AdminPanel({
       setSecurityFindings(findings || [])
       setSecurityScans(scans || [])
       const latestProgress = scans?.[0]?.summary
-      if (latestProgress && typeof latestProgress === 'object') {
+      if (latestProgress && typeof latestProgress === 'object' && Number.isFinite(Number(latestProgress.total_checks)) && Number(latestProgress.total_checks) > 0) {
         setSecurityProgress({
           progress_percent: Number(latestProgress.progress_percent) || 0,
           completed_checks: Number(latestProgress.completed_checks) || 0,
-          total_checks: Number(latestProgress.total_checks) || 7,
+          total_checks: Number(latestProgress.total_checks),
           current_check: latestProgress.current_check || null,
           checks: Array.isArray(latestProgress.checks) ? latestProgress.checks : [],
         })
+      } else if (!manualSecurityRunning) {
+        setSecurityProgress({ progress_percent: 0, completed_checks: 0, total_checks: 0, current_check: null, checks: [] })
       }
       return { findings: findings || [], scans: scans || [] }
     } catch (error) {
