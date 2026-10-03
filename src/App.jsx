@@ -12,7 +12,7 @@ import AccountSettings from './AccountSettings'
 import AdminPanel from './AdminPanel'
 import AdUnlockModal from './components/AdUnlockModal'
 import { showRewardedAd } from './lib/rewardedAds'
-import { getAnalyticsSessionId, normalizeStoryAnalyticsId, trackUserActivity } from './lib/analytics'
+import { getAnalyticsSessionId, linkAnalyticsSessionToUser, normalizeStoryAnalyticsId, trackUserActivity } from './lib/analytics'
 import { contentStatusLabel, normalizeContentStatus } from './lib/contentStatus.js'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
@@ -2548,6 +2548,16 @@ export function App() {
     }
   }, [currentEpisode])
 
+
+  useEffect(() => {
+    if (!user?.id) return undefined
+
+    const timer = window.setTimeout(() => {
+      void linkAnalyticsSessionToUser()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [user?.id])
 
   useEffect(() => {
     let mounted = true
