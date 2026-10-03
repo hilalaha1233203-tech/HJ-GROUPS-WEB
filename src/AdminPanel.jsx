@@ -13,6 +13,7 @@ import {
 import { supabase } from './supabase'
 import React, { useEffect, useRef, useState } from 'react'
 import AdminAnalyticsCharts from './components/AdminAnalyticsCharts'
+import AdminNotificationCenter from './components/AdminNotificationCenter'
 import { DEFAULT_APPEARANCE, FONT_OPTIONS, ANIMATION_INTENSITIES, EMOJI_ANIMATIONS, EMOJI_STYLES, normalizeAppearance } from './lib/appearance'
 
 const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
@@ -2457,6 +2458,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 </div>
                 <small className="admin-settings-note">Only predefined, validated appearance and animation values are saved. No arbitrary CSS/JavaScript is accepted. Reduced-motion preferences are respected by the client.</small>
               </div>
+              <AdminNotificationCenter stories={stories} />
               <div className="admin-settings-card">
                 <div className="admin-settings-card-head"><div><small>SECURITY MONITORING</small><h3>Daily Security & Health</h3></div><span>🛡</span></div>
                 <p className="admin-settings-note">Daily monitoring is detection + analysis + reporting only. It never changes production code, RLS, authentication, payments, unlocks, environment variables or deployment.</p>
