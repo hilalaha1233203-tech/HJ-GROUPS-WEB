@@ -4848,6 +4848,7 @@ body:has(.reader-overlay:not(.reader-minimized)),
   }
 }
 
+@media (max-width: 650px) {
   .admin-security-head,
   .admin-security-summary,
   .admin-security-browser-head {
@@ -4879,6 +4880,7 @@ body:has(.reader-overlay:not(.reader-minimized)),
     margin-right: 0;
   }
 
+}
 @media (max-width: 650px) {
   .admin-overlay {
     padding: 8px;
@@ -7834,6 +7836,20 @@ body[data-emoji-animation="false"] .admin-stat-icon,body[data-emoji-animation="f
 .admin-security-list{display:grid;gap:12px;margin:16px 0}.admin-security-finding{padding:16px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(16,18,27,.85)}.admin-security-finding header{display:flex;justify-content:space-between;gap:12px}.admin-security-finding p{color:var(--hj-muted);margin:.45rem 0}.admin-security-finding h3{margin:.55rem 0}.admin-security-finding small{color:var(--hj-muted)}
 .admin-security-filters{display:flex;justify-content:flex-end;margin:12px 0}.admin-security-filters select{min-width:170px}
 @media(max-width:800px){.hj-echarts-grid{grid-template-columns:1fr}.hj-echart{height:250px}.admin-security-head{flex-direction:column}.admin-security-finding{padding:13px}}
+@media(max-width:650px){
+  .admin-episode-analytics{overflow:hidden}
+  .admin-episode-analytics div[style*="overflowX"]{width:100%;max-width:100%;overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  .admin-episode-analytics .admin-table{min-width:720px}
+  .admin-security-head,.admin-security-browser-head{align-items:stretch}
+  .admin-security-actions,.admin-security-browser-actions{display:grid;grid-template-columns:1fr}
+  .admin-security-actions button,.admin-security-browser-actions button{width:100%;min-height:44px}
+  .admin-security-summary{display:grid;grid-template-columns:1fr;margin:0 0 12px;padding:13px}
+  .admin-security-check-grid{grid-template-columns:1fr;margin:0 0 14px}
+  .admin-security-browser{margin:12px 0;padding:13px;overflow:hidden}
+  .admin-security-playwright-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .admin-security-scan-progress{margin:0 0 12px;align-items:flex-start}
+  .admin-security-progress-phases{max-height:150px;overflow:auto;padding-right:2px}
+}
 
 body[data-motionCardHover="false"] .story-card,body[data-motionCardHover="false"] .book-card,body[data-motionCardHover="false"] .video-card{transition:none!important}
 body[data-motionButtonHover="false"] button:hover,body[data-motionButtonHover="false"] .primary-btn:hover{transform:none!important}
