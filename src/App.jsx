@@ -4207,6 +4207,8 @@ export function App() {
       analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
       analyticsCurrentMediaRef.current = { story, episode }
       if (isReading) stopReadAloud()
+      const playerScreen = episode.type === 'video' ? 'video-player' : 'audio-player'
+      pushAppHistory(playerScreen, { hjGroupsStoryId: story?.id ?? null, hjGroupsEpisodeId: episode?.id ?? null })
       setActivePlayerKind('episode')
       setCurrentStory(story)
       setCurrentEpisode(episode)
@@ -4601,6 +4603,11 @@ export function App() {
 
   const closePlayer =
     () => {
+      const currentScreen = appNavigationRef.current.screen
+      if (currentScreen === 'audio-player' || currentScreen === 'video-player') {
+        replaceAppHistory(screenForPage(page))
+      }
+
       const media =
         getMediaElement()
 
@@ -4642,6 +4649,8 @@ export function App() {
       setSelectedStory(
         story
       )
+      setPreDetailsPage(screenForPage(page))
+      pushAppHistory('story-details', { hjGroupsStoryId: story?.id ?? null })
       setStoryEpisodeRangeStart(0)
       setStoryEpisodeVisibleEnd(50)
 
@@ -4655,14 +4664,16 @@ export function App() {
 
   const closeStoryDetails =
     () => {
-      setSelectedStory(null)
-      setStoryEpisodeRangeStart(0)
-      setStoryEpisodeVisibleEnd(50)
-      setPage('home')
-      requestAnimationFrame(() => {
-        document.getElementById('stories')?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
+      goBackApp('story-details', () => {
+        setSelectedStory(null)
+        setStoryEpisodeRangeStart(0)
+        setStoryEpisodeVisibleEnd(50)
+        setPage(preDetailsPage === 'library' ? 'library' : 'home')
+        requestAnimationFrame(() => {
+          document.getElementById('stories')?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          })
         })
       })
     }
@@ -4798,6 +4809,11 @@ export function App() {
   /* =======================================================
      LOGOUT
   ======================================================= */
+
+  const openAccountSettings = () => {
+    pushAppHistory('account-settings')
+    setPage('account-settings')
+  }
 
   const handleLogout =
     async () => {
@@ -5651,14 +5667,10 @@ export function App() {
   const closeReaderView =
     () => {
       if (readerLocked) return
-
-      teardownReader()
-
-      if (selectedBook) {
-        setPage(
-          'book-details'
-        )
-      }
+      goBackApp('book-reader', () => {
+        teardownReader()
+        if (selectedBook) setPage('book-details')
+      })
     }
 
   const closeReadAloud =
@@ -5760,6 +5772,7 @@ export function App() {
       )
 
       readerPositionRestoredRef.current = false
+      pushAppHistory('book-reader', { hjGroupsBookId: book?.id ?? null })
       setReaderOpen(true)
       setTtsPlayerMinimized(false)
       setReaderLocked(false)
@@ -5817,6 +5830,7 @@ export function App() {
         booksModalOpen ? 'books-modal' : (page === 'books' ? 'books' : page)
       )
 
+      pushAppHistory('book-details', { hjGroupsBookId: book?.id ?? null })
       setBooksModalOpen(false)
 
       setSelectedBook(
@@ -7321,6 +7335,10 @@ export function App() {
         nowPlaying?.kind ===
         'episode'
       ) {
+        const playerScreen = nowPlaying?.episode?.type === 'video' || currentEpisode?.type === 'video'
+          ? 'video-player'
+          : 'audio-player'
+        pushAppHistory(playerScreen, { hjGroupsStoryId: currentStory?.id ?? null, hjGroupsEpisodeId: currentEpisode?.id ?? null })
         setFullPlayer(true)
         setPlayerOpen(true)
       } else if (
@@ -9283,7 +9301,7 @@ export function App() {
             </div>
 
             <div className="account-card-actions">
-              <button className="primary-btn" onClick={() => setPage('account-settings')}>
+              <button className="primary-btn" onClick={openAccountSettings}>
                 ⚙ Settings
               </button>
               <button className="secondary-btn" onClick={handleLogout}>
@@ -9293,15 +9311,15 @@ export function App() {
           </div>
 
           <div className="account-quick-grid">
-            <button className="account-quick-card" onClick={() => setPage('account-settings')}>
+            <button className="account-quick-card" onClick={openAccountSettings}>
               <strong>⚙ Settings</strong>
               <span>Sleep timer · Audio · Video · TTS · Reader</span>
             </button>
-            <button className="account-quick-card" onClick={() => setPage('account-settings')}>
+            <button className="account-quick-card" onClick={openAccountSettings}>
               <strong>🛡️ Account Recovery</strong>
               <span>Password reset · Backup Google · Recovery mobile</span>
             </button>
-            <button className="account-quick-card" onClick={() => setPage('account-settings')}>
+            <button className="account-quick-card" onClick={openAccountSettings}>
               <strong>📖 Book Reader</strong>
               <span>Paper/Sepia modes · Zoom · Read Aloud · Voices</span>
             </button>
@@ -9314,7 +9332,7 @@ export function App() {
           user={user}
           settings={accountSettings}
           onSettingsChange={handleAccountSettingsChange}
-          onBack={() => setPage('account')}
+          onBack={() => goBackApp('account-settings', () => setPage('account'))}
           onSleepTimer={startSleepTimer}
           onApplyPlayerSettings={applyAccountPlayerSettings}
           isAdmin={isAdmin}
