@@ -7777,7 +7777,7 @@ body[data-animation-intensity="enhanced"] .hj-animated-emoji{animation-duration:
 @keyframes hj-emoji-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 
 .hj-reduced-motion .hj-animated-emoji,
-.hj-global-motion-off .hj-animated-emoji,
+.hj-global-motion-off .hj-animated-emoji{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion: reduce){
   .hj-animated-emoji{animation:none!important;transition:none!important}
 }
