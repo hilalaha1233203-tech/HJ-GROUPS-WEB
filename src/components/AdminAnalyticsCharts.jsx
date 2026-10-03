@@ -22,23 +22,21 @@ const series=(rows,key)=>Array.isArray(rows)?rows.map(r=>Number(r?.[key]||0)):[]
 const labels=(rows,key='bucket')=>Array.isArray(rows)?rows.map(r=>String(r?.[key]||'')):[]
 
 export default function AdminAnalyticsCharts({data}){
- const daily=data?.daily||data?.timeline||[]
- const stories=(data?.stories||[]).slice(0,12)
- const episodes=(data?.episodes||[]).slice(0,12)
- const device=Array.isArray(data?.devices)?data.devices:[]
- const browsers=Array.isArray(data?.browsers)?data.browsers:[]
- const traffic=Array.isArray(data?.traffic)?data.traffic:[]
- const base={animation:false,tooltip:{trigger:'axis'},legend:{top:0,textStyle:{color:'#a9aec3'}},grid:{left:40,right:20,top:40,bottom:35},xAxis:{type:'category',data:labels(daily),axisLabel:{color:'#a9aec3'}},yAxis:{type:'value',axisLabel:{color:'#a9aec3'}},series:[]}
- const activity={...base,series:[{name:'Visitors',type:'line',smooth:true,data:series(daily,'visitors')},{name:'Sessions',type:'line',smooth:true,data:series(daily,'sessions')},{name:'Episode Plays',type:'line',smooth:true,data:series(daily,'episode_plays')}]}
- const story={animation:false,tooltip:{trigger:'axis'},grid:{left:45,right:20,top:20,bottom:70},xAxis:{type:'category',data:stories.map(x=>String(x.title||'Untitled').slice(0,18)),axisLabel:{color:'#a9aec3',rotate:35}},yAxis:{type:'value',axisLabel:{color:'#a9aec3'}},series:[{name:'Views',type:'bar',data:stories.map(x=>Number(x.story_views||0))},{name:'Plays',type:'bar',data:stories.map(x=>Number(x.episode_plays||0))}]}
- const completion={animation:false,tooltip:{trigger:'axis'},grid:{left:45,right:20,top:20,bottom:70},xAxis:{type:'category',data:episodes.map(x=>'Ep '+String(x.episode_number||x.number||'')),axisLabel:{color:'#a9aec3'}},yAxis:{type:'value',max:100,axisLabel:{color:'#a9aec3',formatter:'{value}%'}},series:[{name:'Completion %',type:'bar',data:episodes.map(x=>Number(x.completion_rate||x.completion_percent||0))}]}
- const donut=(title,rows)=>({animation:false,tooltip:{trigger:'item'},legend:{bottom:0,textStyle:{color:'#a9aec3'}},series:[{name:title,type:'pie',radius:['45%','72%'],avoidLabelOverlap:true,data:rows.map(x=>({name:String(x.name||x.device||x.browser||'Unknown'),value:Number(x.value||x.count||0)}))}]})
+ const overview=data?.overview||{}
+ const stories=(data?.stories||[]).slice().sort((a,b)=>Number(b.story_views||0)-Number(a.story_views||0)).slice(0,20)
+ const episodes=(data?.episodes||[]).slice().sort((a,b)=>Number(b.total_plays||0)-Number(a.total_plays||0)).slice(0,20)
+ const unlocks=[['Ad unlocks',Number(overview.actual_ad_unlocks||overview.ad_unlock_completions||0)],['Shortener unlocks',Number(overview.actual_shortener_unlocks||overview.shortener_unlock_completions||0)],['Premium/VIP accesses',Number(overview.premium_vip_accesses||0)]]
+ const overviewOption={animation:false,tooltip:{trigger:'axis'},grid:{left:45,right:20,top:20,bottom:70},xAxis:{type:'category',data:['Registered','Active logged-in','Anonymous sessions','Story views','Episode plays','Completions'],axisLabel:{color:'#a9aec3',rotate:25}},yAxis:{type:'value',axisLabel:{color:'#a9aec3'}},dataZoom:[{type:'inside'},{type:'slider',bottom:5}],series:[{name:'Recorded count',type:'bar',data:[Number(overview.registered_users||0),Number(overview.active_logged_in_users||0),Number(overview.active_anonymous_sessions||0),Number(overview.story_views||0),Number(overview.episode_plays||0),Number(overview.episode_completions||0)]}]}
+ const storyOption={animation:false,tooltip:{trigger:'axis'},grid:{left:45,right:20,top:20,bottom:80},xAxis:{type:'category',data:stories.map(x=>String(x.title||'Untitled').slice(0,20)),axisLabel:{color:'#a9aec3',rotate:35}},yAxis:{type:'value',axisLabel:{color:'#a9aec3'}},dataZoom:[{type:'inside'},{type:'slider',bottom:5}],series:[{name:'Views',type:'bar',data:stories.map(x=>Number(x.story_views||0))},{name:'Episode plays',type:'bar',data:stories.map(x=>Number(x.episode_plays||0))}]}
+ const completionRate=(x)=>Number(x.total_plays||0)>0?Math.round(Number(x.completed_plays||0)/Number(x.total_plays||0)*1000)/10:0
+ const episodeOption={animation:false,tooltip:{trigger:'axis'},grid:{left:45,right:20,top:20,bottom:80},xAxis:{type:'category',data:episodes.map(x=>'Ep '+String(x.episode_number??'')),axisLabel:{color:'#a9aec3',rotate:35}},yAxis:{type:'value',max:100,axisLabel:{color:'#a9aec3',formatter:'{value}%'}},dataZoom:[{type:'inside'},{type:'slider',bottom:5}],series:[{name:'Completion %',type:'bar',data:episodes.map(completionRate)}]}
+ const unlockOption={animation:false,tooltip:{trigger:'item'},legend:{bottom:0,textStyle:{color:'#a9aec3'}},series:[{name:'Unlocks / access',type:'pie',radius:['45%','72%'],data:unlocks.map(([name,value])=>({name,value}))}]}
+ const hasData=Object.values(overview).some(v=>Number(v)>0)||stories.length>0||episodes.length>0
+ if(!hasData) return <div className="hj-echarts-empty">No recorded analytics are available for the selected range. Charts intentionally do not invent or estimate data.</div>
  return <div className="hj-echarts-grid">
-   <section className="hj-echart-card"><header><strong>Traffic & Engagement</strong><small>Real recorded analytics only</small></header><Chart option={activity}/></section>
-   <section className="hj-echart-card"><header><strong>Story Interest</strong><small>Views and episode plays</small></header><Chart option={story}/></section>
-   <section className="hj-echart-card"><header><strong>Episode Completion</strong><small>Recorded completion percentage</small></header><Chart option={completion}/></section>
-   {device.length>0&&<section className="hj-echart-card"><header><strong>Device Mix</strong><small>Only available telemetry</small></header><Chart option={donut('Device',device)}/></section>}
-   {browsers.length>0&&<section className="hj-echart-card"><header><strong>Browser Mix</strong><small>Only available telemetry</small></header><Chart option={donut('Browser',browsers)}/></section>}
-   {traffic.length>0&&<section className="hj-echart-card"><header><strong>Traffic Sources</strong><small>Referrer data where available</small></header><Chart option={donut('Referrer',traffic)}/></section>}
+   <section className="hj-echart-card"><header><strong>Recorded Overview</strong><small>Real aggregate counts from the existing analytics RPC</small></header><Chart option={overviewOption}/></section>
+   <section className="hj-echart-card"><header><strong>Story Interest</strong><small>Recorded views and episode plays</small></header><Chart option={storyOption}/></section>
+   <section className="hj-echart-card"><header><strong>Episode Completion</strong><small>Completion is calculated only where plays were recorded</small></header><Chart option={episodeOption}/></section>
+   <section className="hj-echart-card"><header><strong>Unlock / Premium Activity</strong><small>Actual unlock and purchase-access records</small></header><Chart option={unlockOption}/></section>
  </div>
 }
