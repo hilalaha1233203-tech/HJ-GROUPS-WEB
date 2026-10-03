@@ -92,7 +92,8 @@ function installEmojiEnhancer(appearance){
       span.dataset.hjEmojiChar=emoji
       span.dataset.hjEmojiAnimation=animation
       span.dataset.hjEmojiStyle=appearance.emoji.style
-      span.setAttribute('aria-hidden','true')
+      span.setAttribute('role','img')
+      span.setAttribute('aria-label',emoji)
       span.textContent=emoji
       fragment.appendChild(span)
       last=index+emoji.length
