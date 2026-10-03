@@ -98,7 +98,7 @@ test.describe('HJ GROUPS admin health', () => {
     expect(mobileAdminMetrics.statCardWidths.every((width) => width <= mobileAdminMetrics.viewportWidth)).toBe(true)
 
     // Android/browser Back must close the admin overlay and remain inside the SPA.
-    await page.evaluate(() => window.history.back())
+    await page.evaluate(() => window.history.back()).catch(() => {})
     await expect(page.locator('.admin-overlay')).toHaveCount(0)
     await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
     expect(page.url()).toBe(adminUrlBeforeMobileQA)
