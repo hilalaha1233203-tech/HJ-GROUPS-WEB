@@ -78,6 +78,18 @@ test('admin analytics explicitly separates rewarded Ads from Shortener unlocks',
 })
 
 
+test('analytics session linking is wired to authenticated profiles', () => {
+  const analytics = fs.readFileSync('src/lib/analytics.js', 'utf8')
+  const app = fs.readFileSync('src/App.jsx', 'utf8')
+  const panel = fs.readFileSync('src/AdminPanel.jsx', 'utf8')
+
+  assert.match(analytics, /linkAnalyticsSessionToUser/)
+  assert.match(analytics, /supabase\.rpc\('link_analytics_session'/)
+  assert.match(app, /linkAnalyticsSessionToUser\(\)/)
+  assert.match(panel, /Known Account/)
+  assert.match(panel, /Anonymous visitor/)
+})
+
 test('user activity unlock columns are sourced from actual entitlement tables, not completion events', () => {
   const migration = fs.readFileSync('supabase/migrations/20261003102000_user_activity_actual_unlock_counts.sql', 'utf8')
   const userRows = migration.slice(migration.indexOf('  user_rows as ('), migration.indexOf('  anonymous_rows as ('))
