@@ -2,7 +2,8 @@ export const ANALYTICS_BATCH_SIZES = Object.freeze([10, 25, 50, 100])
 
 export function getEpisodeAnalyticsBatch(episodes, startEpisodeId, batchSize = 10) {
   const rows = Array.isArray(episodes) ? episodes : []
-  const startIndex = rows.findIndex((episode) => Number(episode?.id) === Number(startEpisodeId))
+  const normalizeId = (value) => String(value ?? '').trim()
+  const startIndex = rows.findIndex((episode) => normalizeId(episode?.id) === normalizeId(startEpisodeId))
   if (startIndex < 0) return []
   const sizeValue = Number(batchSize)
   const size = ANALYTICS_BATCH_SIZES.includes(sizeValue) ? sizeValue : 10
