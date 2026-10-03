@@ -2751,10 +2751,17 @@ export function App() {
         if (!mounted) return
 
         const effectiveSession = callbackSession || currentSession || null
+        let effectiveUser = effectiveSession?.user ?? null
+        if (effectiveUser?.id) {
+          try {
+            const { data: { user: freshUser } = {} } = await supabase.auth.getUser()
+            if (freshUser?.id === effectiveUser.id) effectiveUser = freshUser
+          } catch {}
+        }
 
         if (recoverySignal || callback.isResetPath) {
           if (effectiveSession?.user && recoverySignal) {
-            markRecoveryReady(effectiveSession)
+            markRecoveryReady({ ...effectiveSession, user: effectiveUser })
             window.history.replaceState(
               {},
               document.title,
@@ -2787,7 +2794,7 @@ export function App() {
             )
           }
         } else {
-          setUser(effectiveSession?.user ?? null)
+          setUser(effectiveUser)
           if (callback.accessToken || callback.refreshToken || callback.code) {
             window.history.replaceState(
               {},
