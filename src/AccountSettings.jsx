@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import { getAuthRedirectUrl } from './lib/authRedirect'
 import { PASSWORD_RESET_PATH } from './lib/authRecovery'
 import PasswordInput from './components/PasswordInput'
+import NotificationSettingsCard from './components/NotificationSettingsCard'
 
 const DEFAULTS = Object.freeze({
   sleepTimer: 0,
@@ -288,6 +289,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
 
       {status && <div className="account-settings-status">{status}</div>}
       {error && <div className="account-settings-error">{error}</div>}
+      <NotificationSettingsCard />
 
       <section className="account-settings-card">
         <div className="account-settings-card-head">
