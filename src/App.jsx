@@ -4633,10 +4633,11 @@ export function App() {
 
   const openStoryDetails =
     (story) => {
+      const storyAnalyticsId = normalizeStoryAnalyticsId(story && (story.id ?? story.story_id))
       void trackUserActivity('story_view', {
-        story_id: normalizeStoryAnalyticsId(story && (story.id ?? story.story_id)),
+        story_id: storyAnalyticsId,
         metadata: { source: 'story_details' },
-      })
+      }, storyAnalyticsId ? `story-view:${storyAnalyticsId}` : null)
 
       setSelectedStory(
         story
