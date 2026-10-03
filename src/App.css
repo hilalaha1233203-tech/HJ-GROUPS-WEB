@@ -4591,12 +4591,15 @@ body:has(.reader-overlay:not(.reader-minimized)),
 }
 
 .admin-stat-grid {
+  min-width: 0;
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 11px;
 }
 
 .admin-stat-card {
+  min-width: 0;
   position: relative;
   overflow: hidden;
   padding: 16px;
@@ -4646,6 +4649,7 @@ body:has(.reader-overlay:not(.reader-minimized)),
 }
 
 .admin-overview-grid {
+  min-width: 0;
   display: grid;
   grid-template-columns: 1fr 1.2fr;
   gap: 14px;
