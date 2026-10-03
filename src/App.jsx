@@ -7611,7 +7611,6 @@ export function App() {
 
     return (
       <div className={accountSettings.reducedMotion ? 'app reduced-motion' : 'app'}>
-      <WebPushPrompt user={user} />
         <canvas
           ref={particleCanvasRef}
           className="particle-canvas"
@@ -7733,6 +7732,7 @@ export function App() {
 
   return (
     <div className={accountSettings.reducedMotion ? 'app reduced-motion' : 'app'}>
+      <WebPushPrompt user={user} />
       <canvas
         ref={
           particleCanvasRef
