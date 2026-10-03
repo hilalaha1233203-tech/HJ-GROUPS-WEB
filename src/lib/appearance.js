@@ -50,6 +50,7 @@ export function applyAppearanceToDocument(input){
   root.style.setProperty('--hj-emoji-speed', String(a.emoji.speed))
   document.body.dataset.emojiEnabled=a.emoji.enabled?'true':'false'
   document.body.dataset.emojiAnimation=a.emoji.animationEnabled?'true':'false'
+  for(const [key,value] of Object.entries(a.motion)) document.body.dataset['motion'+key[0].toUpperCase()+key.slice(1)]=value?'true':'false'
   root.classList.toggle('hj-global-motion-off',!a.motion.global)
   root.classList.toggle('hj-reduced-motion',window.matchMedia?.('(prefers-reduced-motion: reduce)').matches===true)
   root.dataset.emojiSpeed=String(a.emoji.speed)
