@@ -269,6 +269,7 @@ export function buildAdminExportModel({
   const maps = contentMaps({ stories, episodes, books, videoStories, videoEpisodes })
   const registeredActivity = activity.filter((row) => userNumbers.has(normalizeId(row.user_id)))
   const activityByUser = new Map()
+  const lastPlayedEpisodeByUser = new Map()
   const storyStats = new Map()
   const episodeStats = new Map()
   const unlockStats = new Map()
@@ -288,6 +289,18 @@ export function buildAdminExportModel({
     if (eventType === 'episode_complete') userActivity.episodeCompletions += 1
 
     const episode = maps.episodes.get(normalizeId(row.episode_id))
+    if (eventType === 'episode_play' && episode) {
+      const playedAt = parseDateMs(row.created_at)
+      const current = lastPlayedEpisodeByUser.get(uid)
+      if (playedAt != null && (!current || playedAt > current.playedAt)) {
+        lastPlayedEpisodeByUser.set(uid, {
+          playedAt,
+          episodeNumber: episode.episode_number ?? episode.number ?? '',
+          title: asText(episode.title),
+        })
+      }
+    }
+
     const storyId = normalizeId(episode?.story_id || row.story_id)
     if (storyId) {
       const key = uid + '|' + storyId
@@ -490,7 +503,14 @@ export function buildAdminExportModel({
       'Full Name': asText(profile.full_name, asText(user.user_metadata?.full_name)),
       'Gmail / Email': asText(user.email, asText(profile.email)),
       'Account Created At': asText(user.created_at),
+      'First Activity': activityStat.first == null ? '' : new Date(activityStat.first).toISOString(),
       'Last Activity': activityStat.last == null ? '' : new Date(activityStat.last).toISOString(),
+      'Last Played Episode': (() => {
+        const latest = lastPlayedEpisodeByUser.get(uid)
+        if (!latest) return ''
+        const number = latest.episodeNumber === '' ? '' : 'Episode ' + latest.episodeNumber
+        return number && latest.title ? number + ' — ' + latest.title : number || latest.title
+      })(),
       'Account Status': accountStatus(user),
       'Auth Method(s)': providers.join(', '),
       'Email Verified': emailVerified ? 'Yes' : 'No',
