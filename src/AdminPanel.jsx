@@ -312,12 +312,21 @@ function AdminPanel({
 }) {
   const [toastMessage, setToastMessage] = useState('')
   const [toastType, setToastType] = useState('success')
+  const toastTimerRef = useRef(null)
 
   const showToast = (message, type = 'success') => {
-    setToastMessage(message)
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+    setToastMessage(String(message || ''))
     setToastType(type)
-    setTimeout(() => setToastMessage(''), 3000)
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage('')
+      toastTimerRef.current = null
+    }, 4000)
   }
+
+  useEffect(() => () => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+  }, [])
 
   const [tab, setTab] = useState('overview')
 
@@ -1958,17 +1967,59 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   }
 
   return (
-    <div className="admin-panel">
+    <>
       {toastMessage && (
-        <div style={{
-          position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-          backgroundColor: toastType === 'error' ? '#f44336' : '#4CAF50',
-          color: 'white', padding: '10px 20px', borderRadius: '5px', zIndex: 100000
-        }}>
-          {toastMessage}
+        <div
+          role={toastType === 'error' ? 'alert' : 'status'}
+          aria-live={toastType === 'error' ? 'assertive' : 'polite'}
+          aria-atomic="true"
+          style={{
+            position: 'fixed',
+            top: 'calc(16px + env(safe-area-inset-top))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 'min(560px, calc(100vw - 32px))',
+            boxSizing: 'border-box',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            backgroundColor: toastType === 'error' ? '#b91c1c' : '#166534',
+            color: '#fff',
+            padding: '12px 16px',
+            border: '1px solid rgba(255,255,255,.16)',
+            borderRadius: '12px',
+            boxShadow: '0 14px 38px rgba(0,0,0,.38)',
+            zIndex: 100000,
+            pointerEvents: 'auto',
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{toastMessage}</span>
+          <button
+            type="button"
+            aria-label="Dismiss notification"
+            onClick={() => {
+              if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+              toastTimerRef.current = null
+              setToastMessage('')
+            }}
+            style={{
+              flex: '0 0 auto',
+              border: 0,
+              background: 'transparent',
+              color: 'inherit',
+              fontSize: '18px',
+              lineHeight: 1,
+              cursor: 'pointer',
+              padding: '2px 4px',
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
-      <div className="admin-header">
+      <div className="admin-panel">
+        <div className="admin-header">
         {tab !== 'overview' ? (
           <button type="button" className="secondary-btn" onClick={goBackAdminTab} title="Back to previous admin section">
             ← Back
@@ -3706,8 +3757,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
             </section>
           </>
         )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
