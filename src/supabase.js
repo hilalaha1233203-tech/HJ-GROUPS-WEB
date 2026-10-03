@@ -16,6 +16,7 @@ const supabaseUrl = String(
 ).trim()
 
 const supabaseKey = String(
+  import.meta.env.VITE_HJ_CLIENT_KEY ||
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   ''
@@ -23,8 +24,8 @@ const supabaseKey = String(
 
 if (!supabaseKey) {
   console.error(
-    '[HJ GROUPS] Supabase key is missing. Set VITE_SUPABASE_PUBLISHABLE_KEY ' +
-    '(or VITE_SUPABASE_ANON_KEY) in the Vite environment.'
+    '[HJ GROUPS] Supabase client key is missing. Set VITE_HJ_CLIENT_KEY ' +
+    '(the public browser client key) in the Vite environment.'
   )
 }
 
