@@ -138,7 +138,7 @@ jobs:
             ['src/App.jsx', '/api/public-settings'],
             ['src/lib/appearance.js', 'normalizeAppearance'],
             ['src/lib/appearance.js', 'prefers-reduced-motion'],
-            ['src/components/AdminAnalyticsCharts.jsx', 'Apache ECharts'],
+            ['src/components/AdminAnalyticsCharts.jsx', 'echarts@6.1.0'],
             ['src/AdminPanel.jsx', 'AdminAnalyticsCharts'],
             ['src/AdminPanel.jsx', 'security_findings'],
             ['src/AdminPanel.jsx', 'Typography, Color & Motion'],
