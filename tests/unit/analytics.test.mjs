@@ -73,4 +73,15 @@ test('admin analytics explicitly separates rewarded Ads from Shortener unlocks',
   assert.match(migration, /shortener_unlock_completions/)
   assert.match(migration, /total_unlocks/)
   assert.match(migration, /actual_shortener_unlocks/)
+  assert.match(migration, /from public\.ad_unlocks u where u\.user_id=a\.user_id and u\.provider='rewarded_ad'/)
+  assert.match(migration, /from public\.shortener_unlocks u where u\.user_id=a\.user_id/)
+})
+
+
+test('user activity unlock columns are sourced from actual entitlement tables, not completion events', () => {
+  const migration = fs.readFileSync('supabase/migrations/20261003102000_user_activity_actual_unlock_counts.sql', 'utf8')
+  const userRows = migration.slice(migration.indexOf('  user_rows as ('), migration.indexOf('  anonymous_rows as ('))
+  assert.match(userRows, /ad_unlocks.*from public\.ad_unlocks/)
+  assert.match(userRows, /shortener_unlocks.*from public\.shortener_unlocks/)
+  assert.doesNotMatch(userRows, /ad_unlocks.*filter\(where a\.event_type='ad_unlock_completed'/)
 })
