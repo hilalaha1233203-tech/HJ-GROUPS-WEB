@@ -479,7 +479,7 @@ function AdminPanel({
     }
     loadAnalytics()
     return () => { mounted = false }
-  }, [tab, analyticsRange])
+  }, [tab, analyticsRange, analyticsGrouping])
 
   useEffect(() => {
     if (tab !== 'settings') return undefined
