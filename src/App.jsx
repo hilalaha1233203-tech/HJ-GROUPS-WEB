@@ -8965,6 +8965,7 @@ export function App() {
                     className="library-card media-catalog-card"
                     onClick={() => {
                       setPreDetailsPage(videoModalOpen ? 'videos-modal' : 'videos')
+                      pushAppHistory('video-details', { hjGroupsVideoId: story?.id ?? null })
                       setVideoModalOpen(false)
                       setBooksModalOpen(false)
                       setSelectedVideo(story)
