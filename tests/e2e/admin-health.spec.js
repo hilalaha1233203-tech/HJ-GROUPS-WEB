@@ -270,6 +270,11 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(userActivitySection.getByText('Rewarded Ad Unlocks', { exact: true })).toBeVisible()
     await expect(userActivitySection.getByText('Shortener Unlocks', { exact: true }).first()).toBeVisible()
     await expect(userActivitySection.getByText('Total Unlocks', { exact: true }).first()).toBeVisible()
+    const visitorSessionsSection = page.locator('.admin-section').filter({ hasText: 'Visitor Sessions' }).first()
+    await expect(visitorSessionsSection).toBeVisible()
+    await expect(visitorSessionsSection.getByText('Known Account', { exact: true })).toBeVisible()
+    await expect(visitorSessionsSection.getByText(/never signs in cannot be identified/i)).toBeVisible()
+
 
     await page.setViewportSize({ width: 390, height: 844 })
     await expect(analyticsSection).toBeVisible()
