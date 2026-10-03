@@ -2127,6 +2127,32 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     }
   }
 
+  const securityCategoryCards = [
+    { key: 'authentication', label: 'Authentication', icon: '🔐', match: (f) => /auth|session|admin/i.test(String(f.component || '')) },
+    { key: 'database', label: 'Database / RLS', icon: '🗄️', match: (f) => /database|rls/i.test(String(f.component || '')) },
+    { key: 'environment', label: 'Environment Secrets', icon: '🔑', match: (f) => /secret|environment/i.test(String(f.component || '')) },
+    { key: 'api', label: 'API Security', icon: '🌐', match: (f) => /cors|api|web-server|public-settings/i.test(String(f.component || '')) },
+    { key: 'media', label: 'Media Protection', icon: '🎧', match: (f) => /media/i.test(String(f.component || '')) },
+    { key: 'client', label: 'Client Security', icon: '🛡️', match: (f) => /client/i.test(String(f.component || '')) },
+    { key: 'dependencies', label: 'Dependencies', icon: '📦', match: (f) => f.category === 'dependency' },
+  ].map((item) => {
+    const findings = securityFindings.filter(item.match)
+    const severe = findings.some((f) => ['critical', 'high'].includes(f.severity))
+    const warning = findings.some((f) => ['medium', 'low'].includes(f.severity))
+    return {
+      ...item,
+      findings,
+      status: severe ? 'FAIL' : warning ? 'WARNING' : 'PASS',
+    }
+  })
+
+  const overallSecurityStatus = manualSecurityResult?.summary?.overall
+    || (securityFindings.some((f) => f.status !== 'closed' && ['critical', 'high'].includes(f.severity))
+      ? 'issues_found'
+      : securityFindings.some((f) => f.status !== 'closed' && ['medium', 'low'].includes(f.severity))
+        ? 'warnings'
+        : 'secure')
+
   return (
     <>
       {toastMessage && typeof document !== 'undefined'
