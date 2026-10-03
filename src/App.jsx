@@ -4208,7 +4208,7 @@ export function App() {
       analyticsCurrentMediaRef.current = { story, episode }
       if (isReading) stopReadAloud()
       const playerScreen = episode.type === 'video' ? 'video-player' : 'audio-player'
-      pushAppHistory(playerScreen, { hjGroupsStoryId: story?.id ?? null, hjGroupsEpisodeId: episode?.id ?? null })
+      pushAppHistory(playerScreen, { hjGroupsStoryId: story ? story.id : null, hjGroupsEpisodeId: episode?.id ?? null })
       setActivePlayerKind('episode')
       setCurrentStory(story)
       setCurrentEpisode(episode)
@@ -4650,7 +4650,7 @@ export function App() {
         story
       )
       setPreDetailsPage(screenForPage(page))
-      pushAppHistory('story-details', { hjGroupsStoryId: story?.id ?? null })
+      pushAppHistory('story-details', { hjGroupsStoryId: story ? story.id : null })
       setStoryEpisodeRangeStart(0)
       setStoryEpisodeVisibleEnd(50)
 
@@ -5772,7 +5772,7 @@ export function App() {
       )
 
       readerPositionRestoredRef.current = false
-      pushAppHistory('book-reader', { hjGroupsBookId: book?.id ?? null })
+      pushAppHistory('book-reader', { hjGroupsBookId: book ? book.id : null })
       setReaderOpen(true)
       setTtsPlayerMinimized(false)
       setReaderLocked(false)
@@ -5830,7 +5830,7 @@ export function App() {
         booksModalOpen ? 'books-modal' : (page === 'books' ? 'books' : page)
       )
 
-      pushAppHistory('book-details', { hjGroupsBookId: book?.id ?? null })
+      pushAppHistory('book-details', { hjGroupsBookId: book ? book.id : null })
       setBooksModalOpen(false)
 
       setSelectedBook(
@@ -8950,7 +8950,7 @@ export function App() {
                     className="library-card media-catalog-card"
                     onClick={() => {
                       setPreDetailsPage(videoModalOpen ? 'videos-modal' : 'videos')
-                      pushAppHistory('video-details', { hjGroupsVideoId: story?.id ?? null })
+                      pushAppHistory('video-details', { hjGroupsVideoId: story ? story.id : null })
                       setVideoModalOpen(false)
                       setBooksModalOpen(false)
                       setSelectedVideo(story)
@@ -9154,7 +9154,7 @@ export function App() {
                         className="library-card"
                         onClick={() => {
                           setPreDetailsPage('library')
-                           pushAppHistory('video-details', { hjGroupsVideoId: video?.id ?? null })
+                           pushAppHistory('video-details', { hjGroupsVideoId: video ? video.id : null })
                            setSelectedVideo(video)
                            setPage('video-details')
                         }}
@@ -10071,7 +10071,7 @@ export function App() {
                         setPreDetailsPage(
                           videoModalOpen ? 'videos-modal' : (page === 'videos' ? 'videos' : page)
                         )
-                        pushAppHistory('video-details', { hjGroupsVideoId: story?.id ?? null })
+                        pushAppHistory('video-details', { hjGroupsVideoId: story ? story.id : null })
 
                         setVideoModalOpen(false)
                         setBooksModalOpen(false)
