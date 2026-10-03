@@ -875,8 +875,117 @@ export function App() {
   ======================================================= */
 
   const [page, setPage] = useState('home')
+  const appNavigationRef = useRef({ screen: 'home' })
 
-  const [selectedStory, setSelectedStory] =
+  const screenForPage = (nextPage = page) => {
+    if (nextPage === 'home') return 'home'
+    if (nextPage === 'books') return 'books'
+    if (nextPage === 'videos') return 'videos'
+    if (nextPage === 'vip') return 'vip'
+    if (nextPage === 'library') return 'library'
+    if (nextPage === 'account') return 'account'
+    if (nextPage === 'account-settings') return 'account-settings'
+    if (nextPage === 'story') return 'story-details'
+    if (nextPage === 'book-details') return 'book-details'
+    if (nextPage === 'video-details') return 'video-details'
+    return 'home'
+  }
+
+  const replaceAppHistory = (screen, extras = {}) => {
+    if (typeof window === 'undefined') return
+    window.history.replaceState(
+      { ...(window.history.state || {}), hjGroupsNav: true, hjGroupsScreen: screen, ...extras },
+      '',
+      window.location.href
+    )
+    appNavigationRef.current.screen = screen
+  }
+
+  const pushAppHistory = (screen, extras = {}) => {
+    if (typeof window === 'undefined') return
+    if (appNavigationRef.current.screen === screen && window.history.state?.hjGroupsNav) return
+    window.history.pushState(
+      { ...(window.history.state || {}), hjGroupsNav: true, hjGroupsScreen: screen, ...extras },
+      '',
+      window.location.href
+    )
+    appNavigationRef.current.screen = screen
+  }
+
+  const goBackApp = (expectedScreen, fallback) => {
+    if (
+      typeof window !== 'undefined' &&
+      appNavigationRef.current.screen === expectedScreen &&
+      window.history.state?.hjGroupsNav &&
+      window.history.length > 1
+    ) {
+      window.history.back()
+      return true
+    }
+    fallback?.()
+    return false
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const initialScreen = screenForPage(page)
+    if (!window.history.state?.hjGroupsNav) {
+      replaceAppHistory(initialScreen, { hjGroupsPage: page })
+    } else {
+      appNavigationRef.current.screen = window.history.state.hjGroupsScreen || initialScreen
+    }
+
+    const handleAppHistoryBack = (event) => {
+      const target = event.state?.hjGroupsNav ? String(event.state.hjGroupsScreen || 'home') : ''
+      if (!target) return
+
+      const previous = appNavigationRef.current.screen
+      appNavigationRef.current.screen = target
+
+      if (previous === 'audio-player' || previous === 'video-player') {
+        setFullPlayer(false)
+      } else if (previous === 'book-reader') {
+        teardownReader()
+      }
+
+      if (target === 'story-details') {
+        setPage('story')
+        setSelectedBook(null)
+        setSelectedVideo(null)
+      } else if (target === 'book-details') {
+        setPage('book-details')
+        setSelectedStory(null)
+        setSelectedVideo(null)
+      } else if (target === 'video-details') {
+        setPage('video-details')
+        setSelectedStory(null)
+        setSelectedBook(null)
+      } else if (target === 'account-settings') {
+        setPage('account-settings')
+      } else {
+        const targetPage = target === 'audio-list' ? 'home' : target
+        setPage(targetPage)
+        setSelectedStory(null)
+        setSelectedBook(null)
+        setSelectedVideo(null)
+        setBooksModalOpen(false)
+        setVideoModalOpen(false)
+        requestAnimationFrame(() => {
+          if (target === 'audio-list') {
+            document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+        })
+      }
+    }
+
+    window.addEventListener('popstate', handleAppHistoryBack)
+    return () => window.removeEventListener('popstate', handleAppHistoryBack)
+  }, [])
+
+  const [selectedStory, setSelectedStory =
     useState(null)
 
   const [storyEpisodeRangeStart, setStoryEpisodeRangeStart] = useState(0)
