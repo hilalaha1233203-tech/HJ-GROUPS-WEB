@@ -35,7 +35,14 @@ const MIME = {
 }
 
 function send(res, status, body, headers = {}) {
-  res.writeHead(status, { 'Cache-Control': 'no-store', ...headers })
+  const baseHeaders = {
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), usb=(), payment=()',
+    ...(process.env.NODE_ENV === 'production' ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {}),
+  }
+  res.writeHead(status, { ...baseHeaders, ...headers })
   res.end(body)
 }
 
