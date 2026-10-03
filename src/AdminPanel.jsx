@@ -2640,6 +2640,19 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
             {userExportError && <p className="auth-error" role="alert">{userExportError}</p>}
             {analyticsLoading && <p>Loading analytics…</p>}
             {analyticsError && <p className="auth-error" role="alert">{analyticsError}</p>}
+            {analyticsLoading && (
+              <section className="admin-section admin-episode-analytics admin-analytics-state">
+                <h3>🎧 Episode Analytics</h3>
+                <p>Loading real analytics data…</p>
+              </section>
+            )}
+            {analyticsError && (
+              <section className="admin-section admin-episode-analytics admin-analytics-state">
+                <h3>🎧 Episode Analytics</h3>
+                <p className="auth-error" role="alert">{analyticsError}</p>
+                <button type="button" className="secondary-btn" onClick={() => window.location.reload()}>🔄 Retry Analytics</button>
+              </section>
+            )}
             {!analyticsLoading && !analyticsError && analyticsData && (
               <>
                 <div className="admin-stat-grid">
