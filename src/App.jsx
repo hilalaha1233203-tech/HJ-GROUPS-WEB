@@ -9168,8 +9168,9 @@ export function App() {
                         className="library-card"
                         onClick={() => {
                           setPreDetailsPage('library')
-                          setSelectedVideo(video)
-                          setPage('video-details')
+                           pushAppHistory('video-details', { hjGroupsVideoId: video?.id ?? null })
+                           setSelectedVideo(video)
+                           setPage('video-details')
                         }}
                       >
                         <span className="library-card-type">
