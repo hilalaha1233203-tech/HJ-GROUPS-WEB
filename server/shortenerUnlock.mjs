@@ -721,7 +721,7 @@ async function createIntent({ user, contentType, contentId, provider, destinatio
 }
 
 async function getExistingAccess(user, contentType, contentId, content) {
-  if (String(user?.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+  if (isHjAdminUser(user)) {
     return { source: 'admin', expiresAt: null }
   }
 
