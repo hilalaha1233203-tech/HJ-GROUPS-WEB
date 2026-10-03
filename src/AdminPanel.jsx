@@ -343,6 +343,10 @@ function AdminPanel({
   const [securityScans, setSecurityScans] = useState([])
   const [securityLoading, setSecurityLoading] = useState(false)
   const [securityError, setSecurityError] = useState('')
+  const [manualSecurityRunning, setManualSecurityRunning] = useState(false)
+  const [manualSecurityResult, setManualSecurityResult] = useState(null)
+  const [playwrightState, setPlaywrightState] = useState({ status: 'not_run', run: null, tests: null, jobs: [], error: '' })
+  const [playwrightLoading, setPlaywrightLoading] = useState(false)
   const [analyticsData, setAnalyticsData] = useState(null)
   const [analyticsStorySearch, setAnalyticsStorySearch] = useState('')
   const [analyticsStoryPickerOpen, setAnalyticsStoryPickerOpen] = useState(false)
@@ -427,25 +431,136 @@ function AdminPanel({
   }
 
 
+  const refreshSecurityData = async () => {
+    setSecurityLoading(true)
+    setSecurityError('')
+    try {
+      const [{ data: findings, error: findingsError }, { data: scans, error: scansError }] = await Promise.all([
+        supabase.from('security_findings').select('*').order('last_detected_at', { ascending: false }).limit(200),
+        supabase.from('security_scans').select('*').order('started_at', { ascending: false }).limit(30),
+      ])
+      if (findingsError) throw findingsError
+      if (scansError) throw scansError
+      setSecurityFindings(findings || [])
+      setSecurityScans(scans || [])
+      return { findings: findings || [], scans: scans || [] }
+    } catch (error) {
+      setSecurityError(String(error?.message || 'Security monitoring data unavailable.'))
+      throw error
+    } finally {
+      setSecurityLoading(false)
+    }
+  }
+
+  const runManualSecurityCheck = async () => {
+    if (manualSecurityRunning) return
+    setManualSecurityRunning(true)
+    setSecurityError('')
+    setManualSecurityResult({ status: 'running', startedAt: new Date().toISOString() })
+    try {
+      const { data, error } = await supabase.functions.invoke('hj-security-monitor', {
+        body: { scheduled: false },
+      })
+      if (error) {
+        let message = error.message || 'Manual security check failed.'
+        try {
+          const payload = await error.context?.json?.()
+          message = payload?.error || message
+        } catch {}
+        throw new Error(message)
+      }
+      setManualSecurityResult(data || { status: 'completed' })
+      await refreshSecurityData()
+      showToast('Manual security check completed.')
+    } catch (error) {
+      setManualSecurityResult({ status: 'failed', error: String(error?.message || 'Manual security check failed.') })
+      showToast(String(error?.message || 'Manual security check failed.'), 'error')
+    } finally {
+      setManualSecurityRunning(false)
+    }
+  }
+
+  const refreshPlaywrightStatus = async () => {
+    setPlaywrightLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('hj-playwright-control', {
+        body: { action: 'status' },
+      })
+      if (error) {
+        let message = error.message || 'Playwright status unavailable.'
+        try {
+          const payload = await error.context?.json?.()
+          message = payload?.error || message
+          if (payload?.status === 'not_configured') {
+            setPlaywrightState((current) => ({ ...current, status: 'not_configured', error: message }))
+            return
+          }
+        } catch {}
+        throw new Error(message)
+      }
+      setPlaywrightState({
+        status: data?.run?.status === 'completed'
+          ? (data?.run?.conclusion === 'success' ? 'passed' : data?.run?.conclusion ? 'failed' : 'running')
+          : (data?.status === 'queued' ? 'queued' : data?.run?.status || 'not_run'),
+        run: data?.run || null,
+        tests: data?.tests || null,
+        jobs: data?.jobs || [],
+        error: '',
+        browserCoverage: data?.browserCoverage || [],
+      })
+    } catch (error) {
+      setPlaywrightState((current) => ({ ...current, error: String(error?.message || 'Playwright status unavailable.') }))
+    } finally {
+      setPlaywrightLoading(false)
+    }
+  }
+
+  const runPlaywrightCheck = async () => {
+    if (playwrightLoading || ['queued', 'running', 'in_progress'].includes(playwrightState.status)) return
+    setPlaywrightLoading(true)
+    setPlaywrightState((current) => ({ ...current, status: 'queued', error: '' }))
+    try {
+      const { data, error } = await supabase.functions.invoke('hj-playwright-control', {
+        body: { action: 'start' },
+      })
+      if (error) {
+        let message = error.message || 'Could not trigger Playwright.'
+        try {
+          const payload = await error.context?.json?.()
+          message = payload?.error || message
+        } catch {}
+        throw new Error(message)
+      }
+      setPlaywrightState((current) => ({
+        ...current,
+        status: data?.status === 'already_running' ? (data?.run?.status || 'running') : 'queued',
+        run: data?.run || current.run,
+        tests: data?.tests || current.tests,
+        jobs: data?.jobs || current.jobs,
+        error: '',
+      }))
+      showToast(data?.status === 'already_running' ? 'Playwright is already running.' : 'Playwright verification queued.')
+    } catch (error) {
+      setPlaywrightState((current) => ({ ...current, status: 'failed', error: String(error?.message || 'Could not trigger Playwright.') }))
+      showToast(String(error?.message || 'Could not trigger Playwright.'), 'error')
+    } finally {
+      setPlaywrightLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (tab !== 'security') return undefined
     let mounted = true
-    const loadSecurity = async () => {
-      setSecurityLoading(true); setSecurityError('')
-      try {
-        const [{ data: findings, error: findingsError }, { data: scans, error: scansError }] = await Promise.all([
-          supabase.from('security_findings').select('*').order('last_detected_at', { ascending: false }).limit(200),
-          supabase.from('security_scans').select('*').order('started_at', { ascending: false }).limit(30),
-        ])
-        if (findingsError) throw findingsError
-        if (scansError) throw scansError
-        if (mounted) { setSecurityFindings(findings || []); setSecurityScans(scans || []) }
-      } catch (error) { if (mounted) setSecurityError(String(error?.message || 'Security monitoring data unavailable.')) }
-      finally { if (mounted) setSecurityLoading(false) }
-    }
-    loadSecurity()
+    refreshSecurityData().catch(() => {})
+    refreshPlaywrightStatus().catch(() => {})
     return () => { mounted = false }
   }, [tab])
+
+  useEffect(() => {
+    if (tab !== 'security' || !['queued', 'running', 'in_progress'].includes(playwrightState.status)) return undefined
+    const timer = window.setInterval(() => { void refreshPlaywrightStatus() }, 5000)
+    return () => window.clearInterval(timer)
+  }, [tab, playwrightState.status])
 
   useEffect(() => {
     if (tab !== 'analytics') return undefined
