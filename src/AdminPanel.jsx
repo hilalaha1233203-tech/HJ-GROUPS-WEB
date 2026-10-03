@@ -13,7 +13,7 @@ import {
 import { supabase } from './supabase'
 import React, { useEffect, useRef, useState } from 'react'
 import AdminAnalyticsCharts from './components/AdminAnalyticsCharts'
-import { DEFAULT_APPEARANCE, FONT_OPTIONS, ANIMATION_INTENSITIES, EMOJI_ANIMATIONS, normalizeAppearance } from './lib/appearance'
+import { DEFAULT_APPEARANCE, FONT_OPTIONS, ANIMATION_INTENSITIES, EMOJI_ANIMATIONS, EMOJI_STYLES, normalizeAppearance } from './lib/appearance'
 
 const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
 
@@ -2451,8 +2451,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 <div className="admin-settings-toggle-list">{Object.keys(DEFAULT_APPEARANCE.motion).map(key=><label className="admin-settings-toggle" key={key}><input type="checkbox" checked={adminSettings.appearance?.motion?.[key] !== false} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,motion:{...cur.appearance.motion,[key]:e.target.checked}}}));setSettingsDirty(true)}}/><span>{key.replace(/([A-Z])/g,' $1')}</span></label>)}</div>
                 <div className="admin-settings-form-grid">
                   <label>Animated emoji system<select value={adminSettings.appearance?.emoji?.animationEnabled===false?'off':'on'} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,emoji:{...cur.appearance.emoji,animationEnabled:e.target.value==='on'}}}));setSettingsDirty(true)}}><option value="on">On</option><option value="off">Off</option></select></label>
+                  <label>Emoji style<select value={adminSettings.appearance?.emoji?.style || 'native'} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,emoji:{...cur.appearance.emoji,style:e.target.value}}}));setSettingsDirty(true)}}>{EMOJI_STYLES.map(x=><option key={x} value={x}>{x[0].toUpperCase()+x.slice(1)}</option>)}</select></label>
                   <label>Emoji speed<input type="number" min="0.5" max="2" step="0.1" value={adminSettings.appearance?.emoji?.speed ?? 1} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,emoji:{...cur.appearance.emoji,speed:Number(e.target.value)||1}}}));setSettingsDirty(true)}}/></label>
-                  {Object.entries(adminSettings.appearance?.emoji?.mapping || DEFAULT_APPEARANCE.emoji.mapping).slice(0,12).map(([emoji,animation])=><label key={emoji}>{emoji}<select value={animation} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,emoji:{...cur.appearance.emoji,mapping:{...cur.appearance.emoji.mapping,[emoji]:e.target.value}}}}));setSettingsDirty(true)}}>{EMOJI_ANIMATIONS.map(x=><option key={x} value={x}>{x}</option>)}</select></label>)}
+                  {Object.entries(adminSettings.appearance?.emoji?.mapping || DEFAULT_APPEARANCE.emoji.mapping).slice(0,24).map(([emoji,animation])=><label key={emoji}>{emoji}<select value={animation} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,emoji:{...cur.appearance.emoji,mapping:{...cur.appearance.emoji.mapping,[emoji]:e.target.value}}}}));setSettingsDirty(true)}}>{EMOJI_ANIMATIONS.map(x=><option key={x} value={x}>{x}</option>)}</select></label>)}
                 </div>
                 <small className="admin-settings-note">Only predefined, validated appearance and animation values are saved. No arbitrary CSS/JavaScript is accepted. Reduced-motion preferences are respected by the client.</small>
               </div>
