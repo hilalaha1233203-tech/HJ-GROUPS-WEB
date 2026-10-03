@@ -566,6 +566,7 @@ function AdminPanel({
               ...(stored.ads || {}),
               episodeUnlockRules: normalizeAdUnlockRules(stored?.ads?.episodeUnlockRules),
             },
+            appearance: normalizeAppearance(stored.appearance || {}),
             payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored.payments || {}) },
           })
           try {
