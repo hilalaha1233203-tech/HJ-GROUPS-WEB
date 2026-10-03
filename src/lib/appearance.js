@@ -92,8 +92,16 @@ function installEmojiEnhancer(appearance){
       span.dataset.hjEmojiChar=emoji
       span.dataset.hjEmojiAnimation=animation
       span.dataset.hjEmojiStyle=appearance.emoji.style
-      span.setAttribute('role','img')
-      span.setAttribute('aria-label',emoji)
+      const host = node.parentElement
+      const hostTag = host?.tagName || ''
+      const hostText = String(host?.textContent || '').replace(regex, '').replace(/\\s+/gu, '')
+      const decorativeInControl = (hostTag === 'BUTTON' || hostTag === 'A') && hostText.length > 0
+      if (decorativeInControl) {
+        span.setAttribute('aria-hidden','true')
+      } else {
+        span.setAttribute('role','img')
+        span.setAttribute('aria-label',emoji)
+      }
       span.textContent=emoji
       fragment.appendChild(span)
       last=index+emoji.length
