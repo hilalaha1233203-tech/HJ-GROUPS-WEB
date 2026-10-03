@@ -293,7 +293,7 @@ export async function dispatchNewEpisodes() {
       kind: 'new_episode',
       title: '🔔 New Episode Available',
       message: cleanText((episode.title || 'Episode ' + episode.episode_number) + ' is now available.', 500),
-      url: '/story/' + encodeURIComponent(episode.story_id) + '?episode=' + encodeURIComponent(episode.episode_number || ''),
+      url: '/?hj_story=' + encodeURIComponent(episode.story_id) + '&hj_episode=' + encodeURIComponent(episode.episode_number || '') + '&hj_open=player',
       icon: '/icon-192.png', urgency: 'high', ttl: 86400,
     }
     for (const row of rows) {
