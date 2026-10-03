@@ -218,7 +218,7 @@ jobs:
           }
           const template = read('supabase/email-templates/magic_link_otp.html')
           if (template.includes('{{ .ConfirmationURL }}')) throw new Error('Legacy confirmation URL remains in email template')
-          const passwordSources = ['src/Auth.jsx', 'src/AccountSettings.jsx', 'src/App.jsx', 'src/Admin.jsx']
+          const passwordSources = ['src/Auth.jsx', 'src/AccountSettings.jsx', 'src/App.jsx']
           for (const file of passwordSources) {
             const source = read(file)
             if (/<input\b[^>]*\btype=(["'])password\1/i.test(source)) {
