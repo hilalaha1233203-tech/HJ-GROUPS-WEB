@@ -47,26 +47,76 @@ export async function getWebPushStatus() {
 }
 
 export async function enableWebPush(preferences = WEB_PUSH_DEFAULT_PREFERENCES) {
-  if (!isWebPushSupported()) throw new Error('This browser does not support Web Push notifications.')
+  if (!isWebPushSupported()) throw new Error('Push notifications are not supported in this browser.')
   const config = await getConfig()
   if (!config?.configured || !config.publicKey) throw new Error('Web Push is not configured on the server yet.')
-  if (Notification.permission === 'denied') throw new Error('Notifications are blocked in browser settings.')
+  if (Notification.permission === 'denied') throw new Error('Notifications are blocked in your browser settings.')
+
   if (Notification.permission !== 'granted') {
     const permission = await Notification.requestPermission()
-    if (permission !== 'granted') throw new Error('Notification permission was not granted.')
+    if (permission !== 'granted') {
+      if (permission === 'denied') throw new Error('Notifications are blocked in your browser settings.')
+      throw new Error('Notification permission was not granted.')
+    }
   }
-  const registration = await navigator.serviceWorker.register('/hj-push-sw.js', { scope: '/' })
+
+  let registration
+  try {
+    registration = await navigator.serviceWorker.register('/hj-push-sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
+    })
+
+    // register() only schedules installation. It does not guarantee that the
+    // registration is active, which is why PushManager.subscribe() must never
+    // run directly against the returned registration.
+    registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => window.setTimeout(
+        () => reject(new Error('Notifications are still getting ready. Please try again in a moment.')),
+        15_000
+      )),
+    ])
+
+    if (!registration?.active || registration.active.state !== 'activated') {
+      throw new Error('Notifications are still getting ready. Please try again in a moment.')
+    }
+  } catch (error) {
+    const message = String(error?.message || '')
+    if (/still getting ready|active|service worker/i.test(message)) {
+      throw new Error('Notifications are still getting ready. Please try again in a moment.')
+    }
+    throw error
+  }
+
   let subscription = await registration.pushManager.getSubscription()
-  if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToUint8Array(config.publicKey) })
+  if (!subscription) {
+    try {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64ToUint8Array(config.publicKey),
+      })
+    } catch (error) {
+      const message = String(error?.message || '')
+      if (/no active service worker|service worker/i.test(message)) {
+        throw new Error('Notifications are still getting ready. Please try again in a moment.')
+      }
+      throw error
+    }
+  }
+
   const headers = await authHeaders()
   if (!headers) throw new Error('Please sign in before enabling notifications.')
-  const response = await fetch('/api/push/subscribe', { method: 'POST', headers, body: JSON.stringify({ subscription: subscription.toJSON(), preferences }) })
+  const response = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ subscription: subscription.toJSON(), preferences }),
+  })
   const data = await safeJson(response)
   if (!response.ok) throw new Error(data.error || 'Could not save notification subscription.')
   try { sessionStorage.removeItem(PROMPT_DISMISSED_KEY) } catch {}
   return { ...data, subscription }
 }
-
 export async function disableWebPush() {
   const headers = await authHeaders()
   if (!headers) return
