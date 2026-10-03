@@ -348,7 +348,7 @@ function AdminPanel({
   const [analyticsSelectedStoryId, setAnalyticsSelectedStoryId] = useState(null)
   const [analyticsEpisodeSearch, setAnalyticsEpisodeSearch] = useState('')
   const [analyticsEpisodePickerOpen, setAnalyticsEpisodePickerOpen] = useState(false)
-  const [analyticsSelectedEpisodeId, setAnalyticsSelectedEpisodeId] = useState(null)
+  const [analyticsSelectedEpisode, setAnalyticsSelectedEpisode] = useState(null)
   const [analyticsBatchSize, setAnalyticsBatchSize] = useState(10)
   const [analyticsBatchEpisodeIds, setAnalyticsBatchEpisodeIds] = useState([])
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
@@ -2236,9 +2236,11 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                       return searchable.includes(term)
                     })
                   })
-                  const selectedEpisode = storyEpisodes.find(
-                    (row) => String(row.id ?? '').trim() === String(analyticsSelectedEpisodeId ?? '').trim()
-                  ) || null
+                  const selectedEpisode = analyticsSelectedEpisode
+                    ? storyEpisodes.find(
+                      (row) => String(row.id ?? '').trim() === String(analyticsSelectedEpisode.id ?? '').trim()
+                    ) || analyticsSelectedEpisode
+                    : null
                   const selectedEpisodeIndex = selectedEpisode
                     ? storyEpisodes.findIndex((row) => String(row.id ?? '').trim() === String(selectedEpisode.id ?? '').trim())
                     : -1
@@ -2279,7 +2281,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                                 setAnalyticsSelectedStoryId(null)
                                 setAnalyticsStorySearch('')
                                 setAnalyticsEpisodeSearch('')
-                                setAnalyticsSelectedEpisodeId(null)
+                                setAnalyticsSelectedEpisode(null)
                                 setAnalyticsBatchEpisodeIds([])
                                 setAnalyticsStoryPickerOpen(false)
                                 setAnalyticsEpisodePickerOpen(false)
@@ -2309,7 +2311,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                                   onClick={() => {
                                     setAnalyticsSelectedStoryId(story.id)
                                     setAnalyticsStorySearch('')
-                                    setAnalyticsSelectedEpisodeId(null)
+                                    setAnalyticsSelectedEpisode(null)
                                     setAnalyticsBatchEpisodeIds([])
                                     setAnalyticsEpisodeSearch('')
                                     setAnalyticsStoryPickerOpen(false)
@@ -2347,7 +2349,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                                 type="button"
                                 className="secondary-btn admin-episode-picker-clear"
                                 onClick={() => {
-                                  setAnalyticsSelectedEpisodeId(null)
+                                  setAnalyticsSelectedEpisode(null)
                                   setAnalyticsBatchEpisodeIds([])
                                   setAnalyticsEpisodeSearch('')
                                   setAnalyticsEpisodePickerOpen(false)
@@ -2385,9 +2387,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                                   <button
                                     key={row.id}
                                     type="button"
-                                    className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''}
+                                    className={Number(row.id) === Number(selectedEpisode?.id) ? 'selected' : ''}
                                     onClick={() => {
-                                      setAnalyticsSelectedEpisodeId(String(row.id))
+                                      setAnalyticsSelectedEpisode(row)
                                       setAnalyticsEpisodeSearch('')
                                       setAnalyticsEpisodePickerOpen(false)
                                     }}
