@@ -964,6 +964,7 @@ export function App() {
   const analyticsCurrentMediaRef = useRef(null)
   const analyticsPlaybackSessionRef = useRef(null)
   const analyticsPlaybackSessionCounterRef = useRef(0)
+  const analyticsActiveMediaKeyRef = useRef(null)
   const mediaResolveRunRef = useRef(0)
   const mediaLoadTimerRef = useRef(null)
 
@@ -4164,6 +4165,11 @@ export function App() {
 
   const openPlayer = (story, episode) => {
     if (!episode) return
+    const mediaKey = `${episode.type === 'video' ? 'video' : 'audio'}:${String(story?.id ?? '')}:${String(episode?.id ?? episode?.number ?? '')}`
+    if (playerOpen && analyticsActiveMediaKeyRef.current === mediaKey) {
+      getMediaElement()?.play?.().catch?.(() => {})
+      return
+    }
     if (readerBook) {
       // Existing reader lifecycle is intentionally ordered below the player helpers.
       // eslint-disable-next-line react-hooks/immutability
@@ -4171,8 +4177,11 @@ export function App() {
     }
     const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', story.id, episode.number)
     requestAccess(episode, adsKey, () => {
-      analyticsPlaybackSessionCounterRef.current += 1
-      analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
+      if (analyticsActiveMediaKeyRef.current !== mediaKey) {
+        analyticsPlaybackSessionCounterRef.current += 1
+        analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
+        analyticsActiveMediaKeyRef.current = mediaKey
+      }
       analyticsCurrentMediaRef.current = { story, episode }
       if (isReading) stopReadAloud()
       const playerScreen = episode.type === 'video' ? 'video-player' : 'audio-player'
@@ -4190,10 +4199,18 @@ export function App() {
 
   const selectEpisode = (episode) => {
     if (!currentStory) return
+    const mediaKey = `${episode.type === 'video' ? 'video' : 'audio'}:${String(currentStory?.id ?? '')}:${String(episode?.id ?? episode?.number ?? '')}`
+    if (playerOpen && analyticsActiveMediaKeyRef.current === mediaKey) {
+      getMediaElement()?.play?.().catch?.(() => {})
+      return
+    }
     const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', currentStory.id, episode.number)
     requestAccess(episode, adsKey, () => {
-      analyticsPlaybackSessionCounterRef.current += 1
-      analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
+      if (analyticsActiveMediaKeyRef.current !== mediaKey) {
+        analyticsPlaybackSessionCounterRef.current += 1
+        analyticsPlaybackSessionRef.current = String(analyticsPlaybackSessionCounterRef.current)
+        analyticsActiveMediaKeyRef.current = mediaKey
+      }
       analyticsCurrentMediaRef.current = { story: currentStory, episode }
       setCurrentEpisode(episode)
       setCurrentTime(0)
@@ -4386,6 +4403,7 @@ export function App() {
 
       analyticsPlaybackSessionRef.current = null
       analyticsCurrentMediaRef.current = null
+      analyticsActiveMediaKeyRef.current = null
       setIsPlaying(false)
 
       try {
@@ -4589,6 +4607,9 @@ export function App() {
       setFullPlayer(false)
       setPlayerLocked(false)
       setIsPlaying(false)
+      analyticsPlaybackSessionRef.current = null
+      analyticsCurrentMediaRef.current = null
+      analyticsActiveMediaKeyRef.current = null
       mediaResolveRunRef.current += 1
       if (mediaLoadTimerRef.current) {
         window.clearTimeout(mediaLoadTimerRef.current)
