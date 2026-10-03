@@ -122,6 +122,15 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(page.getByRole('button', { name: /Run Security Check/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Run Playwright Check/i })).toBeVisible()
     await expect(page.getByText(/Browser \/ Playwright Verification/i)).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    const securityMobileMetrics = await page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      browserWidth: document.querySelector('.admin-security-browser')?.getBoundingClientRect().width || 0,
+    }))
+    expect(securityMobileMetrics.scrollWidth).toBeLessThanOrEqual(securityMobileMetrics.width)
+    expect(securityMobileMetrics.browserWidth).toBeLessThanOrEqual(securityMobileMetrics.width)
+    await page.setViewportSize({ width: 1280, height: 900 })
 
     await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
     const bulkSection = page.locator('.bulk-telegram-section').first()
