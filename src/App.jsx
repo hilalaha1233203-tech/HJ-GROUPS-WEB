@@ -17,6 +17,8 @@ import { contentStatusLabel, normalizeContentStatus } from './lib/contentStatus.
 import { applyAppearanceToDocument } from './lib/appearance.js'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
+import WebPushPrompt from './components/WebPushPrompt'
+import { syncStoryLibrary } from './lib/webPush'
 
 import {
   resolveAccessType,
@@ -1294,6 +1296,14 @@ export function App() {
     useState('')
 
   const [libraryTab, setLibraryTab] = useState('audio')
+  const webPushRouteHandledRef = useRef('')
+
+  useEffect(() => {
+    if (!user?.id || !Array.isArray(library) || !library.length) return
+    for (const story of library) {
+      if (story?.id != null) void syncStoryLibrary(story.id, true)
+    }
+  }, [user?.id])
 
   /* =======================================================
      MODALS
@@ -4184,6 +4194,30 @@ export function App() {
       void prepareEpisodePlayback(episode, currentStory)
     }, currentStory.id, episode.type === 'video' ? 'video' : 'audio')
   }
+  useEffect(() => {
+    if (webPushRouteHandledRef.current || typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const storyId = params.get('hj_story')
+    if (!storyId) return
+    const episodeNumber = params.get('hj_episode')
+    const story = stories.find((item) => String(item?.id) === String(storyId))
+    if (!story) return
+    webPushRouteHandledRef.current = storyId + ':' + (episodeNumber || '')
+    const cleanUrl = new URL(window.location.href)
+    cleanUrl.searchParams.delete('hj_story')
+    cleanUrl.searchParams.delete('hj_episode')
+    cleanUrl.searchParams.delete('hj_open')
+    window.history.replaceState(window.history.state || {}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash)
+    if (episodeNumber) {
+      const episode = (story.episodes || []).find((item) => String(item?.number) === String(episodeNumber))
+      if (episode) {
+        openPlayer(story, episode)
+        return
+      }
+    }
+    openStoryDetails(story)
+  }, [stories])
+
   const nextEpisode =
     () => {
       if (
@@ -4656,6 +4690,7 @@ export function App() {
             next
           )
 
+          if (user?.id) void syncStoryLibrary(story.id, true)
           return next
         }
       )
@@ -4689,6 +4724,7 @@ export function App() {
             next
           )
 
+          if (user?.id) void syncStoryLibrary(storyId, false)
           return next
         }
       )
@@ -7575,6 +7611,7 @@ export function App() {
 
     return (
       <div className={accountSettings.reducedMotion ? 'app reduced-motion' : 'app'}>
+      <WebPushPrompt user={user} />
         <canvas
           ref={particleCanvasRef}
           className="particle-canvas"
