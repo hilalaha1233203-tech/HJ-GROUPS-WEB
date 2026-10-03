@@ -956,15 +956,15 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     setVolumeFilePath('')
   }
 
-  const submitVolumeToExistingBook = (event) => {
+  const submitVolumeToExistingBook = async (event) => {
     event.preventDefault()
     const book = books.find((item) => String(item.id) === String(volumeBookId))
     if (!book) {
-      alert('Select a book first')
+      showToast('Select a book first', 'error')
       return
     }
     if (!volumeTitle.trim() || !volumeFile.trim()) {
-      alert('Volume name and file are required')
+      showToast('Volume name and file are required', 'error')
       return
     }
     const existingVolumes = Array.isArray(book.volumes) ? book.volumes : []
@@ -976,12 +976,17 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       filePath: volumeFilePath || '',
       type: book.type || 'pdf',
     }
-    onUpdateBook(book.id, {
-      ...book,
-      volumes: [...existingVolumes, nextVolume],
-    })
-    showToast(`Volume ${nextNumber} added to ${book.title}`)
-    resetAddVolumeForm()
+    try {
+      await onUpdateBook(book.id, {
+        ...book,
+        volumes: [...existingVolumes, nextVolume],
+      })
+      showToast(`Volume ${nextNumber} added to ${book.title}`)
+      resetAddVolumeForm()
+    } catch (error) {
+      console.error('Error adding book volume:', error)
+      showToast('Error adding book volume: ' + (error?.message || error), 'error')
+    }
   }
 
   /* =====================================================
