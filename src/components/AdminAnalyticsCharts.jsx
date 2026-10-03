@@ -1,4 +1,4 @@
-import React,{useEffect,useRef} from 'react'
+import {useEffect,useRef} from 'react'
 
 let echartsPromise
 function loadECharts(){
@@ -17,9 +17,6 @@ function Chart({option,className=''}){
  useEffect(()=>{let chart;let disposed=false;let resize=()=>{};loadECharts().then(e=>{if(disposed||!ref.current)return;chart=e.init(ref.current);chart.setOption(option);resize=()=>chart.resize();window.addEventListener('resize',resize)}).catch(()=>{});return()=>{disposed=true;window.removeEventListener('resize',resize);if(chart)chart.dispose()}},[option])
  return <div ref={ref} className={'hj-echart '+className} role="img" aria-label="Interactive analytics chart" />
 }
-
-const series=(rows,key)=>Array.isArray(rows)?rows.map(r=>Number(r?.[key]||0)):[]
-const labels=(rows,key='bucket')=>Array.isArray(rows)?rows.map(r=>String(r?.[key]||'')):[]
 
 export default function AdminAnalyticsCharts({data}){
  const overview=data?.overview||{}
