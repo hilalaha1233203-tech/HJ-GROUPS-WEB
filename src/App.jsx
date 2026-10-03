@@ -2848,7 +2848,7 @@ export function App() {
     }
     loadPublicSettings()
     return () => { mounted = false }
-  }, []))
+  }, [])
 
   useEffect(() => {
     if (!user) {
