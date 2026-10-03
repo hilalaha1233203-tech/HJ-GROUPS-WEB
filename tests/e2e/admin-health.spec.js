@@ -352,6 +352,7 @@ test.describe('HJ GROUPS admin health', () => {
     const siteNameInput = adminOverlay.locator('.admin-settings-card').filter({ hasText: 'WEBSITE SETTINGS' }).locator('input').first()
     await siteNameInput.fill('HJ GROUPS')
     await settingsSave.click()
+    await expect(page.getByRole('status').filter({ hasText: 'Management settings saved' })).toBeVisible()
     await expect(adminOverlay.getByText('Changes are not saved yet.', { exact: true })).toHaveCount(0)
     await expect(adminOverlay.getByText('Cloud save + local fallback enabled.', { exact: true })).toBeVisible()
 
