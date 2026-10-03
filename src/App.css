@@ -7726,3 +7726,58 @@ body[data-motionPlayer="false"] .audio-player,body[data-motionPlayer="false"] .v
 body[data-motionModal="false"] .modal,.body[data-motionModal="false"] .modal{animation:none!important}
 body[data-motionLoading="false"] .loading-spinner,body[data-motionSkeleton="false"] .skeleton{animation:none!important}
 body[data-motionPremium="false"] .premium-badge,body[data-motionNotification="false"] .notification{animation:none!important}
+
+
+/* =========================================================
+   HJ DYNAMIC EMOJI MOTION
+   Every configured emoji is enhanced, including dynamically
+   rendered content. Animation is CSS-only and reduced-motion safe.
+========================================================= */
+.hj-animated-emoji{
+  display:inline-block;
+  position:relative;
+  line-height:1;
+  vertical-align:-0.08em;
+  transform-origin:center;
+  backface-visibility:hidden;
+  will-change:transform,filter;
+  pointer-events:none;
+  user-select:text;
+  font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;
+  animation-duration:calc(2.4s / var(--hj-emoji-speed,1));
+  animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite;
+}
+.hj-animated-emoji[data-hj-emoji-style="native"]{font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
+.hj-animated-emoji[data-hj-emoji-style="soft"]{filter:saturate(.92) brightness(1.04)}
+.hj-animated-emoji[data-hj-emoji-style="bold"]{filter:saturate(1.14);text-shadow:0 1px 10px rgba(255,255,255,.12)}
+.hj-animated-emoji[data-hj-emoji-style="mono"]{font-family:'Noto Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif;filter:grayscale(.12)}
+
+body[data-emoji-animation="false"] .hj-animated-emoji,
+body[data-motion-emoji="false"] .hj-animated-emoji,
+body[data-animation-intensity="off"] .hj-animated-emoji{animation:none!important}
+body[data-animation-intensity="minimal"] .hj-animated-emoji{animation-duration:calc(3.8s / var(--hj-emoji-speed,1))}
+body[data-animation-intensity="enhanced"] .hj-animated-emoji{animation-duration:calc(1.75s / var(--hj-emoji-speed,1))}
+
+.hj-emoji-none{animation:none!important}
+.hj-emoji-heartbeat{animation-name:hj-emoji-heartbeat}
+.hj-emoji-flame{animation-name:hj-emoji-flame}
+.hj-emoji-sparkle{animation-name:hj-emoji-sparkle}
+.hj-emoji-bounce{animation-name:hj-emoji-bounce}
+.hj-emoji-pulse{animation-name:hj-emoji-pulse}
+.hj-emoji-wiggle{animation-name:hj-emoji-wiggle}
+.hj-emoji-float{animation-name:hj-emoji-float}
+
+@keyframes hj-emoji-heartbeat{0%,100%{transform:scale(1)}18%{transform:scale(1.16)}32%{transform:scale(.98)}46%{transform:scale(1.1)}60%{transform:scale(1)}}
+@keyframes hj-emoji-flame{0%,100%{transform:translateY(0) rotate(-2deg) scale(1)}25%{transform:translateY(-1px) rotate(2deg) scale(1.05)}50%{transform:translateY(-3px) rotate(-2deg) scale(1.08)}75%{transform:translateY(-1px) rotate(1deg) scale(1.04)}}
+@keyframes hj-emoji-sparkle{0%,100%{transform:scale(1) rotate(0);filter:brightness(1)}35%{transform:scale(1.12) rotate(6deg);filter:brightness(1.28)}65%{transform:scale(1.02) rotate(-5deg);filter:brightness(1.08)}}
+@keyframes hj-emoji-bounce{0%,100%{transform:translateY(0) scale(1)}25%{transform:translateY(-4px) scale(1.04)}50%{transform:translateY(0) scale(.98)}70%{transform:translateY(-2px) scale(1.02)}}
+@keyframes hj-emoji-pulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.07);filter:brightness(1.12)}}
+@keyframes hj-emoji-wiggle{0%,100%{transform:rotate(0)}20%{transform:rotate(-7deg)}40%{transform:rotate(6deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(3deg)}}
+@keyframes hj-emoji-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+
+.hj-reduced-motion .hj-animated-emoji,
+.hj-global-motion-off .hj-animated-emoji,
+@media (prefers-reduced-motion: reduce){
+  .hj-animated-emoji{animation:none!important;transition:none!important}
+}
