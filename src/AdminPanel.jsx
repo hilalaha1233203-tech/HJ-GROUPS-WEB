@@ -1477,375 +1477,67 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   })
 }
 
- const submitBook = async (event) => {
-  event.preventDefault()
+   const submitBook = async (event) => {
+    event.preventDefault()
 
-  const bookTelegramMessageId = extractTelegramMessageId(bookTelegramUrl)
-  const validVolumes = bookVolumes.filter(v => v.file && v.file.trim())
-  if (!bookTitle.trim() || !bookCover.trim() || (!bookFile.trim() && !bookTelegramMessageId && validVolumes.length === 0)) {
-    alert('Title, cover image and either a Telegram message URL, a book upload, or at least one volume are required')
-    return
-  }
+    const bookTelegramMessageId = extractTelegramMessageId(bookTelegramUrl)
+    const validVolumes = bookVolumes.filter((v) => v.file && v.file.trim())
 
-  if (bookTelegramUrl.trim() && !bookTelegramMessageId) {
-    alert('Invalid Telegram URL. Make sure it ends with the message ID.')
-    return
-  }
+    if (!bookTitle.trim() || !bookCover.trim() || (!bookFile.trim() && !bookTelegramMessageId && validVolumes.length === 0)) {
+      showToast('Title, cover image and either a Telegram message URL, a book upload, or at least one volume are required', 'error')
+      return
+    }
 
-  const protectedBook = resolveAccessType(bookAccessType).some((type) => ['ads', 'premium', 'vip'].includes(type))
-  if (protectedBook && !bookTelegramMessageId) {
-    alert('Protected books must use a Telegram document source. Direct uploaded protected books are not supported.')
-    return
-  }
+    if (bookTelegramUrl.trim() && !bookTelegramMessageId) {
+      showToast('Invalid Telegram URL. Make sure it ends with the message ID.', 'error')
+      return
+    }
 
-  const data = {
-    title: bookTitle.trim(),
-    author: bookAuthor.trim(),
-    description: bookDescription.trim(),
-    type: bookType,
-    category: bookCategory,
-    language: bookLanguage,
+    const protectedBook = resolveAccessType(bookAccessType).some((type) => ['ads', 'premium', 'vip'].includes(type))
+    if (protectedBook && !bookTelegramMessageId) {
+      showToast('Protected books must use a Telegram document source. Direct uploaded protected books are not supported.', 'error')
+      return
+    }
 
-    cover: bookCover.trim(),
-    coverPath: bookCoverPath || '',
-
-    file: bookFile.trim(),
-    filePath: bookFilePath || '',
-
-    accessType: bookAccessType,
-    status: bookStatus,
-    telegram_message_id: bookTelegramMessageId,
-    volumes: validVolumes.map((v, index) => ({
-      number: index + 1,
-      title: (v.title || `Volume ${index + 1}`).trim(),
-      file: v.file.trim(),
-      filePath: v.filePath || '',
+    const data = {
+      title: bookTitle.trim(),
+      author: bookAuthor.trim(),
+      description: bookDescription.trim(),
       type: bookType,
-    })),
-  }
-
-  try {
-    if (editingBookId) {
-      await onUpdateBook(editingBookId, data)
-    } else {
-      await onAddBook({
-        id: makeAdminEntityId(),
-        ...data,
-      })
+      category: bookCategory,
+      language: bookLanguage,
+      cover: bookCover.trim(),
+      coverPath: bookCoverPath || '',
+      file: bookFile.trim(),
+      filePath: bookFilePath || '',
+      accessType: bookAccessType,
+      status: bookStatus,
+      telegram_message_id: bookTelegramMessageId,
+      volumes: validVolumes.map((v, index) => ({
+        number: index + 1,
+        title: (v.title || `Volume ${index + 1}`).trim(),
+        file: v.file.trim(),
+        filePath: v.filePath || '',
+        type: bookType,
+      })),
     }
-    resetBookForm()
-  } catch (error) {
-    console.error('Error saving book:', error)
-    alert(`Error saving book: ${error?.message || error}`)
-  }
-}
-  /* =====================================================
-     VIDEO
-  ===================================================== */
 
-  const handleScanVideoTelegram = async () => {
-    setVideoBulkLoading(true)
-    showToast('Scanning Telegram videos...')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        showToast('Not authenticated', 'error')
-        return
-      }
-
-      const res = await fetch(`${STREAMING_SERVER_URL}/telegram/messages?type=video`, {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      })
-      if (!res.ok) {
-        showToast('Unable to load Telegram videos', 'error')
-        return
-      }
-
-      const msgs = await res.json()
-      setVideoBulkMessages(Array.isArray(msgs) ? msgs : [])
-      setVideoBulkSelectedIds([])
-      setVideoBulkTitleOverrides({})
-      setVideoBulkNumberOverrides({})
-      setVideoBulkAccessTypes({})
-      showToast(Array.isArray(msgs) && msgs.length ? 'Telegram videos loaded' : 'No Telegram videos found')
-    } catch (error) {
-      console.error(error)
-      showToast('Unable to connect to Telegram server', 'error')
-    } finally {
-      setVideoBulkLoading(false)
-    }
-  }
-
-  const handleVideoBulkToggle = (messageId) => {
-    setVideoBulkSelectedIds((prev) =>
-      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId]
-    )
-  }
-
-  const handleVideoBulkToggleAll = () => {
-    if (videoBulkSelectedIds.length === videoBulkMessages.length) {
-      setVideoBulkSelectedIds([])
-    } else {
-      setVideoBulkSelectedIds([...videoBulkMessages].reverse().map((msg) => msg.messageId))
-    }
-  }
-
-  const handleVideoBulkTitleChange = (messageId, title) => {
-    setVideoBulkTitleOverrides((prev) => ({ ...prev, [messageId]: title }))
-  }
-
-  const handleVideoBulkNumberChange = (messageId, number) => {
-    setVideoBulkNumberOverrides((prev) => ({ ...prev, [messageId]: number }))
-  }
-
-  const handleVideoBulkImport = async () => {
-    if (!bulkVideoStoryId) {
-      showToast('Select a video story first', 'error')
-      return
-    }
-    if (!videoBulkSelectedIds.length) {
-      showToast('Select at least one Telegram video', 'error')
-      return
-    }
-
-    const story = videoStories.find((item) => String(item.id) === String(bulkVideoStoryId))
-    if (!story) {
-      showToast('Video story not found', 'error')
-      return
-    }
-
-    const existingIds = new Set(
-      (story.episodes || [])
-        .map((ep) => ep.telegram_message_id || extractStreamingMessageId(ep.src))
-        .filter((id) => Number.isFinite(Number(id)))
-        .map(Number)
-    )
-    let maxNumber = Math.max(0, ...(story.episodes || []).map((ep) => Number(ep.number) || 0))
-    let importedCount = 0
-    let skippedCount = 0
-    let failedCount = 0
-
-    const selected = videoBulkSelectedIds
-      .map((id) => videoBulkMessages.find((msg) => String(msg.messageId) === String(id)))
-      .filter(Boolean)
-
-    for (const msg of selected) {
-      const messageId = Number(msg.messageId)
-      if (!Number.isFinite(messageId) || existingIds.has(messageId)) {
-        skippedCount++
-        continue
-      }
-
-      const overrideNumber = Number(videoBulkNumberOverrides[msg.messageId])
-      const number = Number.isFinite(overrideNumber) && overrideNumber > 0
-        ? overrideNumber
-        : maxNumber + 1
-      const title = String(
-        videoBulkTitleOverrides[msg.messageId] ??
-        msg.caption ??
-        msg.fileName ??
-        `Episode ${String(number).padStart(2, '0')}`
-      ).trim() || `Episode ${String(number).padStart(2, '0')}`
-
-      try {
-        await onAddVideoEpisode(Number(bulkVideoStoryId), {
-          number,
-          title,
-          type: 'video',
-          telegram_message_id: messageId,
-          src: '',
-          filePath: '',
-          available: true,
-          accessType: videoBulkAccessTypes[msg.messageId] || videoBulkDefaultAccessType,
-        })
-        importedCount++
-        existingIds.add(messageId)
-        maxNumber = Math.max(maxNumber, number)
-      } catch (error) {
-        failedCount++
-        console.error('Video bulk import error:', {
-          videoStoryId: bulkVideoStoryId,
-          messageId,
-          error,
-        })
-      }
-    }
-
-    setVideoBulkSelectedIds([])
-
-    if (failedCount) {
-      showToast(`${importedCount} imported, ${failedCount} failed, ${skippedCount} duplicates skipped. Check the console.`, 'error')
-    } else if (skippedCount) {
-      showToast(`${importedCount} videos imported successfully. ${skippedCount} duplicates skipped.`)
-    } else {
-      showToast(`${importedCount} videos imported successfully`)
-    }
-  }
-
-
-  const handleScanBookTelegram = async () => {
-    setBookBulkLoading(true)
-    showToast('Scanning Telegram documents...')
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        showToast('Not authenticated', 'error')
-        return
-      }
-
-      const res = await fetch(`${STREAMING_SERVER_URL}/telegram/messages?type=document`, {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      })
-      if (!res.ok) {
-        showToast('Unable to load Telegram documents', 'error')
-        return
-      }
-
-      const msgs = await res.json()
-      const documents = Array.isArray(msgs) ? msgs.filter((msg) => {
-        const name = String(msg.fileName || '').toLowerCase()
-        const mime = String(msg.mimeType || '').toLowerCase()
-        return name.endsWith('.pdf') || name.endsWith('.epub') ||
-          mime === 'application/pdf' || mime === 'application/epub+zip'
-      }) : []
-
-      setBookBulkMessages(documents)
-      setBookBulkSelectedIds([])
-      setBookBulkTitleOverrides({})
-      setBookBulkTypeOverrides({})
-      setBookBulkAccessTypes({})
-      showToast(documents.length ? 'Telegram books loaded' : 'No PDF/EPUB Telegram documents found')
-    } catch (error) {
-      console.error(error)
-      showToast('Unable to connect to Telegram server', 'error')
-    } finally {
-      setBookBulkLoading(false)
-    }
-  }
-
-  const handleBookBulkToggle = (messageId) => {
-    setBookBulkSelectedIds((prev) =>
-      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId]
-    )
-  }
-
-  const handleBookBulkToggleAll = () => {
-    if (bookBulkSelectedIds.length === bookBulkMessages.length) {
-      setBookBulkSelectedIds([])
-    } else {
-      setBookBulkSelectedIds([...bookBulkMessages].reverse().map((msg) => msg.messageId))
-    }
-  }
-
-  const handleBookBulkTitleChange = (messageId, title) => {
-    setBookBulkTitleOverrides((prev) => ({ ...prev, [messageId]: title }))
-  }
-
-  const handleBookBulkTypeChange = (messageId, type) => {
-    setBookBulkTypeOverrides((prev) => ({ ...prev, [messageId]: type }))
-  }
-
-  const handleBookBulkImport = async () => {
-    if (!bookBulkSelectedIds.length) {
-      showToast('Select at least one Telegram book', 'error')
-      return
-    }
-
-    const selected = bookBulkSelectedIds
-      .map((id) => bookBulkMessages.find((msg) => String(msg.messageId) === String(id)))
-      .filter(Boolean)
-
-    const importedTitles = new Set(
-      books.map((book) => String(book.title || '').trim().toLowerCase()).filter(Boolean)
-    )
-    let importedCount = 0
-    let skippedCount = 0
-    let failedCount = 0
-
-    for (const msg of selected) {
-      const title = String(
-        bookBulkTitleOverrides[msg.messageId] ?? msg.caption ?? msg.fileName ?? 'Untitled Book'
-      ).trim() || 'Untitled Book'
-
-      const key = title.toLowerCase()
-      if (importedTitles.has(key)) {
-        skippedCount++
-        continue
-      }
-
-      const fileName = String(msg.fileName || '').toLowerCase()
-      const mime = String(msg.mimeType || '').toLowerCase()
-      const inferredType = (fileName.endsWith('.epub') || mime === 'application/epub+zip') ? 'epub' : 'pdf'
-      const type = bookBulkTypeOverrides[msg.messageId] || inferredType
-      const messageId = Number(msg.messageId)
-
-      try {
+      if (editingBookId) {
+        await onUpdateBook(editingBookId, data)
+        showToast('Book updated successfully')
+      } else {
         await onAddBook({
-          id: makeAdminEntityId() + messageId,
-          title,
-          author: '',
-          description: '',
-          type,
-          category: 'Tamil Stories',
-          cover: '',
-          coverPath: '',
-          file: '',
-          filePath: '',
-          telegram_message_id: messageId,
-          accessType: bookBulkAccessTypes[msg.messageId] || bookBulkDefaultAccessType,
-          volumes: [],
+          id: makeAdminEntityId(),
+          ...data,
         })
-        importedCount++
-        importedTitles.add(key)
-      } catch (error) {
-        failedCount++
-        console.error('Telegram book import failed:', { messageId, error })
+        showToast('Book added successfully')
       }
+      resetBookForm()
+    } catch (error) {
+      console.error('Error saving book:', error)
+      showToast('Error saving book: ' + (error?.message || error), 'error')
     }
-
-    setBookBulkSelectedIds([])
-
-    if (failedCount) {
-      showToast(`${importedCount} imported, ${failedCount} failed, ${skippedCount} duplicates skipped. Check the console.`, 'error')
-    } else if (skippedCount) {
-      showToast(`${importedCount} books imported successfully. ${skippedCount} duplicates skipped.`)
-    } else {
-      showToast(`${importedCount} books imported successfully`)
-    }
-  }
-
-  const resetVideoForm = () => {
-    setEditingVideoId(null)
-    setVideoTitle('')
-    setVideoCategory('Action')
-    setVideoLanguage('Tamil')
-    setVideoCover('')
-    setVideoSrc('')
-    setVideoAccessType('free')
-    setVideoEpisodeTitle('Episode 01')
-    setVideoTelegramUrl('')
-    setVideoStatus('ongoing')
-    setVideoBulkMessages([])
-    setVideoBulkSelectedIds([])
-    setVideoBulkTitleOverrides({})
-    setVideoBulkNumberOverrides({})
-  }
-
-  const startEditVideo = (video) => {
-    setEditingVideoId(video.id)
-    setVideoTitle(video.title || '')
-    setVideoCategory(video.category || 'Action')
-    setVideoLanguage(video.language || 'Tamil')
-    setVideoCover(video.cover || '')
-
-    const firstEpisode = video.episodes?.[0]
-    setVideoSrc(firstEpisode?.src || '')
-    setVideoEpisodeTitle(firstEpisode?.title || 'Episode 01')
-    setVideoTelegramUrl(firstEpisode?.telegram_message_id ? `https://t.me/c/id/${firstEpisode.telegram_message_id}` : '')
-    setVideoAccessType(resolveAccessType(video))
-    setVideoStatus(normalizeContentStatus(video.status))
-
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const submitVideo = async (event) => {
@@ -1853,58 +1545,39 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
     const videoTelegramMessageId = extractTelegramMessageId(videoTelegramUrl)
     if (!videoTitle.trim() || !videoCover.trim() || (!videoSrc.trim() && !videoTelegramMessageId)) {
-      alert('Title, cover image and either a Telegram video URL or a video upload are required')
+      showToast('Title, cover image and either a Telegram video URL or a video upload are required', 'error')
       return
     }
 
     if (videoTelegramUrl.trim() && !videoTelegramMessageId) {
-      alert('Invalid Telegram URL. Make sure it ends with the message ID.')
+      showToast('Invalid Telegram URL. Make sure it ends with the message ID.', 'error')
       return
     }
 
     try {
-    if (editingVideoId) {
-      const currentVideo = videoStories.find((video) => video.id === editingVideoId)
+      if (editingVideoId) {
+        const currentVideo = videoStories.find((video) => video.id === editingVideoId)
 
-      await onUpdateVideo(editingVideoId, {
-        title: videoTitle.trim(),
-        category: videoCategory,
-        language: videoLanguage,
-        cover: videoCover.trim(),
-        accessType: videoAccessType,
-        status: videoStatus,
-      })
+        await onUpdateVideo(editingVideoId, {
+          title: videoTitle.trim(),
+          category: videoCategory,
+          language: videoLanguage,
+          cover: videoCover.trim(),
+          accessType: videoAccessType,
+          status: videoStatus,
+        })
 
-      if (currentVideo?.episodes?.length) {
-        await onUpdateVideoEpisode(editingVideoId, currentVideo.episodes[0].number, {
-          title: videoEpisodeTitle.trim(),
-          src: videoSrc.trim(),
-          type: 'video',
-          available: true,
-          accessType: videoAccessType,
-          telegram_message_id: videoTelegramMessageId,
-        })
-      } else {
-        await onAddVideoEpisode(editingVideoId, {
-          number: 1,
-          title: videoEpisodeTitle.trim(),
-          type: 'video',
-          src: videoSrc.trim(),
-          available: true,
-          accessType: videoAccessType,
-          telegram_message_id: videoTelegramMessageId,
-        })
-      }
-    } else {
-      await onAddVideo({
-        id: makeAdminEntityId(),
-        title: videoTitle.trim(),
-        category: videoCategory,
-        cover: videoCover.trim(),
-        accessType: videoAccessType,
-        status: videoStatus,
-        episodes: [
-          {
+        if (currentVideo?.episodes?.length) {
+          await onUpdateVideoEpisode(editingVideoId, currentVideo.episodes[0].number, {
+            title: videoEpisodeTitle.trim(),
+            src: videoSrc.trim(),
+            type: 'video',
+            available: true,
+            accessType: videoAccessType,
+            telegram_message_id: videoTelegramMessageId,
+          })
+        } else {
+          await onAddVideoEpisode(editingVideoId, {
             number: 1,
             title: videoEpisodeTitle.trim(),
             type: 'video',
@@ -1912,42 +1585,101 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
             available: true,
             accessType: videoAccessType,
             telegram_message_id: videoTelegramMessageId,
-          },
-        ],
-      })
-    }
+          })
+        }
+        showToast('Video updated successfully')
+      } else {
+        await onAddVideo({
+          id: makeAdminEntityId(),
+          title: videoTitle.trim(),
+          category: videoCategory,
+          language: videoLanguage,
+          cover: videoCover.trim(),
+          accessType: videoAccessType,
+          status: videoStatus,
+          episodes: [
+            {
+              number: 1,
+              title: videoEpisodeTitle.trim(),
+              type: 'video',
+              src: videoSrc.trim(),
+              available: true,
+              accessType: videoAccessType,
+              telegram_message_id: videoTelegramMessageId,
+            },
+          ],
+        })
+        showToast('Video added successfully')
+      }
 
+      resetVideoForm()
     } catch (error) {
       console.error('Error saving video:', error)
-      alert(`Error saving video: ${error?.message || error}`)
+      showToast('Error saving video: ' + (error?.message || error), 'error')
     }
-
-    resetVideoForm()
   }
 
-  const editVideoEpisode = (video, episode) => {
+  const editVideoEpisode = async (video, episode) => {
     const newTitle = window.prompt('Episode title:', episode.title)
     if (newTitle === null) return
 
     const newSrc = window.prompt('Video URL (paste an existing Supabase file URL):', episode.src)
     if (newSrc === null) return
 
-    onUpdateVideoEpisode(video.id, episode.number, { title: newTitle.trim(), src: newSrc.trim() })
+    try {
+      await onUpdateVideoEpisode(video.id, episode.number, { title: newTitle.trim(), src: newSrc.trim() })
+      showToast('Video episode updated successfully')
+    } catch (error) {
+      console.error('Error updating video episode:', error)
+      showToast('Error updating video episode: ' + (error?.message || error), 'error')
+    }
   }
 
-  /* =====================================================
+  const handleDeleteBook = async (book) => {
+    if (!window.confirm(`Delete "${book.title}"?`)) return
+    try {
+      await onDeleteBook(book.id)
+      showToast('Book deleted successfully')
+    } catch (error) {
+      console.error('Error deleting book:', error)
+      showToast('Error deleting book: ' + (error?.message || error), 'error')
+    }
+  }
+
+  const handleDeleteVideo = async (video) => {
+    if (!window.confirm(`Delete "${video.title}"?`)) return
+    try {
+      await onDeleteVideo(video.id)
+      showToast('Video story deleted successfully')
+    } catch (error) {
+      console.error('Error deleting video story:', error)
+      showToast('Error deleting video story: ' + (error?.message || error), 'error')
+    }
+  }
+
+  const handleDeleteVideoEpisode = async (video, episode) => {
+    if (!window.confirm(`Delete Episode ${episode.number}?`)) return
+    try {
+      await onDeleteVideoEpisode(video.id, episode.number)
+      showToast(`Video episode ${episode.number} deleted successfully`)
+    } catch (error) {
+      console.error('Error deleting video episode:', error)
+      showToast('Error deleting video episode: ' + (error?.message || error), 'error')
+    }
+  }
+
+/* =====================================================
      RENDER
   ===================================================== */
 
-  const handleDeleteStory = (story) => {
-    if (window.confirm('Are you sure you want to delete this story?')) {
-      try {
-        onDeleteStory(story.id)
-        showToast('Story deleted successfully')
-      } catch (error) {
-        console.error(error)
-        showToast('Error deleting story', 'error')
-      }
+  const handleDeleteStory = async (story) => {
+    if (!window.confirm('Are you sure you want to delete this story?')) return
+    try {
+      await onDeleteStory(story.id)
+      showToast('Story deleted successfully')
+    } catch (error) {
+      console.error(error)
+      showToast('Error deleting story: ' + (error?.message || error), 'error')
     }
   }
 
@@ -3532,7 +3264,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                         {Array.isArray(book.volumes) && book.volumes.length > 0 && <small>📚 {book.volumes.length} Volumes</small>}
                     </div>
                     <button className="admin-edit" onClick={() => startEditBook(book)}>✏️ Edit</button>
-                    <button className="admin-delete" onClick={() => { if (window.confirm(`Delete "${book.title}"?`)) onDeleteBook(book.id) }}>🗑 Delete</button>
+                    <button type="button" className="admin-delete" onClick={() => handleDeleteBook(book)}>🗑 Delete</button>
                   </div>
                 ))}
 
@@ -3737,7 +3469,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                         <small>{video.category} · {resolveAccessType(video).join(', ').toUpperCase()}</small>
                       </div>
                       <button className="admin-edit" onClick={() => startEditVideo(video)}>✏️ Edit</button>
-                      <button className="admin-delete" onClick={() => { if (window.confirm(`Delete "${video.title}"?`)) onDeleteVideo(video.id) }}>🗑 Delete</button>
+                      <button type="button" className="admin-delete" onClick={() => handleDeleteVideo(video)}>🗑 Delete</button>
                     </div>
 
                     <div className="admin-episodes">
@@ -3752,7 +3484,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                               <small>{resolveAccessType(episode).join(', ').toUpperCase()}</small>
                             </div>
                             <button className="admin-edit" onClick={() => editVideoEpisode(video, episode)}>✏️</button>
-                            <button className="admin-delete" onClick={() => { if (window.confirm(`Delete Episode ${episode.number}?`)) onDeleteVideoEpisode(video.id, episode.number) }}>🗑</button>
+                            <button type="button" className="admin-delete" onClick={() => handleDeleteVideoEpisode(video, episode)}>🗑</button>
                           </div>
                         ))
                       ) : (
