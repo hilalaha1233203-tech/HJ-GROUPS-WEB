@@ -70,7 +70,6 @@ const PDF_OPTIONS = Object.freeze({
   standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
 })
 
-const ADMIN_EMAIL = 'hilalaha1233203@gmail.com'
 const PASSWORD_RECOVERY_SESSION_KEY = 'hj_password_recovery_active_v1'
 
 const hasPasswordRecoveryMarker = () => {
@@ -1078,8 +1077,7 @@ export function App() {
 
   const isAdmin =
     loggedIn &&
-    user?.email?.toLowerCase() ===
-    ADMIN_EMAIL.toLowerCase()
+    user?.app_metadata?.role === 'admin'
 
   const isVIP = isAdmin
 
