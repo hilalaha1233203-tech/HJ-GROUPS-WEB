@@ -47,11 +47,17 @@ export function applyAppearanceToDocument(input){
   }
   for(const [k,v] of Object.entries(vars)) root.style.setProperty(k,v)
   document.body.dataset.animationIntensity=a.ui.animationIntensity
+  root.style.setProperty('--hj-emoji-speed', String(a.emoji.speed))
   document.body.dataset.emojiEnabled=a.emoji.enabled?'true':'false'
   document.body.dataset.emojiAnimation=a.emoji.animationEnabled?'true':'false'
   root.classList.toggle('hj-global-motion-off',!a.motion.global)
   root.classList.toggle('hj-reduced-motion',window.matchMedia?.('(prefers-reduced-motion: reduce)').matches===true)
   root.dataset.emojiSpeed=String(a.emoji.speed)
   root.dataset.fontPrimary=a.typography.primary
+  const fontFamilies=[...new Set(Object.values(a.typography).filter(Boolean))]
+  const fontUrl='https://fonts.googleapis.com/css2?'+fontFamilies.map(font=>'family='+encodeURIComponent(font).replace(/%20/g,'+')).join('&')+'&display=swap'
+  let link=document.querySelector('link[data-hj-fonts]')
+  if(!link){link=document.createElement('link');link.rel='stylesheet';link.dataset.hjFonts='1';document.head.appendChild(link)}
+  if(link.href!==fontUrl) link.href=fontUrl
   return a
 }
