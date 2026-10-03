@@ -431,8 +431,12 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
       })
       .slice(0, 10)
 
-    const renderedTitles = await page.locator('.latest-list .latest-item h3').allTextContents()
-    expect(renderedTitles.length).toBe(Math.min(10, expected.length))
+    const latestTitles = page.locator('.latest-list .latest-item h3')
+    await expect.poll(
+      async () => latestTitles.count(),
+      { timeout: 10_000 }
+    ).toBe(Math.min(10, expected.length))
+    const renderedTitles = await latestTitles.allTextContents()
     expect(renderedTitles).toEqual(expected.map((row) => row.title))
   })
 
