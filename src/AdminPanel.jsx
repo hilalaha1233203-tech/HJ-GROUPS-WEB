@@ -2279,9 +2279,10 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>User ID</th><th>Profile</th><th>Last Activity</th><th>Plays</th><th>Completed</th><th>Rewarded Ad Unlocks</th><th>Shortener Unlocks</th><th>Total Unlocks</th></tr></thead><tbody>
                     {(analyticsData.users || []).map((row) => <tr key={row.user_id}><td>{row.user_id}</td><td>{row.full_name || '—'}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.completed_episodes}</td><td>{row.ad_unlocks}</td><td>{row.shortener_unlocks ?? 0}</td><td>{row.total_unlocks ?? (Number(row.ad_unlocks || 0) + Number(row.shortener_unlocks || 0))}</td></tr>)}
                   </tbody></table></div>
-                  <h4 style={{ marginTop: '18px' }}>Anonymous Sessions</h4>
-                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Session</th><th>Last Activity</th><th>Plays</th><th>Rewarded Ad Unlocks</th><th>Shortener Unlocks</th><th>Total Unlocks</th></tr></thead><tbody>
-                    {(analyticsData.anonymous_sessions || []).map((row) => <tr key={row.session_suffix}><td>…{row.session_suffix}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.unlocks}</td><td>{row.shortener_unlocks ?? 0}</td><td>{row.total_unlocks ?? (Number(row.unlocks || 0) + Number(row.shortener_unlocks || 0))}</td></tr>)}
+                  <h4 style={{ marginTop: '18px' }}>Visitor Sessions</h4>
+                  <p className="admin-analytics-note">🔎 A session stays anonymous until that browser signs in. After sign-in, the known account name is shown here. A visitor who never signs in cannot be identified from this analytics data alone.</p>
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Session</th><th>Known Account</th><th>Last Activity</th><th>Plays</th><th>Rewarded Ad Unlocks</th><th>Shortener Unlocks</th><th>Total Unlocks</th></tr></thead><tbody>
+                    {(analyticsData.anonymous_sessions || []).map((row) => <tr key={row.session_suffix}><td>…{row.session_suffix}</td><td>{row.known_profile || 'Anonymous visitor'}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.unlocks}</td><td>{row.shortener_unlocks ?? 0}</td><td>{row.total_unlocks ?? (Number(row.unlocks || 0) + Number(row.shortener_unlocks || 0))}</td></tr>)}
                   </tbody></table></div>
                 </section>
               </>
