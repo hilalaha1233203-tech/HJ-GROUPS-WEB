@@ -9,6 +9,7 @@ import { handleShortenerRequest } from './server/shortenerUnlock.mjs'
 import { handleRewardedAdRequest } from './server/rewardedAdUnlock.mjs'
 import { handlePaymentRequest } from './server/payment.mjs'
 import { handleAdminUserExport } from './server/adminUserExport.mjs'
+import { isHjAdminUser } from './server/adminAuth.mjs'
 import { createClient } from '@supabase/supabase-js'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
@@ -109,8 +110,7 @@ async function handleAdminAnalytics(req, res) {
       auth: { autoRefreshToken: false, persistSession: false },
     })
     const { data: userData, error: userError } = await adminClient.auth.getUser(accessToken)
-    const email = String(userData?.user?.email || '').trim().toLowerCase()
-    if (userError || email !== 'hilalaha1233203@gmail.com') {
+    if (userError || !isHjAdminUser(userData?.user)) {
       return send(res, 403, JSON.stringify({ error: 'Forbidden' }), {
         'Content-Type': 'application/json; charset=utf-8',
       })
