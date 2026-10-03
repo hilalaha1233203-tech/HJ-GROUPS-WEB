@@ -2150,7 +2150,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     { key: 'client', label: 'Client Security', icon: '🛡️', match: (f) => /client/i.test(String(f.component || '')) },
     { key: 'dependencies', label: 'Dependencies', icon: '📦', match: (f) => f.category === 'dependency' },
   ].map((item) => {
-    const findings = securityFindings.filter(item.match)
+    const findings = securityFindings.filter((finding) => finding.status !== 'closed' && item.match(finding))
     const severe = findings.some((f) => ['critical', 'high'].includes(f.severity))
     const warning = findings.some((f) => ['medium', 'low'].includes(f.severity))
     return {
