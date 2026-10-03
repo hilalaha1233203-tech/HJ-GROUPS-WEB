@@ -244,6 +244,9 @@ test.describe('HJ GROUPS admin health', () => {
     await analyticsSection.getByRole('button', { name: /OK — Show Batch/i }).click()
     await expect(analyticsSection.locator('table tbody tr')).toHaveCount(10)
     await expect(analyticsSection.locator('.admin-analytics-batch-summary').getByText('Total Plays', { exact: true })).toBeVisible()
+    await expect(analyticsSection.locator('thead').first()).toContainText('Shortener Completions')
+    await expect(analyticsSection.locator('thead').first()).toContainText('Actual Ad Unlocks')
+    await expect(analyticsSection.locator('thead').first()).toContainText('Actual Shortener Unlocks')
 
     await episodePicker.click()
     await expect(episodeSearch).toBeVisible()
@@ -262,6 +265,11 @@ test.describe('HJ GROUPS admin health', () => {
     await expect(
       analyticsSection.getByRole('button', { name: /Search and select an episode for analytics/i })
     ).toHaveCount(0)
+
+    const userActivitySection = page.locator('.admin-section').filter({ hasText: 'User Activity' }).first()
+    await expect(userActivitySection.getByText('Rewarded Ad Unlocks', { exact: true })).toBeVisible()
+    await expect(userActivitySection.getByText('Shortener Unlocks', { exact: true }).first()).toBeVisible()
+    await expect(userActivitySection.getByText('Total Unlocks', { exact: true }).first()).toBeVisible()
 
     await page.setViewportSize({ width: 390, height: 844 })
     await expect(analyticsSection).toBeVisible()
