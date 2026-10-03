@@ -106,7 +106,7 @@ test.describe('HJ GROUPS navigation and export regression', () => {
       await page.getByRole('button', { name: /Back to Videos/i }).first().click()
       await expect(page.getByRole('button', { name: /Video Language: All/i }).first()).toBeVisible({ timeout: 10_000 })
     } else {
-      await expect(page.getByRole('heading', { name: /No videos available/i })).toBeVisible()
+      await expect(page.getByRole('heading', { name: /No video stories available/i })).toBeVisible()
     }
 
     // Account -> Settings -> Back -> Account.
