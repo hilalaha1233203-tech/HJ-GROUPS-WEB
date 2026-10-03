@@ -1,0 +1,216 @@
+/* HJ GROUPS — restrained product design layer (Part 1)
+   Extends existing components; does not replace application architecture. */
+
+:root{
+  --hj-container:min(1320px,calc(100vw - 40px));
+  --hj-control-h:44px;
+  --hj-ease:cubic-bezier(.22,.61,.36,1);
+  --hj-fast:160ms;
+  --hj-normal:220ms;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+img,video,canvas,svg{max-width:100%}
+button,input,select,textarea{font:inherit}
+button{touch-action:manipulation}
+a{color:inherit}
+
+:focus-visible{
+  outline:2px solid color-mix(in srgb,var(--hj-primary,#7c83ff) 88%,white);
+  outline-offset:3px;
+}
+
+.app{
+  min-height:100dvh;
+  isolation:isolate;
+}
+
+.section,.category-section,.content-section,.media-section{
+  width:min(100%,var(--hj-container));
+  margin-inline:auto;
+}
+
+.story-grid,.book-grid,.video-grid{
+  align-items:stretch;
+  grid-auto-rows:1fr;
+}
+
+.story-card,.book-card,.video-card{
+  min-width:0;
+  overflow:hidden;
+  transition:transform var(--hj-normal) var(--hj-ease),
+              border-color var(--hj-normal) ease,
+              box-shadow var(--hj-normal) ease,
+              background-color var(--hj-normal) ease;
+}
+
+@media (hover:hover) and (pointer:fine){
+  .story-card:hover,.book-card:hover,.video-card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 14px 34px rgba(0,0,0,.24);
+  }
+}
+
+.story-card:active,.book-card:active,.video-card:active{
+  transform:translateY(-1px) scale(.995);
+}
+
+button,.primary-btn,.secondary-btn,.admin-submit,.admin-cancel{
+  min-height:var(--hj-control-h);
+  transition:transform var(--hj-fast) var(--hj-ease),
+              background-color var(--hj-fast) ease,
+              border-color var(--hj-fast) ease,
+              color var(--hj-fast) ease,
+              opacity var(--hj-fast) ease;
+}
+
+@media (hover:hover) and (pointer:fine){
+  button:not(:disabled):hover{transform:translateY(-1px)}
+}
+button:not(:disabled):active{transform:translateY(0) scale(.985)}
+button:disabled{opacity:.58}
+
+input,select,textarea{
+  min-height:var(--hj-control-h);
+  max-width:100%;
+}
+
+.top-header{
+  padding-inline:max(14px,env(safe-area-inset-left)) max(14px,env(safe-area-inset-right));
+}
+
+.bottom-nav{
+  padding-bottom:env(safe-area-inset-bottom);
+}
+
+.mini-player{
+  bottom:calc(74px + env(safe-area-inset-bottom));
+  padding-bottom:max(8px,env(safe-area-inset-bottom));
+}
+
+.player-overlay,.full-player,.reader-window{
+  min-height:100dvh;
+  min-height:100svh;
+}
+
+.player-top,.reader-header{
+  padding-top:env(safe-area-inset-top);
+}
+
+.player-layout{
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));
+}
+
+.reader-body{
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));
+}
+
+.admin-settings-grid{
+  align-items:start;
+}
+.admin-settings-card{
+  min-width:0;
+  overflow:hidden;
+}
+.admin-settings-form-grid{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+}
+.admin-settings-toggle-list{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:8px;
+  margin-block:14px;
+}
+.admin-settings-toggle{
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:10px;
+  background:rgba(255,255,255,.025);
+}
+.admin-settings-toggle input{min-width:18px;min-height:18px}
+
+.hj-appearance-card{
+  background:
+    radial-gradient(circle at 100% 0,rgba(124,131,255,.09),transparent 34%),
+    rgba(16,18,27,.9);
+}
+
+@media (max-width:1100px){
+  :root{--hj-container:min(100% - 28px,1080px)}
+}
+
+@media (max-width:700px){
+  :root{--hj-container:calc(100vw - 24px);--hj-control-h:46px}
+  .section,.category-section,.content-section,.media-section{
+    width:var(--hj-container);
+  }
+  .top-header{
+    padding-left:max(10px,env(safe-area-inset-left));
+    padding-right:max(10px,env(safe-area-inset-right));
+  }
+  .story-grid,.book-grid,.video-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+  .story-card,.book-card,.video-card{border-radius:11px}
+  .admin-settings-grid{grid-template-columns:1fr}
+  .admin-settings-form-grid{grid-template-columns:1fr}
+  .admin-settings-toggle-list{grid-template-columns:1fr}
+  .admin-settings-card{padding:14px}
+}
+
+@media (max-width:430px){
+  :root{--hj-container:calc(100vw - 20px)}
+  .story-grid,.book-grid,.video-grid{gap:8px}
+  .story-card,.book-card,.video-card{border-radius:10px}
+  .top-header{min-height:58px}
+  .mini-player{
+    left:5px;
+    right:5px;
+    width:auto;
+    bottom:calc(70px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width:360px){
+  :root{--hj-container:calc(100vw - 16px)}
+  .story-grid,.book-grid,.video-grid{grid-template-columns:1fr}
+}
+
+@media (max-width:900px) and (orientation:landscape){
+  .story-grid,.book-grid,.video-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .bottom-nav{min-height:54px}
+  .mini-player{bottom:calc(62px + env(safe-area-inset-bottom))}
+}
+
+@media (prefers-reduced-motion:reduce){
+  :root{--hj-fast:1ms;--hj-normal:1ms}
+  *,*::before,*::after{
+    scroll-behavior:auto!important;
+  }
+}
+
+/* Animation intensity is centralized by the existing appearance controller. */
+body[data-animation-intensity="off"] *,
+body[data-animation-intensity="off"] *::before,
+body[data-animation-intensity="off"] *::after{
+  animation:none!important;
+  transition:none!important;
+}
+body[data-animation-intensity="minimal"] *{
+  transition-duration:120ms!important;
+}
+body[data-animation-intensity="enhanced"] *{
+  transition-duration:260ms;
+}
+
+/* Prevent decorative emoji wrappers from changing layout metrics. */
+.hj-animated-emoji{
+  contain:layout style paint;
+}
