@@ -1866,7 +1866,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     }
 
     if (videoTelegramUrl.trim() && !videoTelegramMessageId) {
-      alert('Invalid Telegram URL. Make sure it ends with the message ID.')
+      showToast('Invalid Telegram URL. Make sure it ends with the message ID.', 'error')
       return
     }
 
