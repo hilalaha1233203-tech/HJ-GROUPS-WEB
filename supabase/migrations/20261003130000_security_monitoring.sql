@@ -75,12 +75,36 @@ end $$;
 revoke all on function public.security_monitor_snapshot() from public, anon, authenticated;
 grant execute on function public.security_monitor_snapshot() to service_role;
 
+do $$
+begin
+  if not exists (select 1 from vault.secrets where name='hj_security_monitor_key') then
+    perform vault.create_secret(encode(gen_random_bytes(32),'hex'),'hj_security_monitor_key','Internal HJ GROUPS daily security monitor authentication key');
+  end if;
+end $$;
+
+create or replace function public.get_security_monitor_key()
+returns text
+language plpgsql
+security definer
+set search_path = public, vault, pg_catalog
+as $$
+declare value text;
+begin
+  if current_user <> 'postgres' and coalesce((current_setting('request.jwt.claims',true)::jsonb->>'role'),'') <> 'service_role' then
+    raise exception 'forbidden';
+  end if;
+  select decrypted_secret into value from vault.decrypted_secrets where name='hj_security_monitor_key';
+  return value;
+end $$;
+revoke all on function public.get_security_monitor_key() from public, anon, authenticated;
+grant execute on function public.get_security_monitor_key() to service_role;
+
 select cron.schedule(
   'hj-groups-daily-security-scan',
   '15 3 * * *',
   $$ select net.http_post(
     url := 'https://yajkfglagnyvenddyvok.supabase.co/functions/v1/hj-security-monitor',
-    headers := jsonb_build_object('Content-Type','application/json','x-hj-monitor','daily'),
+    headers := jsonb_build_object('Content-Type','application/json','x-hj-monitor-key',(select decrypted_secret from vault.decrypted_secrets where name='hj_security_monitor_key')),
     body := jsonb_build_object('scheduled',true,'time',now())
-  ) $$
+  ) $$ 
 ) where not exists (select 1 from cron.job where jobname='hj-groups-daily-security-scan');
