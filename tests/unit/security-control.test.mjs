@@ -18,7 +18,7 @@ test('manual security check is admin-only and server-side', () => {
 })
 
 test('Playwright control uses only the fixed workflow and ref', () => {
-  const fn = read('supabase/functions/hj-playwright-control/index.ts')
+  const fn = read('server/playwrightControl.mjs')
   const workflow = read('.github/workflows/playwright.yml')
   const panel = read('src/AdminPanel.jsx')
   assert.match(fn, /const repo = 'hilalaha1233203-tech\/HJ-GROUPS-WEB'/)
@@ -28,7 +28,7 @@ test('Playwright control uses only the fixed workflow and ref', () => {
   assert.doesNotMatch(fn, /body\.repo|body\.workflow|body\.ref/)
   assert.match(workflow, /workflow_dispatch:/)
   assert.match(panel, /Run Playwright Check/)
-  assert.match(panel, /hj-playwright-control/)
+  assert.match(panel, /\/api\/admin\/playwright/)
 })
 
 test('mobile admin overlay uses dynamic viewport units and safe-area padding', () => {
