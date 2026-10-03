@@ -1304,6 +1304,38 @@ export function App() {
   const [adminOpen, setAdminOpen] =
     useState(false)
 
+  const adminHistoryEntryRef = useRef(false)
+
+
+  useEffect(() => {
+    if (!adminOpen) return undefined
+
+    if (!adminHistoryEntryRef.current) {
+      window.history.pushState(
+        { ...(window.history.state || {}), hjAdminOpen: true },
+        '',
+        window.location.href
+      )
+      adminHistoryEntryRef.current = true
+    }
+
+    const handleAdminHistoryBack = () => {
+      adminHistoryEntryRef.current = false
+      setAdminOpen(false)
+    }
+
+    window.addEventListener('popstate', handleAdminHistoryBack)
+    return () => window.removeEventListener('popstate', handleAdminHistoryBack)
+  }, [adminOpen])
+
+  const closeAdminPanel = () => {
+    if (adminHistoryEntryRef.current) {
+      window.history.back()
+      return
+    }
+    setAdminOpen(false)
+  }
+
   /* =======================================================
      READER STATE
   ======================================================= */
@@ -10017,11 +10049,7 @@ export function App() {
             videoStories={
               videoStories
             }
-            onClose={() =>
-              setAdminOpen(
-                false
-              )
-            }
+            onClose={closeAdminPanel}
             onAddStory={
               addStory
             }
