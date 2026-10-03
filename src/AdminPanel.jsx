@@ -334,6 +334,77 @@ function AdminPanel({
   const [analyticsBatchEpisodeIds, setAnalyticsBatchEpisodeIds] = useState([])
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsError, setAnalyticsError] = useState('')
+  const [userExportLoading, setUserExportLoading] = useState(false)
+  const [userExportError, setUserExportError] = useState('')
+  const tabHistoryRef = useRef([])
+
+  const setAdminTab = (nextTab) => {
+    setTab((currentTab) => {
+      if (currentTab !== nextTab) tabHistoryRef.current.push(currentTab)
+      return nextTab
+    })
+  }
+
+  const goBackAdminTab = () => {
+    const previousTab = tabHistoryRef.current.pop()
+    if (previousTab) setTab(previousTab)
+  }
+
+  const getAnalyticsRangeParams = () => {
+    if (analyticsRange === 'all') return { start: '', end: '' }
+    const now = new Date()
+    const start = new Date(now)
+    if (analyticsRange === 'today') start.setHours(0, 0, 0, 0)
+    else if (analyticsRange === '30d') start.setDate(start.getDate() - 30)
+    else start.setDate(start.getDate() - 7)
+    return { start: start.toISOString(), end: now.toISOString() }
+  }
+
+  const downloadUserExport = async () => {
+    if (userExportLoading) return
+    setUserExportLoading(true)
+    setUserExportError('')
+    try {
+      const { data: { session } = {} } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Admin session is unavailable.')
+
+      const { start, end } = getAnalyticsRangeParams()
+      const query = new URLSearchParams({ range: analyticsRange })
+      if (start) query.set('start', start)
+      if (end) query.set('end', end)
+
+      const response = await fetch('/api/admin/user-export.xlsx?' + query.toString(), {
+        headers: { Authorization: 'Bearer ' + session.access_token },
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        let message = 'User export could not be generated.'
+        try {
+          const payload = await response.json()
+          if (payload?.error) message = payload.error
+        } catch {}
+        throw new Error(message)
+      }
+
+      const blob = await response.blob()
+      const objectUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = 'hj-groups-user-data-' + new Date().toISOString().replace(/[:.]/g, '-') + '.xlsx'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000)
+      showToast('User Data Excel downloaded.')
+    } catch (error) {
+      const message = String(error?.message || 'User export failed.')
+      setUserExportError(message)
+      showToast(message, 'error')
+    } finally {
+      setUserExportLoading(false)
+    }
+  }
 
 
   useEffect(() => {
@@ -1866,17 +1937,22 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         </div>
       )}
       <div className="admin-header">
+        {tab !== 'overview' ? (
+          <button type="button" className="secondary-btn" onClick={goBackAdminTab} title="Back to previous admin section">
+            ← Back
+          </button>
+        ) : <span />}
         <strong>⚙ HJ GROUPS Admin</strong>
         <button onClick={onClose}>✕</button>
       </div>
 
       <div className="admin-tabs">
-        <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>⌂ Overview</button>
-        <button className={tab === 'stories' ? 'active' : ''} onClick={() => setTab('stories')}>🎧 Audio Stories</button>
-        <button className={tab === 'books' ? 'active' : ''} onClick={() => setTab('books')}>📚 Books</button>
-        <button className={tab === 'videos' ? 'active' : ''} onClick={() => setTab('videos')}>🎬 Videos</button>
-        <button className={tab === 'analytics' ? 'active' : ''} onClick={() => setTab('analytics')}>📊 Analytics</button>
-        <button className={`admin-settings-tab-button ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>⚙ Management & Settings</button>
+        <button className={tab === 'overview' ? 'active' : ''} onClick={() => setAdminTab('overview')}>⌂ Overview</button>
+        <button className={tab === 'stories' ? 'active' : ''} onClick={() => setAdminTab('stories')}>🎧 Audio Stories</button>
+        <button className={tab === 'books' ? 'active' : ''} onClick={() => setAdminTab('books')}>📚 Books</button>
+        <button className={tab === 'videos' ? 'active' : ''} onClick={() => setAdminTab('videos')}>🎬 Videos</button>
+        <button className={tab === 'analytics' ? 'active' : ''} onClick={() => setAdminTab('analytics')}>📊 Analytics</button>
+        <button className={`admin-settings-tab-button ${tab === 'settings' ? 'active' : ''}`} onClick={() => setAdminTab('settings')}>⚙ Management & Settings</button>
       </div>
 
       <div className="admin-body">
@@ -1932,10 +2008,10 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   <span>↗</span>
                 </div>
                 <div className="admin-quick-actions">
-                  <button onClick={() => setTab('stories')}>＋ Add Audio Story</button>
-                  <button onClick={() => setTab('stories')}>＋ Add Episode</button>
-                  <button onClick={() => setTab('books')}>＋ Add Book</button>
-                  <button onClick={() => setTab('videos')}>＋ Add Video Story</button>
+                  <button onClick={() => setAdminTab('stories')}>＋ Add Audio Story</button>
+                  <button onClick={() => setAdminTab('stories')}>＋ Add Episode</button>
+                  <button onClick={() => setAdminTab('books')}>＋ Add Book</button>
+                  <button onClick={() => setAdminTab('videos')}>＋ Add Video Story</button>
                 </div>
               </div>
 
@@ -1949,7 +2025,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 </div>
                 <div className="admin-recent-list">
                   {stories.slice(0, 5).map((story) => (
-                    <button key={story.id} onClick={() => setTab('stories')}>
+                    <button key={story.id} onClick={() => setAdminTab('stories')}>
                       <span className="admin-recent-avatar">
                         {story.cover ? <img src={story.cover} alt="" /> : '🎧'}
                       </span>
@@ -1979,10 +2055,22 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 <h2 style={{ margin: '4px 0' }}>Analytics</h2>
                 <p style={{ margin: 0, opacity: 0.75 }}>Factual activity only — anonymous sessions use a random browser session ID; authenticated activity uses the Supabase user ID.</p>
               </div>
-              <select value={analyticsRange} onChange={(event) => setAnalyticsRange(event.target.value)} aria-label="Analytics date range">
-                <option value="today">Today</option><option value="7d">Last 7 Days</option><option value="30d">Last 30 Days</option><option value="all">All Time</option>
-              </select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <select value={analyticsRange} onChange={(event) => setAnalyticsRange(event.target.value)} aria-label="Analytics date range">
+                  <option value="today">Today</option><option value="7d">Last 7 Days</option><option value="30d">Last 30 Days</option><option value="all">All Time</option>
+                </select>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={downloadUserExport}
+                  disabled={userExportLoading}
+                  title="Download first-party HJ GROUPS user and analytics data as Excel"
+                >
+                  {userExportLoading ? '⏳ Preparing Excel…' : '📥 Download User Data'}
+                </button>
+              </div>
             </div>
+            {userExportError && <p className="auth-error" role="alert">{userExportError}</p>}
             {analyticsLoading && <p>Loading analytics…</p>}
             {analyticsError && <p className="auth-error" role="alert">{analyticsError}</p>}
             {!analyticsLoading && !analyticsError && analyticsData && (
@@ -2313,7 +2401,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 <div className="admin-settings-content-grid">
                   <div className="admin-settings-content-block">
                     <div className="admin-settings-content-title"><span>🎧</span><div><strong>Audio Stories</strong><small>{stories.length} stories · {totalEpisodes} episodes</small></div></div>
-                    <button type="button" className="admin-submit" onClick={() => setTab('stories')}>Open Audio Manager</button>
+                    <button type="button" className="admin-submit" onClick={() => setAdminTab('stories')}>Open Audio Manager</button>
                     <div className="admin-settings-item-list">
                       {stories.slice(0, 5).map((story) => (
                         <div key={story.id} className="admin-settings-item">
@@ -2326,7 +2414,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
                   <div className="admin-settings-content-block">
                     <div className="admin-settings-content-title"><span>📚</span><div><strong>Books</strong><small>{books.length} books</small></div></div>
-                    <button type="button" className="admin-submit" onClick={() => setTab('books')}>Open Books Manager</button>
+                    <button type="button" className="admin-submit" onClick={() => setAdminTab('books')}>Open Books Manager</button>
                     <div className="admin-settings-item-list">
                       {books.slice(0, 5).map((book) => (
                         <div key={book.id} className="admin-settings-item">
@@ -2339,7 +2427,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
                   <div className="admin-settings-content-block">
                     <div className="admin-settings-content-title"><span>🎬</span><div><strong>Videos</strong><small>{videoStories.length} video stories</small></div></div>
-                    <button type="button" className="admin-submit" onClick={() => setTab('videos')}>Open Video Manager</button>
+                    <button type="button" className="admin-submit" onClick={() => setAdminTab('videos')}>Open Video Manager</button>
                     <div className="admin-settings-item-list">
                       {videoStories.slice(0, 5).map((video) => (
                         <div key={video.id} className="admin-settings-item">
