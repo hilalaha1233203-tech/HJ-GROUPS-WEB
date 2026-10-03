@@ -105,3 +105,15 @@ test('user activity unlock columns are sourced from actual entitlement tables, n
   assert.match(userRows, /from public\.shortener_unlocks.*shortener_unlocks/)
   assert.doesNotMatch(userRows, /ad_unlocks.*filter\(where a\.event_type='ad_unlock_completed'/)
 })
+
+
+test('admin/test telemetry is excluded from future client analytics writes', () => {
+  const analytics = fs.readFileSync('src/lib/analytics.js', 'utf8')
+  assert.match(analytics, /app_metadata\?\.role/)
+  assert.match(analytics, /if \(identity\.is_admin\) return false/)
+})
+
+test('story analytics uses a stable story-view dedupe key', () => {
+  const app = fs.readFileSync('src/App.jsx', 'utf8')
+  assert.match(app, /story-view:\$\{storyAnalyticsId\}/)
+})
