@@ -7,14 +7,14 @@ function loadECharts(){
   echartsPromise=new Promise((resolve,reject)=>{
     const existing=document.querySelector('script[data-hj-echarts]')
     if(existing){existing.addEventListener('load',()=>resolve(window.echarts));existing.addEventListener('error',reject);return}
-    const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js';script.async=true;script.dataset.hjEcharts='1';script.onload=()=>window.echarts?resolve(window.echarts):reject(new Error('ECharts loaded without global'));script.onerror=()=>reject(new Error('Apache ECharts could not be loaded'));document.head.appendChild(script)
+    const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js';script.async=true;script.dataset.hjEcharts='1';script.onload=()=>window.echarts?resolve(window.echarts):reject(new Error('ECharts loaded without global'));script.onerror=()=>reject(new Error('Apache ECharts could not be loaded'));document.head.appendChild(script)
   })
   return echartsPromise
 }
 
 function Chart({option,className=''}){
  const ref=useRef(null)
- useEffect(()=>{let chart;let disposed=false;loadECharts().then(e=>{if(disposed||!ref.current)return;chart=e.init(ref.current);chart.setOption(option);const resize=()=>chart.resize();window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)}).catch(()=>{});return()=>{disposed=true;if(chart){chart.dispose()}}},[option])
+ useEffect(()=>{let chart;let disposed=false;let resize=()=>{};loadECharts().then(e=>{if(disposed||!ref.current)return;chart=e.init(ref.current);chart.setOption(option);resize=()=>chart.resize();window.addEventListener('resize',resize)}).catch(()=>{});return()=>{disposed=true;window.removeEventListener('resize',resize);if(chart)chart.dispose()}},[option])
  return <div ref={ref} className={'hj-echart '+className} role="img" aria-label="Interactive analytics chart" />
 }
 
