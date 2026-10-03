@@ -44,7 +44,8 @@ returns boolean
 language sql
 stable
 security invoker
-as $$
+set search_path = pg_catalog, auth
+as $
   select coalesce((auth.jwt()->'app_metadata'->>'role') = 'admin', false);
 $$;
 
