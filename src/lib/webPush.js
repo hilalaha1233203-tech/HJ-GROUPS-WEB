@@ -95,3 +95,25 @@ export function shouldOfferNotificationPrompt(status) {
 export function dismissNotificationPrompt() {
   try { sessionStorage.setItem(PROMPT_DISMISSED_KEY, '1') } catch {}
 }
+
+
+export async function syncStoryLibrary(storyId, inLibrary) {
+  if (!storyId) return
+  const { supabase } = await import('../supabase')
+  const { data: { session } = {} } = await supabase.auth.getSession()
+  if (!session?.user?.id) return
+  const id = Number(storyId)
+  if (!Number.isInteger(id)) return
+  if (inLibrary) {
+    const { error } = await supabase.from('user_story_library').upsert({
+      user_id: session.user.id,
+      story_id: id,
+    }, { onConflict: 'user_id,story_id' })
+    if (error) console.warn('Library notification sync failed:', error.message)
+  } else {
+    const { error } = await supabase.from('user_story_library').delete()
+      .eq('user_id', session.user.id)
+      .eq('story_id', id)
+    if (error) console.warn('Library notification removal failed:', error.message)
+  }
+}
