@@ -7755,21 +7755,20 @@ export function App() {
         </button>
 
         <nav className="top-nav" aria-label="Primary navigation">
-          <button className={page === 'home' ? 'active' : ''} onClick={() => {
-            teardownReader()
-            closePlayer()
-            setPage('home')
-            setSelectedStory(null)
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }}>
+          <button className={page === 'home' ? 'active' : ''} onClick={() => navigateTopLevel('home')}>
             <span>⌂</span><small>Home</small>
           </button>
 
           <button className={page === 'home' ? 'active' : ''} onClick={() => {
             teardownReader()
             closePlayer()
-            setPage('home')
             setSelectedStory(null)
+            setSelectedBook(null)
+            setSelectedVideo(null)
+            setBooksModalOpen(false)
+            setVideoModalOpen(false)
+            replaceAppHistory('audio-list')
+            setPage('home')
             requestAnimationFrame(() => {
               document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             })
@@ -7777,38 +7776,24 @@ export function App() {
             <span>🎧</span><small>Audio Stories</small>
           </button>
 
-          <button className={page === 'books' ? 'active' : ''} onClick={() => {
-            teardownReader()
-            closePlayer()
-            setBooksModalOpen(false)
-            setSelectedBook(null)
-            setPage('books')
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }}>
+          <button className={page === 'books' ? 'active' : ''} onClick={() => navigateTopLevel('books')}>
             <span>📚</span><small>Books</small>
           </button>
 
-          <button className={page === 'videos' ? 'active' : ''} onClick={() => {
-            teardownReader()
-            closePlayer()
-            setVideoModalOpen(false)
-            setSelectedVideo(null)
-            setPage('videos')
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }}>
+          <button className={page === 'videos' ? 'active' : ''} onClick={() => navigateTopLevel('videos')}>
             <span>🎬</span><small>Videos</small>
           </button>
 
-          <button type="button" className={page === 'vip' ? 'active' : ''} aria-current={page === 'vip' ? 'page' : undefined} onClick={() => setPage('vip')}>
+          <button type="button" className={page === 'vip' ? 'active' : ''} aria-current={page === 'vip' ? 'page' : undefined} onClick={() => navigateTopLevel('vip')}>
             <span>♛</span><small>VIP</small>
           </button>
 
-          <button type="button" className={page === 'library' ? 'active' : ''} aria-current={page === 'library' ? 'page' : undefined} onClick={() => setPage('library')}>
+          <button type="button" className={page === 'library' ? 'active' : ''} aria-current={page === 'library' ? 'page' : undefined} onClick={() => navigateTopLevel('library')}>
             <span>♡</span><small>Library</small>
           </button>
 
           <button type="button" className={page === 'account' ? 'active' : ''} aria-current={page === 'account' ? 'page' : undefined} onClick={() => {
-            if (loggedIn) setPage('account')
+            if (loggedIn) navigateTopLevel('account')
             else setLoginOpen(true)
           }}>
             <span>👤</span><small>Account</small>
