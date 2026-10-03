@@ -538,6 +538,28 @@ Deno.serve(async (req) => {
     const result = await runScan(trigger)
     return Response.json({ ok: true, ...result }, { headers: cors })
   } catch (e) {
+    try {
+      const { data: running } = await db
+        .from('security_scans')
+        .select('id,summary')
+        .eq('status', 'running')
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (running?.id) {
+        await db.from('security_scans').update({
+          status: 'failed',
+          finished_at: new Date().toISOString(),
+          summary: {
+            ...(running.summary || {}),
+            current_check: null,
+            error: 'Security scan failed before completion.',
+          },
+        }).eq('id', running.id)
+      }
+    } catch {
+      // Preserve the generic failure response even if failure-state persistence is unavailable.
+    }
     return Response.json({ ok: false, error: 'Security scan failed' }, { status: 500, headers: cors })
   }
 })
