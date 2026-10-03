@@ -4541,7 +4541,9 @@ export function App() {
 
   const closePlayer =
     () => {
-      const currentScreen = appNavigationRef.current.screen
+      const currentScreen = typeof window !== 'undefined'
+        ? window.history.state?.hjGroupsScreen
+        : null
       if (currentScreen === 'audio-player' || currentScreen === 'video-player') {
         replaceAppHistory(screenForPage(page))
       }
