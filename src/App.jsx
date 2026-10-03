@@ -9534,13 +9534,15 @@ export function App() {
             <div className="full-player">
               <div className="player-top">
                 <button
-                  onClick={() =>
-                    setFullPlayer(
-                      false
-                    )
-                  }
+                  type="button"
+                  onClick={() => goBackApp(
+                    currentEpisode?.type === 'video' ? 'video-player' : 'audio-player',
+                    () => setFullPlayer(false)
+                  )}
+                  title="Back to the page underneath the player"
+                  aria-label="Back to the page underneath the player"
                 >
-                  ↓ Minimize
+                  ← Back
                 </button>
 
                 <strong>
