@@ -7718,3 +7718,11 @@ body[data-emoji-animation="false"] .admin-stat-icon,body[data-emoji-animation="f
 .admin-security-list{display:grid;gap:12px;margin:16px 0}.admin-security-finding{padding:16px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(16,18,27,.85)}.admin-security-finding header{display:flex;justify-content:space-between;gap:12px}.admin-security-finding p{color:var(--hj-muted);margin:.45rem 0}.admin-security-finding h3{margin:.55rem 0}.admin-security-finding small{color:var(--hj-muted)}
 .admin-security-filters{display:flex;justify-content:flex-end;margin:12px 0}.admin-security-filters select{min-width:170px}
 @media(max-width:800px){.hj-echarts-grid{grid-template-columns:1fr}.hj-echart{height:250px}.admin-security-head{flex-direction:column}.admin-security-finding{padding:13px}}
+
+body[data-motionCardHover="false"] .story-card,body[data-motionCardHover="false"] .book-card,body[data-motionCardHover="false"] .video-card{transition:none!important}
+body[data-motionButtonHover="false"] button:hover,body[data-motionButtonHover="false"] .primary-btn:hover{transform:none!important}
+body[data-motionStoryCard="false"] .story-card,body[data-motionStoryCard="false"] .book-card,body[data-motionStoryCard="false"] .video-card{animation:none!important}
+body[data-motionPlayer="false"] .audio-player,body[data-motionPlayer="false"] .video-player{animation:none!important}
+body[data-motionModal="false"] .modal,.body[data-motionModal="false"] .modal{animation:none!important}
+body[data-motionLoading="false"] .loading-spinner,body[data-motionSkeleton="false"] .skeleton{animation:none!important}
+body[data-motionPremium="false"] .premium-badge,body[data-motionNotification="false"] .notification{animation:none!important}
