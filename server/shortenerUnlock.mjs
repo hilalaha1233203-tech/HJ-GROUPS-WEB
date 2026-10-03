@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { resolveAdUnlockPlan, validateAdUnlockRules } from '../src/lib/adUnlockRules.js'
+import { isHjAdminUser } from './adminAuth.mjs'
 
 function resolveSupabaseUrl() {
   const candidates = [
@@ -29,7 +30,6 @@ const PUBLIC_BASE_URL = String(
   process.env.HJ_PUBLIC_BASE_URL || ''
 ).trim().replace(/\/+$/, '')
 
-const ADMIN_EMAIL = 'hilalaha1233203@gmail.com'
 const UNLOCK_INTENT_TTL_MINUTES = 20
 const UNLOCK_CODE_TTL_MINUTES = 10
 const PROVIDER_TIMEOUT_MS = 12_000
@@ -130,7 +130,7 @@ async function authenticate(req) {
 
 async function authenticateAdmin(req) {
   const user = await authenticate(req)
-  if (String(user.email || '').toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+  if (!isHjAdminUser(user)) {
     throw new Error('Admin access required.')
   }
   return user
@@ -1223,7 +1223,7 @@ async function checkAccess(req, res, body) {
 
   const content = await getContentRecord(contentType, contentId)
 
-  if (String(user.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+  if (isHjAdminUser(user)) {
     return json(res, 200, { ok: true, source: 'admin' })
   }
 
