@@ -31,6 +31,14 @@ test('episode analytics uses the synchronously selected media context before pla
 })
 
 
+test('episode analytics keeps one logical media-play session when the same episode is reopened', () => {
+  const app = fs.readFileSync('src/App.jsx', 'utf8')
+  assert.match(app, /analyticsActiveMediaKeyRef = useRef\\(null\\)/)
+  assert.match(app, /const mediaKey =/)
+  assert.match(app, /if \\(playerOpen && analyticsActiveMediaKeyRef\\.current === mediaKey\\)/)
+  assert.match(app, /analyticsActiveMediaKeyRef\\.current = null/)
+  assert.match(app, /analyticsPlaybackSessionRef\\.current = null/)
+})
 test('episode analytics batches start at the selected episode and cap at the available rows', () => {
   const episodes = Array.from({ length: 12 }, (_, index) => ({ id: index + 1, episode_number: index + 1 }))
   assert.deepEqual(
