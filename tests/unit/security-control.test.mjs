@@ -38,3 +38,13 @@ test('mobile admin overlay uses dynamic viewport units and safe-area padding', (
   assert.match(css, /env\(safe-area-inset-bottom\)/)
   assert.match(css, /\.bulk-telegram-section\s*\{[\s\S]*overflow: visible/)
 })
+
+
+test('security monitor exposes Supabase-client-compatible CORS headers and real progress state', () => {
+  const fn = read('supabase/functions/hj-security-monitor/index.ts')
+  assert.match(fn, /corsHeaders as supabaseCorsHeaders/)
+  assert.match(fn, /Access-Control-Allow-Origin/)
+  assert.match(fn, /Access-Control-Allow-Methods/)
+  assert.match(fn, /persistProgress/)
+  assert.match(fn, /progress_percent/)
+})
