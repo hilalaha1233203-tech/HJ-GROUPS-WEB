@@ -327,6 +327,7 @@ function AdminPanel({
   const [shortenerHealthLoading, setShortenerHealthLoading] = useState(false)
   const [shortenerHealthRefresh, setShortenerHealthRefresh] = useState(0)
   const [analyticsRange, setAnalyticsRange] = useState('7d')
+  const [analyticsGrouping, setAnalyticsGrouping] = useState('day')
   const [securityFindings, setSecurityFindings] = useState([])
   const [securityScans, setSecurityScans] = useState([])
   const [securityLoading, setSecurityLoading] = useState(false)
@@ -455,7 +456,7 @@ function AdminPanel({
         const { data: { session } = {} } = await supabase.auth.getSession()
         if (!session?.access_token) throw new Error('Admin session is unavailable.')
         const { start, end } = getAnalyticsRange()
-        const query = new URLSearchParams({ range: analyticsRange })
+        const query = new URLSearchParams({ range: analyticsRange, group: analyticsGrouping })
         if (start) query.set('start', start)
         if (end) query.set('end', end)
         const response = await fetch('/api/admin/analytics?' + query.toString(), {
