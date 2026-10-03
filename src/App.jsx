@@ -985,7 +985,7 @@ export function App() {
     return () => window.removeEventListener('popstate', handleAppHistoryBack)
   }, [])
 
-  const [selectedStory, setSelectedStory =
+  const [selectedStory, setSelectedStory] =
     useState(null)
 
   const [storyEpisodeRangeStart, setStoryEpisodeRangeStart] = useState(0)
