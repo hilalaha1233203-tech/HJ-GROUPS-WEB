@@ -4375,6 +4375,7 @@ body:has(.reader-overlay:not(.reader-minimized)),
 
 @media (max-width: 450px) {
   .hero-section {
+    height: min(420px, calc(100dvh - 170px));
     padding: 16px;
     gap: 12px;
   }
@@ -8102,3 +8103,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     height: 188px;
   }
 }
+
+.admin-analytics-state{min-height:140px;display:grid;align-content:start;gap:10px}.admin-analytics-state .secondary-btn{width:max-content;max-width:100%}
+@media(max-width:650px){.admin-analytics-state .secondary-btn{width:100%;min-height:44px}}
