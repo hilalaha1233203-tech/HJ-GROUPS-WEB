@@ -18,6 +18,7 @@ export function summarizeEpisodeAnalyticsBatch(rows) {
     completed_plays: sum('completed_plays'),
     ad_unlock_starts: sum('ad_unlock_starts'),
     ad_unlock_completions: sum('ad_unlock_completions'),
+    shortener_unlock_completions: sum('shortener_unlock_completions'),
     average_plays_per_episode: episodes.length ? sum('total_plays') / episodes.length : 0,
   }
 }
