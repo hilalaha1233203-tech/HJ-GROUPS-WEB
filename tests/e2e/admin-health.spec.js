@@ -76,6 +76,38 @@ test.describe('HJ GROUPS admin health', () => {
     const adminOverlay = page.locator('.admin-overlay')
     await expect(adminOverlay).toBeVisible()
 
+    const adminUrlBeforeMobileQA = page.url()
+    await page.setViewportSize({ width: 390, height: 844 })
+    const mobileAdminMetrics = await page.evaluate(() => {
+      const panel = document.querySelector('.admin-panel')
+      const rect = panel?.getBoundingClientRect()
+      const viewportWidth = document.documentElement.clientWidth
+      return {
+        viewportWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        panelLeft: rect?.left ?? 0,
+        panelRight: rect?.right ?? 0,
+        panelWidth: rect?.width ?? 0,
+        statCardWidths: Array.from(document.querySelectorAll('.admin-stat-card')).map((card) => card.getBoundingClientRect().width),
+      }
+    })
+    expect(mobileAdminMetrics.scrollWidth).toBeLessThanOrEqual(mobileAdminMetrics.viewportWidth)
+    expect(mobileAdminMetrics.panelLeft).toBeGreaterThanOrEqual(0)
+    expect(mobileAdminMetrics.panelRight).toBeLessThanOrEqual(mobileAdminMetrics.viewportWidth + 1)
+    expect(mobileAdminMetrics.panelWidth).toBeGreaterThan(0)
+    expect(mobileAdminMetrics.statCardWidths.every((width) => width <= mobileAdminMetrics.viewportWidth)).toBe(true)
+
+    // Android/browser Back must close the admin overlay and remain inside the SPA.
+    await page.evaluate(() => window.history.back())
+    await expect(page.locator('.admin-overlay')).toHaveCount(0)
+    await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
+    expect(page.url()).toBe(adminUrlBeforeMobileQA)
+
+    // Re-open the admin panel before continuing the existing admin regression suite.
+    await page.getByRole('button', { name: /admin/i }).first().click()
+    await expect(page.locator('.admin-overlay')).toBeVisible()
+    await page.setViewportSize({ width: 1280, height: 900 })
+
     const tabs = ['Overview', 'Audio Stories', 'Books', 'Videos', 'Management & Settings']
     for (const tab of tabs) {
       const button = adminOverlay.getByRole('button', { name: new RegExp(tab, 'i') }).first()
