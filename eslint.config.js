@@ -46,7 +46,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/Admin.jsx', 'src/AdminPanel.jsx'],
+    files: ['src/AdminPanel.jsx'],
     rules: {
       'react-hooks/immutability': 'off',
       'no-unused-vars': 'off',
