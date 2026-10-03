@@ -7967,6 +7967,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media (max-width: 450px) {
   .hero-art,
   .hero-art img {
-    height: 190px;
+    height: 188px;
   }
 }
