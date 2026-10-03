@@ -65,7 +65,7 @@ test('analytics batch size options are fixed to supported review sizes', () => {
 
 test('admin analytics explicitly separates rewarded Ads from Shortener unlocks', () => {
   const panel = fs.readFileSync('src/AdminPanel.jsx', 'utf8')
-  const migration = fs.readFileSync('supabase/migrations/20261003100500_separate_rewarded_and_shortener_user_counts.sql', 'utf8')
+  const migration = fs.readFileSync('supabase/migrations/20261003102000_user_activity_actual_unlock_counts.sql', 'utf8')
   assert.match(panel, /Rewarded Ad Unlocks/)
   assert.match(panel, /Shortener Unlocks/)
   assert.match(panel, /Actual Shortener Unlocks/)
