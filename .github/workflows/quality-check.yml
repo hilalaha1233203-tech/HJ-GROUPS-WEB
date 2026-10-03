@@ -142,6 +142,8 @@ jobs:
             ['src/AdminPanel.jsx', 'AdminAnalyticsCharts'],
             ['src/AdminPanel.jsx', 'security_findings'],
             ['src/AdminPanel.jsx', 'Typography, Color & Motion'],
+            ['src/AdminPanel.jsx', 'Emoji style'],
+            ['src/AdminPanel.jsx', 'EMOJI_STYLES'],
             ['supabase/functions/hj-security-monitor/index.ts', 'security_scans'],
             ['supabase/functions/hj-security-monitor/index.ts', 'SUPABASE_SECRET_KEYS'],
             ['supabase/migrations/20261003130000_security_monitoring.sql', 'security_findings'],
@@ -261,6 +263,12 @@ jobs:
           const checks = [
             ['src/lib/appearance.js', 'FONT_OPTIONS'],
             ['src/lib/appearance.js', 'ANIMATION_INTENSITIES'],
+            ['src/lib/appearance.js', 'EMOJI_STYLES'],
+            ['src/lib/appearance.js', 'installEmojiEnhancer'],
+            ['src/lib/appearance.js', 'MutationObserver'],
+            ['src/lib/appearance.js', 'Noto Sans Tamil'],
+            ['src/lib/appearance.js', 'Space Grotesk'],
+            ['src/lib/appearance.js', 'Bricolage Grotesque'],
             ['src/lib/appearance.js', 'normalizeAppearance'],
             ['src/lib/appearance.js', 'prefers-reduced-motion'],
             ['src/components/AdminAnalyticsCharts.jsx', 'echarts@6.1.0'],
@@ -274,6 +282,8 @@ jobs:
             if (!fs.readFileSync(file, 'utf8').includes(needle)) throw new Error('Missing monitoring/appearance check: ' + file + ' :: ' + needle)
           }
           const appearance = fs.readFileSync('src/lib/appearance.js','utf8')
+          if (!appearance.includes('EMOJI_STYLES') || !appearance.includes('MutationObserver')) throw new Error('Dynamic emoji animation implementation is incomplete')
+          if (!appearance.includes('Noto Serif Tamil') || !appearance.includes('Space Grotesk')) throw new Error('Expanded typography configuration is incomplete')
           if (appearance.includes('dangerouslySetInnerHTML') || appearance.includes('eval(')) throw new Error('Arbitrary HTML/JS injection path found in appearance system')
           const monitor = fs.readFileSync('supabase/functions/hj-security-monitor/index.ts','utf8')
           if (monitor.includes('console.log(serviceKey') || monitor.includes('console.log(secretKey')) throw new Error('Security monitor must not log secret keys')
