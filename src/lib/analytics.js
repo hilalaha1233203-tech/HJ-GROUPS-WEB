@@ -78,3 +78,24 @@ export async function trackUserActivity(eventType, payload = {}, dedupeKey = nul
 export function getAnalyticsSessionId() {
   return getAnonymousSessionId()
 }
+
+export async function linkAnalyticsSessionToUser() {
+  const sessionId = getAnonymousSessionId()
+  if (!sessionId) return false
+
+  try {
+    const { data, error } = await supabase.rpc('link_analytics_session', {
+      p_session_id: sessionId,
+    })
+
+    if (error) {
+      console.warn('[HJ GROUPS] Analytics session link failed safely:', error.message)
+      return false
+    }
+
+    return data === true
+  } catch (error) {
+    console.warn('[HJ GROUPS] Analytics session link failed safely:', error)
+    return false
+  }
+}
