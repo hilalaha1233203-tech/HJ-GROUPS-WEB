@@ -4848,6 +4848,37 @@ body:has(.reader-overlay:not(.reader-minimized)),
   }
 }
 
+  .admin-security-head,
+  .admin-security-summary,
+  .admin-security-browser-head {
+    flex-direction: column;
+  }
+
+  .admin-security-summary {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .admin-security-check-grid {
+    grid-template-columns: 1fr;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .admin-security-browser {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .admin-security-playwright-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-security-scan-progress {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
 @media (max-width: 650px) {
   .admin-overlay {
     padding: 8px;
