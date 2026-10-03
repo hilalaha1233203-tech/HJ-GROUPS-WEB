@@ -136,6 +136,16 @@ jobs:
             ['src/AccountSettings.jsx', 'supportTelegramUrl'],
             ['src/AdminPanel.jsx', 'supportTelegramUrl'],
             ['src/App.jsx', '/api/public-settings'],
+            ['src/lib/appearance.js', 'normalizeAppearance'],
+            ['src/lib/appearance.js', 'prefers-reduced-motion'],
+            ['src/components/AdminAnalyticsCharts.jsx', 'Apache ECharts'],
+            ['src/AdminPanel.jsx', 'AdminAnalyticsCharts'],
+            ['src/AdminPanel.jsx', 'security_findings'],
+            ['src/AdminPanel.jsx', 'Typography, Color & Motion'],
+            ['supabase/functions/hj-security-monitor/index.ts', 'security_scans'],
+            ['supabase/functions/hj-security-monitor/index.ts', 'SUPABASE_SECRET_KEYS'],
+            ['supabase/migrations/20261003130000_security_monitoring.sql', 'security_findings'],
+            ['supabase/migrations/20261003130000_security_monitoring.sql', 'hj-groups-daily-security-scan'],
             ['server.mjs', '/api/public-settings'],
             ['server.mjs', 'Public settings unavailable'],
 
@@ -242,6 +252,32 @@ jobs:
             if (read(file).includes('localhost:3000')) throw new Error(`localhost:3000 remains in ${file}`)
           }
           console.log('Auth/settings/source sanity checks passed')
+          NODE
+
+      - name: Appearance / security monitoring sanity check
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const checks = [
+            ['src/lib/appearance.js', 'FONT_OPTIONS'],
+            ['src/lib/appearance.js', 'ANIMATION_INTENSITIES'],
+            ['src/lib/appearance.js', 'normalizeAppearance'],
+            ['src/lib/appearance.js', 'prefers-reduced-motion'],
+            ['src/components/AdminAnalyticsCharts.jsx', 'echarts@6.1.0'],
+            ['src/AdminPanel.jsx', 'security_findings'],
+            ['src/AdminPanel.jsx', 'Typography, Color & Motion'],
+            ['supabase/functions/hj-security-monitor/index.ts', 'security_monitor_snapshot'],
+            ['supabase/functions/hj-security-monitor/index.ts', 'x-hj-monitor-key'],
+            ['supabase/migrations/20261003130000_security_monitoring.sql', 'hj_security_monitor_key'],
+          ]
+          for (const [file, needle] of checks) {
+            if (!fs.readFileSync(file, 'utf8').includes(needle)) throw new Error('Missing monitoring/appearance check: ' + file + ' :: ' + needle)
+          }
+          const appearance = fs.readFileSync('src/lib/appearance.js','utf8')
+          if (appearance.includes('dangerouslySetInnerHTML') || appearance.includes('eval(')) throw new Error('Arbitrary HTML/JS injection path found in appearance system')
+          const monitor = fs.readFileSync('supabase/functions/hj-security-monitor/index.ts','utf8')
+          if (monitor.includes('console.log(serviceKey') || monitor.includes('console.log(secretKey')) throw new Error('Security monitor must not log secret keys')
+          console.log('Appearance and security-monitoring sanity checks passed')
           NODE
 
       - name: Final source sanity check
