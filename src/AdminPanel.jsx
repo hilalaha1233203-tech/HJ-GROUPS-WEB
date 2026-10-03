@@ -2387,7 +2387,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                                     type="button"
                                     className={Number(row.id) === Number(analyticsSelectedEpisodeId) ? 'selected' : ''}
                                     onClick={() => {
-                                      setAnalyticsSelectedEpisodeId(row.id)
+                                      setAnalyticsSelectedEpisodeId(String(row.id))
+                                      setAnalyticsEpisodeSearch('')
+                                      setAnalyticsEpisodePickerOpen(false)
                                     }}
                                   >
                                     <strong>Episode {row.episode_number}</strong>
