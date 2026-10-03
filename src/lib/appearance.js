@@ -94,7 +94,7 @@ function installEmojiEnhancer(appearance){
       span.dataset.hjEmojiStyle=appearance.emoji.style
       const host = node.parentElement
       const hostTag = host?.tagName || ''
-      const hostText = String(host?.textContent || '').replace(regex, '').replace(/\\s+/gu, '')
+      const hostText = String(host?.textContent || '').replace(regex, '').replace(/\s+/gu, '')
       const decorativeInControl = (hostTag === 'BUTTON' || hostTag === 'A') && hostText.length > 0
       if (decorativeInControl) {
         span.setAttribute('aria-hidden','true')
