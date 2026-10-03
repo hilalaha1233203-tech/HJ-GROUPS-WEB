@@ -875,8 +875,6 @@ export function App() {
   ======================================================= */
 
   const [page, setPage] = useState('home')
-  const appNavigationRef = useRef({ screen: 'home' })
-
   const screenForPage = (nextPage = page) => {
     if (nextPage === 'home') return 'home'
     if (nextPage === 'books') return 'books'
@@ -898,24 +896,23 @@ export function App() {
       '',
       window.location.href
     )
-    appNavigationRef.current.screen = screen
   }
 
   const pushAppHistory = (screen, extras = {}) => {
     if (typeof window === 'undefined') return
-    if (appNavigationRef.current.screen === screen && window.history.state?.hjGroupsNav) return
+    const currentScreen = window.history.state?.hjGroupsScreen
+    if (currentScreen === screen && window.history.state?.hjGroupsNav) return
     window.history.pushState(
       { ...(window.history.state || {}), hjGroupsNav: true, hjGroupsScreen: screen, ...extras },
       '',
       window.location.href
     )
-    appNavigationRef.current.screen = screen
   }
 
   const goBackApp = (expectedScreen, fallback) => {
     if (
       typeof window !== 'undefined' &&
-      appNavigationRef.current.screen === expectedScreen &&
+      window.history.state?.hjGroupsScreen === expectedScreen &&
       window.history.state?.hjGroupsNav &&
       window.history.length > 1
     ) {
@@ -925,65 +922,6 @@ export function App() {
     fallback?.()
     return false
   }
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined
-
-    const initialScreen = screenForPage(page)
-    if (!window.history.state?.hjGroupsNav) {
-      replaceAppHistory(initialScreen, { hjGroupsPage: page })
-    } else {
-      appNavigationRef.current.screen = window.history.state.hjGroupsScreen || initialScreen
-    }
-
-    const handleAppHistoryBack = (event) => {
-      const target = event.state?.hjGroupsNav ? String(event.state.hjGroupsScreen || 'home') : ''
-      if (!target) return
-
-      const previous = appNavigationRef.current.screen
-      appNavigationRef.current.screen = target
-
-      if (previous === 'audio-player' || previous === 'video-player') {
-        setFullPlayer(false)
-      } else if (previous === 'book-reader') {
-        teardownReader()
-      }
-
-      if (target === 'story-details') {
-        setPage('story')
-        setSelectedBook(null)
-        setSelectedVideo(null)
-      } else if (target === 'book-details') {
-        setPage('book-details')
-        setSelectedStory(null)
-        setSelectedVideo(null)
-      } else if (target === 'video-details') {
-        setPage('video-details')
-        setSelectedStory(null)
-        setSelectedBook(null)
-      } else if (target === 'account-settings') {
-        setPage('account-settings')
-      } else {
-        const targetPage = target === 'audio-list' ? 'home' : target
-        setPage(targetPage)
-        setSelectedStory(null)
-        setSelectedBook(null)
-        setSelectedVideo(null)
-        setBooksModalOpen(false)
-        setVideoModalOpen(false)
-        requestAnimationFrame(() => {
-          if (target === 'audio-list') {
-            document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }
-        })
-      }
-    }
-
-    window.addEventListener('popstate', handleAppHistoryBack)
-    return () => window.removeEventListener('popstate', handleAppHistoryBack)
-  }, [])
 
   const [selectedStory, setSelectedStory] =
     useState(null)
@@ -5672,6 +5610,84 @@ export function App() {
         if (selectedBook) setPage('book-details')
       })
     }
+
+  const navigateTopLevel = (nextPage) => {
+    const currentScreen = typeof window !== 'undefined'
+      ? window.history.state?.hjGroupsScreen
+      : null
+
+    if (currentScreen === 'book-reader') teardownReader()
+    if (currentScreen === 'audio-player' || currentScreen === 'video-player') closePlayer()
+
+    setSelectedStory(null)
+    setSelectedBook(null)
+    setSelectedVideo(null)
+    setBooksModalOpen(false)
+    setVideoModalOpen(false)
+    replaceAppHistory(nextPage === 'home' ? 'home' : nextPage)
+    setPage(nextPage)
+
+    requestAnimationFrame(() => {
+      if (nextPage === 'home') {
+        document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    })
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    if (!window.history.state?.hjGroupsNav) {
+      replaceAppHistory('home', { hjGroupsPage: 'home' })
+    }
+
+    const handleAppHistoryBack = (event) => {
+      const target = event.state?.hjGroupsNav ? String(event.state.hjGroupsScreen || 'home') : ''
+      if (!target) return
+
+      if (target === 'story-details') {
+        setFullPlayer(false)
+        setPage('story')
+        setSelectedBook(null)
+        setSelectedVideo(null)
+      } else if (target === 'book-details') {
+        setFullPlayer(false)
+        teardownReader()
+        setPage('book-details')
+        setSelectedStory(null)
+        setSelectedVideo(null)
+      } else if (target === 'video-details') {
+        setFullPlayer(false)
+        setPage('video-details')
+        setSelectedStory(null)
+        setSelectedBook(null)
+      } else if (target === 'account-settings') {
+        setFullPlayer(false)
+        setPage('account-settings')
+      } else {
+        const targetPage = target === 'audio-list' ? 'home' : target
+        setFullPlayer(false)
+        setPage(targetPage)
+        setSelectedStory(null)
+        setSelectedBook(null)
+        setSelectedVideo(null)
+        setBooksModalOpen(false)
+        setVideoModalOpen(false)
+        requestAnimationFrame(() => {
+          if (target === 'audio-list') {
+            document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+        })
+      }
+    }
+
+    window.addEventListener('popstate', handleAppHistoryBack)
+    return () => window.removeEventListener('popstate', handleAppHistoryBack)
+  }, [])
 
   const closeReadAloud =
     () => {
