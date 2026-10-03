@@ -8,6 +8,7 @@ import { isSarvamConfigured, synthesizeSarvamTts } from './server/sarvamTts.mjs'
 import { handleShortenerRequest } from './server/shortenerUnlock.mjs'
 import { handleRewardedAdRequest } from './server/rewardedAdUnlock.mjs'
 import { handlePaymentRequest } from './server/payment.mjs'
+import { handleAdminUserExport } from './server/adminUserExport.mjs'
 import { createClient } from '@supabase/supabase-js'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
@@ -377,6 +378,7 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/public-settings') return handlePublicSettings(req, res)
   if (url.pathname === '/api/admin/analytics') return handleAdminAnalytics(req, res)
+  if (url.pathname === '/api/admin/user-export.xlsx') return handleAdminUserExport(req, res)
 
   if (url.pathname === '/api/tts') return handleTts(req, res, 'auto')
   if (url.pathname === '/api/edge-tts') return handleTts(req, res, 'edge')
