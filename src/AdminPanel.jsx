@@ -2103,6 +2103,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 <select value={analyticsRange} onChange={(event) => setAnalyticsRange(event.target.value)} aria-label="Analytics date range">
                   <option value="today">Today</option><option value="7d">Last 7 Days</option><option value="30d">Last 30 Days</option><option value="all">All Time</option>
                 </select>
+                <select value={analyticsGrouping} onChange={(event) => setAnalyticsGrouping(event.target.value)} aria-label="Analytics grouping">
+                  <option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option>
+                </select>
                 <button
                   type="button"
                   className="secondary-btn"
