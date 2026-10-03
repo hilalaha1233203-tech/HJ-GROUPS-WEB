@@ -79,7 +79,7 @@ export async function enableWebPush(preferences = WEB_PUSH_DEFAULT_PREFERENCES) 
     ])
 
     if (!registration?.active || registration.active.state !== 'activated' || !registration.active.scriptURL.endsWith('/hj-push-sw.js')) {
-      throw new Error('Notifications are still getting ready. Please try again in a moment.', { cause: error })
+      throw new Error('Notifications are still getting ready. Please try again in a moment.')
     }
   } catch (error) {
     const message = String(error?.message || '')
@@ -99,7 +99,7 @@ export async function enableWebPush(preferences = WEB_PUSH_DEFAULT_PREFERENCES) 
     } catch (error) {
       const message = String(error?.message || '')
       if (/no active service worker|service worker/i.test(message)) {
-        throw new Error('Notifications are still getting ready. Please try again in a moment.')
+        throw new Error('Notifications are still getting ready. Please try again in a moment.', { cause: error })
       }
       throw error
     }
