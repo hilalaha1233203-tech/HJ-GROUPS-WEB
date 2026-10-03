@@ -117,7 +117,7 @@ test.describe('HJ GROUPS navigation and export regression', () => {
     const settingsBack = page.getByRole('button', { name: /Back/i }).first()
     await expect(settingsBack).toBeVisible()
     await settingsBack.click()
-    await expect(page.getByText('Admin Account', { exact: true })).toBeVisible()
+    await expect(page.getByText(/Administrator email is protected here/i)).toBeVisible()
 
     // Admin -> nested Analytics -> Back returns to previous Admin tab; browser Back closes overlay.
     await page.getByRole('button', { name: /Admin/i }).first().click()
