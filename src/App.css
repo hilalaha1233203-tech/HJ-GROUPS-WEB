@@ -7951,3 +7951,22 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   color:#fff;
   font-weight:700;
 }
+
+
+/* HJ GROUPS regression fixes: keep floating player from blocking bottom navigation. */
+.mini-player {
+  pointer-events: none;
+}
+.mini-player > * {
+  pointer-events: auto;
+}
+.bottom-nav {
+  z-index: 2100;
+}
+
+@media (max-width: 450px) {
+  .hero-art,
+  .hero-art img {
+    height: 190px;
+  }
+}
