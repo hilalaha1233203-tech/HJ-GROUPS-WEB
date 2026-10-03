@@ -106,7 +106,7 @@ grant execute on function public.get_security_monitor_key() to service_role;
 select cron.schedule(
   'hj-groups-daily-security-scan',
   '15 3 * * *',
-  $$ select extensions.http_post(
+  $$ select net.http_post(
     url := 'https://yajkfglagnyvenddyvok.supabase.co/functions/v1/hj-security-monitor',
     headers := jsonb_build_object('Content-Type','application/json','x-hj-monitor-key',(select decrypted_secret from vault.decrypted_secrets where name='hj_security_monitor_key')),
     body := jsonb_build_object('scheduled',true,'time',now())
