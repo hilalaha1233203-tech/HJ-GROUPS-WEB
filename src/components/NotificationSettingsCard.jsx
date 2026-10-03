@@ -31,10 +31,24 @@ export default function NotificationSettingsCard() {
   }
 
   useEffect(() => {
-    void refresh()
+    let mounted = true
+    const load = async () => {
+      try {
+        const next = await getWebPushStatus()
+        if (!mounted) return
+        setStatus(next)
+        setPreferences(next.preferences || WEB_PUSH_DEFAULT_PREFERENCES)
+      } catch (error) {
+        if (mounted) setMessage(String(error?.message || 'Could not load notification status.'))
+      }
+    }
+    void load()
     const onUpdated = () => void refresh()
     window.addEventListener('hj-web-push-updated', onUpdated)
-    return () => window.removeEventListener('hj-web-push-updated', onUpdated)
+    return () => {
+      mounted = false
+      window.removeEventListener('hj-web-push-updated', onUpdated)
+    }
   }, [])
 
   const toggle = async (key, checked) => {
