@@ -2184,13 +2184,13 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     })
                   })
                   const selectedEpisode = storyEpisodes.find(
-                    (row) => Number(row.id) === Number(analyticsSelectedEpisodeId)
+                    (row) => String(row.id ?? '').trim() === String(analyticsSelectedEpisodeId ?? '').trim()
                   ) || null
                   const selectedEpisodeIndex = selectedEpisode
-                    ? storyEpisodes.findIndex((row) => Number(row.id) === Number(selectedEpisode.id))
+                    ? storyEpisodes.findIndex((row) => String(row.id ?? '').trim() === String(selectedEpisode.id ?? '').trim())
                     : -1
                   const appliedBatchEpisodes = storyEpisodes.filter((row) =>
-                    analyticsBatchEpisodeIds.some((id) => Number(id) === Number(row.id))
+                    analyticsBatchEpisodeIds.some((id) => String(id ?? '').trim() === String(row.id ?? '').trim())
                   )
                   const batchSummary = summarizeEpisodeAnalyticsBatch(appliedBatchEpisodes)
                   const batchStart = appliedBatchEpisodes[0] || null
