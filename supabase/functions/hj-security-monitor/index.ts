@@ -136,6 +136,53 @@ async function osv(packages: Array<{ name: string; version: string }>) {
 async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
   const started = new Date().toISOString()
   const findings: any[] = []
+  const phases = [
+    { key: 'infrastructure', label: 'Infrastructure & Headers' },
+    { key: 'api', label: 'API & CORS' },
+    { key: 'authentication', label: 'Admin Authentication' },
+    { key: 'environment', label: 'Source & Environment Secrets' },
+    { key: 'client-media', label: 'Client & Media Protection' },
+    { key: 'dependencies', label: 'Dependency Advisories' },
+    { key: 'database', label: 'Database / RLS' },
+  ]
+  const checks = phases.map((phase) => ({ ...phase, status: 'pending', completedAt: null }))
+  let scanId: number | null = null
+
+  const persistProgress = async (completedChecks: number, currentCheck: string | null = null) => {
+    if (!scanId) return
+    const percent = Math.round((completedChecks / phases.length) * 100)
+    const nextChecks = checks.map((item, index) => ({
+      ...item,
+      status: index < completedChecks ? 'completed' : index === completedChecks && currentCheck ? 'running' : 'pending',
+      completedAt: index < completedChecks ? new Date().toISOString() : null,
+    }))
+    const { error } = await db.from('security_scans').update({
+      summary: {
+        progress_percent: percent,
+        completed_checks: completedChecks,
+        total_checks: phases.length,
+        current_check: currentCheck,
+        checks: nextChecks,
+        trigger,
+      },
+    }).eq('id', scanId)
+    if (error) throw error
+  }
+
+  const { data: initialScan, error: initialScanError } = await db.from('security_scans').insert({
+    started_at: started,
+    status: 'running',
+    summary: {
+      progress_percent: 0,
+      completed_checks: 0,
+      total_checks: phases.length,
+      current_check: phases[0].label,
+      checks,
+      trigger,
+    },
+  }).select('id').single()
+  if (initialScanError) throw initialScanError
+  scanId = initialScan.id
 
   const health = await check(productionBase + '/health')
   if (!health.ok || health.status !== 200) {
@@ -164,6 +211,8 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
       ))
     }
   }
+
+  await persistProgress(1, phases[1].label)
 
   const evilCors = await check(productionBase + '/api/tts', {
     method: 'OPTIONS',
@@ -194,6 +243,8 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
     ))
   }
 
+  await persistProgress(2, phases[2].label)
+
   const protectedApis = [
     '/api/admin/analytics',
     '/api/admin/user-export.xlsx',
@@ -214,6 +265,8 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
       ))
     }
   }
+
+  await persistProgress(3, phases[3].label)
 
   const sources = [
     'server.mjs',
@@ -271,6 +324,8 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
     }
   }
 
+  await persistProgress(4, phases[4].label)
+
   const clientSecurity = await github('src/App.jsx') + '\n' + await github('src/AdminPanel.jsx')
   if (/dangerouslySetInnerHTML|\beval\s*\(|new Function\s*\(|document\.write\s*\(/.test(clientSecurity)) {
     findings.push(finding(
@@ -296,6 +351,8 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
       'Run authenticated and unauthenticated media access tests for free and protected content.',
     ))
   }
+
+  await persistProgress(5, phases[5].label)
 
   const lock = await github('package-lock.json')
   if (lock) {
@@ -332,6 +389,8 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
       ))
     }
   }
+
+  await persistProgress(6, phases[6].label)
 
   let snapshot: any = null
   try {
@@ -378,6 +437,8 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
     }
   }
 
+  await persistProgress(7, null)
+
   const summary = {
     finding_count: findings.length,
     critical: findings.filter((x) => x.severity === 'critical').length,
@@ -389,14 +450,21 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
   }
   const status = summary.critical || summary.high ? 'issues_found' : summary.medium ? 'warnings' : 'secure'
   const scan = {
-    started_at: started,
     finished_at: new Date().toISOString(),
     status: 'completed',
-    summary: { ...summary, overall: status },
+    summary: {
+      ...summary,
+      overall: status,
+      progress_percent: 100,
+      completed_checks: phases.length,
+      total_checks: phases.length,
+      current_check: null,
+      checks: checks.map((item) => ({ ...item, status: 'completed', completedAt: new Date().toISOString() })),
+    },
   }
 
-  const { data: scanRow, error: scanError } = await db.from('security_scans').insert(scan).select('id').single()
-  if (scanError) throw scanError
+  const { data: scanRow, error: scanError } = await db.from('security_scans').update(scan).eq('id', scanId).select('id').single()
+  if (scanError || !scanRow) throw (scanError || new Error('Security scan row was not found.'))
 
   for (const f of findings) {
     const fingerprint = await crypto.subtle.digest(
@@ -435,7 +503,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
     }, { onConflict: 'fingerprint', ignoreDuplicates: false })
   }
 
-  return { scanId: scanRow.id, summary, findings }
+  return { scanId: scanRow.id, summary, findings, progress: scan.summary }
 }
 
 Deno.serve(async (req) => {
