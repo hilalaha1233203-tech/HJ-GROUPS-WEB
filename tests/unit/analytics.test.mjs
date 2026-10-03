@@ -93,7 +93,7 @@ test('analytics session linking is wired to authenticated profiles', () => {
 test('user activity unlock columns are sourced from actual entitlement tables, not completion events', () => {
   const migration = fs.readFileSync('supabase/migrations/20261003102000_user_activity_actual_unlock_counts.sql', 'utf8')
   const userRows = migration.slice(migration.indexOf('  user_rows as ('), migration.indexOf('  anonymous_rows as ('))
-  assert.match(userRows, /ad_unlocks.*from public\.ad_unlocks/)
-  assert.match(userRows, /shortener_unlocks.*from public\.shortener_unlocks/)
+  assert.match(userRows, /from public\.ad_unlocks.*ad_unlocks/)
+  assert.match(userRows, /from public\.shortener_unlocks.*shortener_unlocks/)
   assert.doesNotMatch(userRows, /ad_unlocks.*filter\(where a\.event_type='ad_unlock_completed'/)
 })
