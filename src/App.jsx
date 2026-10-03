@@ -48,6 +48,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
 import './App.css'
+import './hjDesignSystem.css'
 
 // Keep a failed optional reader dependency from taking down the entire shell.
 const safeWindow = typeof window !== 'undefined' ? window : null
