@@ -480,24 +480,33 @@ function AdminPanel({
     }
   }
 
+  const callAdminPlaywright = useCallback(async (action) => {
+    const { data: { session } = {} } = await supabase.auth.getSession()
+    if (!session?.access_token) throw new Error('Admin session is unavailable.')
+    const response = await fetch('/api/admin/playwright', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({ action }),
+      cache: 'no-store',
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      const error = new Error(payload?.error || 'Playwright control failed.')
+      error.status = response.status
+      error.payload = payload
+      throw error
+    }
+    return payload || {}
+  }, [])
+
   const refreshPlaywrightStatus = useCallback(async () => {
     setPlaywrightLoading(true)
     try {
-      const { data, error } = await supabase.functions.invoke('hj-playwright-control', {
-        body: { action: 'status' },
-      })
-      if (error) {
-        let message = error.message || 'Playwright status unavailable.'
-        try {
-          const payload = await error.context?.json?.()
-          message = payload?.error || message
-          if (payload?.status === 'not_configured') {
-            setPlaywrightState((current) => ({ ...current, status: 'not_configured', error: message }))
-            return
-          }
-        } catch {}
-        throw new Error(message)
-      }
+      const data = await callAdminPlaywright('status')
       setPlaywrightState({
         status: data?.run?.status === 'completed'
           ? (data?.run?.conclusion === 'success' ? 'passed' : data?.run?.conclusion ? 'failed' : 'running')
@@ -509,40 +518,45 @@ function AdminPanel({
         browserCoverage: data?.browserCoverage || [],
       })
     } catch (error) {
-      setPlaywrightState((current) => ({ ...current, error: String(error?.message || 'Playwright status unavailable.') }))
+      const payload = error?.payload
+      if (payload?.status === 'not_configured') {
+        setPlaywrightState((current) => ({ ...current, status: 'not_configured', error: String(error?.message || 'Playwright control is not configured.') }))
+      } else {
+        setPlaywrightState((current) => ({ ...current, error: String(error?.message || 'Playwright status unavailable.') }))
+      }
     } finally {
       setPlaywrightLoading(false)
     }
-  }, [])
+  }, [callAdminPlaywright])
 
   const runPlaywrightCheck = async () => {
     if (playwrightLoading || ['queued', 'running', 'in_progress'].includes(playwrightState.status)) return
     setPlaywrightLoading(true)
     setPlaywrightState((current) => ({ ...current, status: 'queued', error: '' }))
     try {
-      const { data, error } = await supabase.functions.invoke('hj-playwright-control', {
-        body: { action: 'start' },
-      })
-      if (error) {
-        let message = error.message || 'Could not trigger Playwright.'
-        try {
-          const payload = await error.context?.json?.()
-          message = payload?.error || message
-        } catch {}
-        throw new Error(message)
+      const data = await callAdminPlaywright('start')
+      if (data?.status === 'already_running') {
+        setPlaywrightState((current) => ({
+          ...current,
+          status: data?.run?.status || 'running',
+          run: data?.run || current.run,
+          tests: data?.tests || current.tests,
+          jobs: data?.jobs || current.jobs,
+          error: '',
+        }))
+      } else {
+        setPlaywrightState((current) => ({ ...current, status: 'queued', error: '' }))
       }
-      setPlaywrightState((current) => ({
-        ...current,
-        status: data?.status === 'already_running' ? (data?.run?.status || 'running') : 'queued',
-        run: data?.run || current.run,
-        tests: data?.tests || current.tests,
-        jobs: data?.jobs || current.jobs,
-        error: '',
-      }))
       showToast(data?.status === 'already_running' ? 'Playwright is already running.' : 'Playwright verification queued.')
     } catch (error) {
-      setPlaywrightState((current) => ({ ...current, status: 'failed', error: String(error?.message || 'Could not trigger Playwright.') }))
-      showToast(String(error?.message || 'Could not trigger Playwright.'), 'error')
+      const payload = error?.payload
+      const message = String(error?.message || 'Could not trigger Playwright.')
+      setPlaywrightState((current) => ({
+        ...current,
+        status: payload?.status === 'not_configured' ? 'not_configured' : 'failed',
+        error: message,
+      }))
+      showToast(message, 'error')
     } finally {
       setPlaywrightLoading(false)
     }
