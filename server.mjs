@@ -53,13 +53,33 @@ async function readJson(req) {
   return JSON.parse(body || '{}')
 }
 
-function corsHeaders(req) {
+const TRUSTED_WEB_ORIGINS = new Set([
+  'https://hj-groups-website.getvoroa.com',
+  'https://hj-groups-web.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+])
+
+function securityHeaders() {
   return {
-    'Access-Control-Allow-Origin': req.headers.origin || '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    Vary: 'Origin',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), usb=(), payment=()',
   }
+}
+
+function corsHeaders(req) {
+  const origin = String(req.headers.origin || '').trim()
+  const headers = {
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    Vary: 'Origin',
+    ...securityHeaders(),
+  }
+  if (origin && TRUSTED_WEB_ORIGINS.has(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin
+  }
+  return headers
 }
 
 // PDF/EPUB extraction can split Tamil glyphs with spaces (for example
