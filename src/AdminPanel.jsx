@@ -11,7 +11,7 @@ import {
   validateAdUnlockRules,
 } from './lib/adUnlockRules'
 import { supabase } from './supabase'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import AdminAnalyticsCharts from './components/AdminAnalyticsCharts'
 import AdminNotificationCenter from './components/AdminNotificationCenter'
@@ -431,7 +431,7 @@ function AdminPanel({
   }
 
 
-  const refreshSecurityData = async () => {
+  const refreshSecurityData = useCallback(async () => {
     setSecurityLoading(true)
     setSecurityError('')
     try {
@@ -450,7 +450,7 @@ function AdminPanel({
     } finally {
       setSecurityLoading(false)
     }
-  }
+  }, [])
 
   const runManualSecurityCheck = async () => {
     if (manualSecurityRunning) return
@@ -480,7 +480,7 @@ function AdminPanel({
     }
   }
 
-  const refreshPlaywrightStatus = async () => {
+  const refreshPlaywrightStatus = useCallback(async () => {
     setPlaywrightLoading(true)
     try {
       const { data, error } = await supabase.functions.invoke('hj-playwright-control', {
@@ -513,7 +513,7 @@ function AdminPanel({
     } finally {
       setPlaywrightLoading(false)
     }
-  }
+  }, [])
 
   const runPlaywrightCheck = async () => {
     if (playwrightLoading || ['queued', 'running', 'in_progress'].includes(playwrightState.status)) return
@@ -550,17 +550,15 @@ function AdminPanel({
 
   useEffect(() => {
     if (tab !== 'security') return undefined
-    let mounted = true
     refreshSecurityData().catch(() => {})
     refreshPlaywrightStatus().catch(() => {})
-    return () => { mounted = false }
-  }, [tab])
+  }, [tab, refreshSecurityData, refreshPlaywrightStatus])
 
   useEffect(() => {
     if (tab !== 'security' || !['queued', 'running', 'in_progress'].includes(playwrightState.status)) return undefined
     const timer = window.setInterval(() => { void refreshPlaywrightStatus() }, 5000)
     return () => window.clearInterval(timer)
-  }, [tab, playwrightState.status])
+  }, [tab, playwrightState.status, refreshPlaywrightStatus])
 
   useEffect(() => {
     if (tab !== 'analytics') return undefined
