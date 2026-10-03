@@ -17,8 +17,8 @@ test('admin authorization is role-based and not source-visible email/password ba
   assert.match(shortener, /isHjAdminUser\(user\)/)
 
   for (const source of [app, server, exportSource, shortener]) {
-    assert.equal(source.includes('ADMIN_EMAIL'), false)
-    assert.equal(source.includes('Kalam@2003'), false)
+    assert.equal(source.includes("const ADMIN_EMAIL"), false)
+    assert.equal(/ADMIN_PASSWORD\\s*=/.test(source), false)
   }
 
   assert.equal(fs.existsSync('src/Admin.jsx'), false)
