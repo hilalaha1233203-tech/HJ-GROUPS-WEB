@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { deflateRawSync } from 'node:zlib'
+import { isHjAdminUser } from './adminAuth.mjs'
 
 const DEFAULT_SUPABASE_URL = 'https://yajkfglagnyvenddyvok.supabase.co'
-const ADMIN_EMAIL = 'hilalaha1233203@gmail.com'
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const DATE_STYLE_INDEX = 2
 const NUMBER_STYLE_INDEX = 3
@@ -533,7 +533,7 @@ export function buildAdminExportModel({
       'Total Unlocks': unlock.actualAds + unlock.actualShorteners,
       'Total Purchase Count': userPurchases.length,
       'Total Successful Purchase Amount': successfulPurchaseAmount,
-      'Current Premium/VIP Access': asText(user.email).toLowerCase() === ADMIN_EMAIL.toLowerCase()
+      'Current Premium/VIP Access': isHjAdminUser(user)
         ? 'Admin VIP'
         : currentActivePurchases.length
           ? 'Active paid purchase access'
@@ -1010,8 +1010,7 @@ export async function handleAdminUserExport(req, res) {
       auth: { autoRefreshToken: false, persistSession: false },
     })
     const { data: userData, error: userError } = await adminClient.auth.getUser(accessToken)
-    const requesterEmail = asText(userData?.user?.email).toLowerCase()
-    if (userError || requesterEmail !== ADMIN_EMAIL.toLowerCase()) {
+    if (userError || !isHjAdminUser(userData?.user)) {
       res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' })
       res.end(JSON.stringify({ error: 'Forbidden' }))
       return true
