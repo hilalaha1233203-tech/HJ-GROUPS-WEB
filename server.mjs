@@ -9,6 +9,7 @@ import { handleShortenerRequest } from './server/shortenerUnlock.mjs'
 import { handleRewardedAdRequest } from './server/rewardedAdUnlock.mjs'
 import { handlePaymentRequest } from './server/payment.mjs'
 import { handleAdminUserExport } from './server/adminUserExport.mjs'
+import { handleAdminPlaywright } from './server/playwrightControl.mjs'
 import { isHjAdminUser } from './server/adminAuth.mjs'
 import { handleWebPushRequest, handleWebPushUnsubscribe, handleAdminWebPushSend, startWebPushDispatcher } from './server/webPush.mjs'
 import { createClient } from '@supabase/supabase-js'
@@ -434,6 +435,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/public-settings') return handlePublicSettings(req, res)
   if (url.pathname === '/api/admin/analytics') return handleAdminAnalytics(req, res)
   if (url.pathname === '/api/admin/user-export.xlsx') return handleAdminUserExport(req, res)
+  if (url.pathname === '/api/admin/playwright') return handleAdminPlaywright(req, res, { send, jsonHeaders, readJson })
   if (url.pathname === '/api/admin/notifications/send') return handleAdminWebPushSend(req, res, { send, jsonHeaders })
   if (url.pathname === '/api/push/subscribe/remove') return handleWebPushUnsubscribe(req, res, { send, jsonHeaders })
   const pushHandled = await handleWebPushRequest(req, res, { send, jsonHeaders })
