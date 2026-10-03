@@ -1304,7 +1304,7 @@ export function App() {
     for (const story of library) {
       if (story?.id != null) void syncStoryLibrary(story.id, true)
     }
-  }, [user?.id])
+  }, [user?.id, library])
 
   /* =======================================================
      MODALS
@@ -4195,30 +4195,6 @@ export function App() {
       void prepareEpisodePlayback(episode, currentStory)
     }, currentStory.id, episode.type === 'video' ? 'video' : 'audio')
   }
-  useEffect(() => {
-    if (webPushRouteHandledRef.current || typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    const storyId = params.get('hj_story')
-    if (!storyId) return
-    const episodeNumber = params.get('hj_episode')
-    const story = stories.find((item) => String(item?.id) === String(storyId))
-    if (!story) return
-    webPushRouteHandledRef.current = storyId + ':' + (episodeNumber || '')
-    const cleanUrl = new URL(window.location.href)
-    cleanUrl.searchParams.delete('hj_story')
-    cleanUrl.searchParams.delete('hj_episode')
-    cleanUrl.searchParams.delete('hj_open')
-    window.history.replaceState(window.history.state || {}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash)
-    if (episodeNumber) {
-      const episode = (story.episodes || []).find((item) => String(item?.number) === String(episodeNumber))
-      if (episode) {
-        openPlayer(story, episode)
-        return
-      }
-    }
-    openStoryDetails(story)
-  }, [stories])
-
   const nextEpisode =
     () => {
       if (
@@ -4650,6 +4626,30 @@ export function App() {
         behavior: 'smooth',
       })
     }
+
+  useEffect(() => {
+    if (webPushRouteHandledRef.current || typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const storyId = params.get('hj_story')
+    if (!storyId) return
+    const episodeNumber = params.get('hj_episode')
+    const story = stories.find((item) => String(item?.id) === String(storyId))
+    if (!story) return
+    webPushRouteHandledRef.current = storyId + ':' + (episodeNumber || '')
+    const cleanUrl = new URL(window.location.href)
+    cleanUrl.searchParams.delete('hj_story')
+    cleanUrl.searchParams.delete('hj_episode')
+    cleanUrl.searchParams.delete('hj_open')
+    window.history.replaceState(window.history.state || {}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash)
+    if (episodeNumber) {
+      const episode = (story.episodes || []).find((item) => String(item?.number) === String(episodeNumber))
+      if (episode) {
+        openPlayer(story, episode)
+        return
+      }
+    }
+    openStoryDetails(story)
+  }, [stories])
 
   const closeStoryDetails =
     () => {
