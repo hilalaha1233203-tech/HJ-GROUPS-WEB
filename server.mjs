@@ -10,6 +10,7 @@ import { handleRewardedAdRequest } from './server/rewardedAdUnlock.mjs'
 import { handlePaymentRequest } from './server/payment.mjs'
 import { handleAdminUserExport } from './server/adminUserExport.mjs'
 import { isHjAdminUser } from './server/adminAuth.mjs'
+import { handleWebPushRequest, handleWebPushUnsubscribe, handleAdminWebPushSend, startWebPushDispatcher } from './server/webPush.mjs'
 import { createClient } from '@supabase/supabase-js'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
@@ -423,6 +424,7 @@ const server = createServer(async (req, res) => {
         sarvam: { configured: isSarvamConfigured() },
       },
       ttsStrategy: 'Tamil: Sarvam Bulbul v3 → Microsoft Edge Neural fallback; other text: Edge → Sarvam fallback',
+      webPushConfigured: Boolean(process.env.WEB_PUSH_VAPID_PUBLIC_KEY && process.env.WEB_PUSH_VAPID_PRIVATE_KEY && process.env.WEB_PUSH_VAPID_SUBJECT),
     }), {
       'Content-Type': 'application/json; charset=utf-8',
       ...corsHeaders(req),
@@ -432,6 +434,10 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/public-settings') return handlePublicSettings(req, res)
   if (url.pathname === '/api/admin/analytics') return handleAdminAnalytics(req, res)
   if (url.pathname === '/api/admin/user-export.xlsx') return handleAdminUserExport(req, res)
+  if (url.pathname === '/api/admin/notifications/send') return handleAdminWebPushSend(req, res, { send, jsonHeaders })
+  if (url.pathname === '/api/push/subscribe/remove') return handleWebPushUnsubscribe(req, res, { send, jsonHeaders })
+  const pushHandled = await handleWebPushRequest(req, res, { send, jsonHeaders })
+  if (pushHandled !== false) return
 
   if (url.pathname === '/api/tts') return handleTts(req, res, 'auto')
   if (url.pathname === '/api/edge-tts') return handleTts(req, res, 'edge')
@@ -473,4 +479,5 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('HJ GROUPS web server listening on port ' + PORT)
+  startWebPushDispatcher()
 })
