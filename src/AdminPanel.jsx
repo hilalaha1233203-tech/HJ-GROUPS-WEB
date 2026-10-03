@@ -12,6 +12,8 @@ import {
 } from './lib/adUnlockRules'
 import { supabase } from './supabase'
 import React, { useEffect, useRef, useState } from 'react'
+import AdminAnalyticsCharts from './components/AdminAnalyticsCharts'
+import { DEFAULT_APPEARANCE, FONT_OPTIONS, ANIMATION_INTENSITIES, EMOJI_ANIMATIONS, normalizeAppearance } from './lib/appearance'
 
 const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
 
@@ -58,6 +60,7 @@ const DEFAULT_ADMIN_SETTINGS = Object.freeze({
     unlockDurationMinutes: 360,
     episodeUnlockRules: DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule })),
   },
+  appearance: DEFAULT_APPEARANCE,
   payments: {
     enabled: false,
     provider: 'cashfree',
@@ -104,6 +107,7 @@ const readAdminSettings = () => {
           stored?.shortener?.episodeUnlockRules || stored?.ads?.episodeUnlockRules
         ),
       }),
+      appearance: normalizeAppearance(stored?.appearance || {}),
       payments: { ...DEFAULT_ADMIN_SETTINGS.payments, ...(stored?.payments || {}) },
     }
   } catch {
@@ -323,6 +327,10 @@ function AdminPanel({
   const [shortenerHealthLoading, setShortenerHealthLoading] = useState(false)
   const [shortenerHealthRefresh, setShortenerHealthRefresh] = useState(0)
   const [analyticsRange, setAnalyticsRange] = useState('7d')
+  const [securityFindings, setSecurityFindings] = useState([])
+  const [securityScans, setSecurityScans] = useState([])
+  const [securityLoading, setSecurityLoading] = useState(false)
+  const [securityError, setSecurityError] = useState('')
   const [analyticsData, setAnalyticsData] = useState(null)
   const [analyticsStorySearch, setAnalyticsStorySearch] = useState('')
   const [analyticsStoryPickerOpen, setAnalyticsStoryPickerOpen] = useState(false)
@@ -406,6 +414,26 @@ function AdminPanel({
     }
   }
 
+
+  useEffect(() => {
+    if (tab !== 'security') return undefined
+    let mounted = true
+    const loadSecurity = async () => {
+      setSecurityLoading(true); setSecurityError('')
+      try {
+        const [{ data: findings, error: findingsError }, { data: scans, error: scansError }] = await Promise.all([
+          supabase.from('security_findings').select('*').order('last_detected_at', { ascending: false }).limit(200),
+          supabase.from('security_scans').select('*').order('started_at', { ascending: false }).limit(30),
+        ])
+        if (findingsError) throw findingsError
+        if (scansError) throw scansError
+        if (mounted) { setSecurityFindings(findings || []); setSecurityScans(scans || []) }
+      } catch (error) { if (mounted) setSecurityError(String(error?.message || 'Security monitoring data unavailable.')) }
+      finally { if (mounted) setSecurityLoading(false) }
+    }
+    loadSecurity()
+    return () => { mounted = false }
+  }, [tab])
 
   useEffect(() => {
     if (tab !== 'analytics') return undefined
@@ -712,6 +740,7 @@ function AdminPanel({
 
     const settingsToSave = {
       ...adminSettings,
+      appearance: normalizeAppearance(adminSettings.appearance),
       ads: {
         ...adminSettings.ads,
         episodeUnlockRules: ruleValidation.normalizedRules,
@@ -1952,6 +1981,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         <button className={tab === 'books' ? 'active' : ''} onClick={() => setAdminTab('books')}>📚 Books</button>
         <button className={tab === 'videos' ? 'active' : ''} onClick={() => setAdminTab('videos')}>🎬 Videos</button>
         <button className={tab === 'analytics' ? 'active' : ''} onClick={() => setAdminTab('analytics')}>📊 Analytics</button>
+        <button className={tab === 'security' ? 'active' : ''} onClick={() => setAdminTab('security')}>🛡 Security</button>
         <button className={`admin-settings-tab-button ${tab === 'settings' ? 'active' : ''}`} onClick={() => setAdminTab('settings')}>⚙ Management & Settings</button>
       </div>
 
@@ -2047,6 +2077,19 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
         {/* ================= MANAGEMENT & SETTINGS ================= */}
 
+        {tab === 'security' && (
+          <section className="admin-section admin-security-dashboard">
+            <div className="admin-security-head"><div><div className="admin-eyebrow">DETECT · ANALYZE · REPORT</div><h2>Security & Health Dashboard</h2><p>Automated scans report findings; they do not auto-fix production.</p></div><div className="admin-security-status">{securityFindings.some(f=>f.status!=='closed'&&f.severity==='critical')?'🔴 Critical Issues':securityFindings.some(f=>f.status!=='closed'&&['high','medium'].includes(f.severity))?'🟡 Warnings':'🟢 Healthy'}</div></div>
+            {securityLoading&&<p>Loading security history…</p>}{securityError&&<p className="auth-error">{securityError}</p>}
+            {!securityLoading&&!securityError&&<>
+              <div className="admin-stat-grid">{[['🧾','Total Findings',securityFindings.length],['🔴','Critical',securityFindings.filter(f=>f.severity==='critical'&&f.status!=='closed').length],['🟠','High',securityFindings.filter(f=>f.severity==='high'&&f.status!=='closed').length],['🟡','Medium',securityFindings.filter(f=>f.severity==='medium'&&f.status!=='closed').length],['🔵','Low',securityFindings.filter(f=>f.severity==='low'&&f.status!=='closed').length],['✓','Fixed / Closed',securityFindings.filter(f=>['fixed','retested','closed'].includes(f.status)).length]].map(([i,l,v])=><div className="admin-stat-card" key={l}><span className="admin-stat-icon">{i}</span><small>{l}</small><strong>{v}</strong></div>)}</div>
+              <div className="admin-security-filters"><select aria-label="Severity filter" onChange={e=>document.querySelectorAll('[data-security-row]').forEach(el=>{el.hidden=!!e.target.value&&el.dataset.severity!==e.target.value})}><option value="">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="informational">Informational</option></select></div>
+              <div className="admin-security-list">{securityFindings.map(f=><article key={f.id} data-security-row data-severity={f.severity} className="admin-security-finding"><header><strong>{({critical:'🔴 Critical',high:'🟠 High',medium:'🟡 Medium',low:'🔵 Low',informational:'🟢 Informational'})[f.severity]||f.severity}</strong><span>{String(f.status||'new').replace('_',' ')}</span></header><h3>{f.description}</h3><p><b>Component:</b> {f.component} · <b>Location:</b> {f.location||'Not specified'}</p><p><b>Impact:</b> {f.impact||'Not provided'}</p><p><b>Evidence:</b> {f.evidence||'Not provided'}</p><p><b>Root cause:</b> {f.root_cause||'Not verified'}</p><p><b>Recommended fix:</b> {f.recommended_fix||'Not provided'}</p><p><b>Verification:</b> {f.verification||'Retest after remediation.'}</p><small>First: {f.first_detected_at?new Date(f.first_detected_at).toLocaleString():'—'} · Last: {f.last_detected_at?new Date(f.last_detected_at).toLocaleString():'—'} · Recurrences: {f.recurring_count||1}</small></article>)}{!securityFindings.length&&<div className="admin-empty">No recorded findings yet.</div>}</div>
+              <section className="admin-section"><h3>Recent scans</h3><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Started</th><th>Status</th><th>Findings</th><th>Critical</th><th>High</th></tr></thead><tbody>{securityScans.map(s=><tr key={s.id}><td>{new Date(s.started_at).toLocaleString()}</td><td>{s.status}</td><td>{s.summary?.finding_count??0}</td><td>{s.summary?.critical??0}</td><td>{s.summary?.high??0}</td></tr>)}</tbody></table></div></section>
+            </>}
+          </section>
+        )}
+
         {tab === 'analytics' && (
           <section className="admin-section" style={{ padding: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '18px' }}>
@@ -2093,6 +2136,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     <div className="admin-stat-card" key={label}><span className="admin-stat-icon">{icon}</span><small>{label}</small><strong>{value}</strong></div>
                   ))}
                 </div>
+                <AdminAnalyticsCharts data={analyticsData} />
                 <section className="admin-section" style={{ marginTop: '18px' }}>
                   <h3>📚 Story Analytics</h3>
                   <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Story</th><th>Views</th><th>Unique Viewers</th><th>Episode Plays</th><th>Unique Episode Viewers</th><th>Completions</th><th>Ad Starts</th><th>Ad Completions</th><th>Shortener Completions</th><th>Actual Ad Unlocks</th><th>Actual Shortener Unlocks</th></tr></thead><tbody>
@@ -2392,6 +2436,27 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
             </section>
 
             <section className="admin-settings-grid">
+              <div className="admin-settings-card admin-settings-wide hj-appearance-card">
+                <div className="admin-settings-card-head"><div><small>APPEARANCE</small><h3>Typography, Color & Motion</h3></div><span>🎨</span></div>
+                <div className="admin-settings-form-grid">
+                  {['primary','heading','body','ui','reader'].map((key) => <label key={key}>{key === 'ui' ? 'UI / Button font' : key[0].toUpperCase()+key.slice(1)+' font'}<select value={adminSettings.appearance?.typography?.[key] || DEFAULT_APPEARANCE.typography[key]} onChange={e => {setAdminSettings(cur => ({...cur,appearance:{...cur.appearance,typography:{...cur.appearance.typography,[key]:e.target.value}}}));setSettingsDirty(true)}}>{FONT_OPTIONS.map(font => <option key={font} value={font}>{font}</option>)}</select></label>)}
+                  {Object.keys(DEFAULT_APPEARANCE.colors).map(key => <label key={key}>{key[0].toUpperCase()+key.slice(1)}<input type="color" value={adminSettings.appearance?.colors?.[key] || DEFAULT_APPEARANCE.colors[key]} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,colors:{...cur.appearance.colors,[key]:e.target.value}}}));setSettingsDirty(true)}}/></label>)}
+                  <label>Border radius<input type="number" min="0" max="28" value={adminSettings.appearance?.ui?.radius ?? 12} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,ui:{...cur.appearance.ui,radius:Number(e.target.value)||0}}}));setSettingsDirty(true)}}/></label>
+                  <label>Animation intensity<select value={adminSettings.appearance?.ui?.animationIntensity || 'normal'} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,ui:{...cur.appearance.ui,animationIntensity:e.target.value}}}));setSettingsDirty(true)}}>{ANIMATION_INTENSITIES.map(x=><option key={x} value={x}>{x[0].toUpperCase()+x.slice(1)}</option>)}</select></label>
+                </div>
+                <div className="admin-settings-toggle-list">{Object.keys(DEFAULT_APPEARANCE.motion).map(key=><label className="admin-settings-toggle" key={key}><input type="checkbox" checked={adminSettings.appearance?.motion?.[key] !== false} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,motion:{...cur.appearance.motion,[key]:e.target.checked}}}));setSettingsDirty(true)}}/><span>{key.replace(/([A-Z])/g,' $1')}</span></label>)}</div>
+                <div className="admin-settings-form-grid">
+                  <label>Animated emoji system<select value={adminSettings.appearance?.emoji?.animationEnabled===false?'off':'on'} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,emoji:{...cur.appearance.emoji,animationEnabled:e.target.value==='on'}}}));setSettingsDirty(true)}}><option value="on">On</option><option value="off">Off</option></select></label>
+                  <label>Emoji speed<input type="number" min="0.5" max="2" step="0.1" value={adminSettings.appearance?.emoji?.speed ?? 1} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,emoji:{...cur.appearance.emoji,speed:Number(e.target.value)||1}}}));setSettingsDirty(true)}}/></label>
+                  {Object.entries(adminSettings.appearance?.emoji?.mapping || DEFAULT_APPEARANCE.emoji.mapping).slice(0,12).map(([emoji,animation])=><label key={emoji}>{emoji}<select value={animation} onChange={e=>{setAdminSettings(cur=>({...cur,appearance:{...cur.appearance,emoji:{...cur.appearance.emoji,mapping:{...cur.appearance.emoji.mapping,[emoji]:e.target.value}}}}));setSettingsDirty(true)}}>{EMOJI_ANIMATIONS.map(x=><option key={x} value={x}>{x}</option>)}</select></label>)}
+                </div>
+                <small className="admin-settings-note">Only predefined, validated appearance and animation values are saved. No arbitrary CSS/JavaScript is accepted. Reduced-motion preferences are respected by the client.</small>
+              </div>
+              <div className="admin-settings-card">
+                <div className="admin-settings-card-head"><div><small>SECURITY MONITORING</small><h3>Daily Security & Health</h3></div><span>🛡</span></div>
+                <p className="admin-settings-note">Daily monitoring is detection + analysis + reporting only. It never changes production code, RLS, authentication, payments, unlocks, environment variables or deployment.</p>
+                <button type="button" className="admin-submit" onClick={()=>setAdminTab('security')}>Open Security Dashboard</button>
+              </div>
               <div className="admin-settings-card admin-settings-wide">
                 <div className="admin-settings-card-head">
                   <div><small>CONTENT MANAGEMENT</small><h3>Edit Audio, Books & Videos</h3></div>
