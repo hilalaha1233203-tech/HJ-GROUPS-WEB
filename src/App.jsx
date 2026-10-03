@@ -8563,17 +8563,17 @@ export function App() {
             <button
               className="back-btn"
               onClick={() => {
-                const returnTarget = preDetailsPage
-
-                setSelectedBook(null)
-                setBooksModalOpen(false)
-                setVideoModalOpen(false)
-
-                setPage(
-                  returnTarget === 'books-modal' || returnTarget === 'home'
-                    ? 'books'
-                    : returnTarget
-                )
+                goBackApp('book-details', () => {
+                  const returnTarget = preDetailsPage
+                  setSelectedBook(null)
+                  setBooksModalOpen(false)
+                  setVideoModalOpen(false)
+                  setPage(
+                    returnTarget === 'books-modal' || returnTarget === 'home'
+                      ? 'books'
+                      : returnTarget
+                  )
+                })
               }}
             >
               ← Back to Books
