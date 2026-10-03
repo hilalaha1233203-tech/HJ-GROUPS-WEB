@@ -1,0 +1,142 @@
+/* HJ GROUPS motion + notification polish. Uses compositor-friendly transforms/opacity. */
+@keyframes hj-page-enter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes hj-soft-pop {
+  from { opacity: 0; transform: translate3d(0, 5px, 0) scale(.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes hj-emoji-float {
+  0%, 100% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(0,-2px,0) scale(1.04); }
+}
+
+body[data-motionPageTransition="true"] .app > main {
+  animation: hj-page-enter 220ms cubic-bezier(.22,.61,.36,1) both;
+}
+body[data-motionModal="true"] .modal,
+body[data-motionNotification="true"] .toast,
+body[data-motionNotification="true"] .web-push-prompt {
+  animation: hj-soft-pop 180ms cubic-bezier(.22,.61,.36,1) both;
+}
+body[data-motionCardHover="true"] .story-card,
+body[data-motionCardHover="true"] .book-card,
+body[data-motionCardHover="true"] .video-card,
+body[data-motionCardHover="true"] .admin-stat-card,
+body[data-motionCardHover="true"] .admin-settings-card {
+  transition: transform 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
+}
+body[data-motionCardHover="true"] .story-card:hover,
+body[data-motionCardHover="true"] .book-card:hover,
+body[data-motionCardHover="true"] .video-card:hover,
+body[data-motionCardHover="true"] .admin-stat-card:hover,
+body[data-motionCardHover="true"] .admin-settings-card:hover {
+  transform: translate3d(0,-2px,0);
+}
+body[data-motionButtonHover="true"] button,
+body[data-motionButtonHover="true"] .primary-btn,
+body[data-motionButtonHover="true"] .secondary-btn {
+  transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+body[data-motionButtonHover="true"] button:hover:not(:disabled) {
+  transform: translate3d(0,-1px,0);
+}
+body[data-motionButtonHover="true"] button:active:not(:disabled) {
+  transform: translate3d(0,0,0) scale(.985);
+}
+body[data-motionGlobal="false"] * {
+  animation: none !important;
+  transition-duration: 0ms !important;
+}
+.hj-emoji[data-hj-emoji-animation="float"] { animation: hj-emoji-float calc(1.8s / var(--hj-emoji-speed,1)) ease-in-out infinite; }
+
+.web-push-prompt {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left));
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 100500;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 15px 17px;
+  border: 1px solid rgba(124,131,255,.28);
+  border-radius: 18px;
+  background: rgba(12,14,24,.96);
+  box-shadow: 0 18px 60px rgba(0,0,0,.36);
+  backdrop-filter: blur(16px);
+}
+.web-push-prompt-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: rgba(124,131,255,.14);
+  font-size: 22px;
+}
+.web-push-prompt-copy { min-width: 0; }
+.web-push-prompt-copy strong { display: block; font-family: var(--hj-font-heading, Montserrat), sans-serif; }
+.web-push-prompt-copy p { margin: 4px 0 0; color: var(--hj-muted,#A9AEC3); font-size: 13px; line-height: 1.45; }
+.web-push-prompt-error { display: block; margin-top: 5px; color: var(--hj-error,#F87171); }
+.web-push-prompt-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+.notification-settings-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+.notification-settings-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+.admin-settings-field-wide { grid-column: 1 / -1; }
+.web-push-admin-card textarea { width: 100%; resize: vertical; min-height: 96px; }
+
+@media (max-width: 760px) {
+  .web-push-prompt { grid-template-columns: auto 1fr; }
+  .web-push-prompt-actions { grid-column: 1 / -1; justify-content: stretch; }
+  .web-push-prompt-actions button { flex: 1 1 140px; min-height: 44px; }
+  .notification-settings-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 430px) {
+  .web-push-prompt { left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); padding: 13px; border-radius: 16px; }
+  .web-push-prompt-icon { width: 36px; height: 36px; font-size: 19px; }
+  .web-push-prompt-copy p { font-size: 12px; }
+}
+
+.admin-panel { animation: hj-soft-pop 180ms cubic-bezier(.22,.61,.36,1) both; }
+.admin-header { position: sticky; top: 0; z-index: 30; }
+.admin-tabs { scrollbar-width: thin; }
+.admin-tabs button { min-height: 42px; }
+.admin-settings-card { min-width: 0; }
+.admin-settings-form-grid > label { min-width: 0; }
+.admin-settings-form-grid input,
+.admin-settings-form-grid select,
+.admin-settings-form-grid textarea { max-width: 100%; box-sizing: border-box; }
+
+@media (max-width: 900px) {
+  .admin-panel { width: 100%; max-width: 100%; overflow-x: clip; }
+  .admin-body { min-width: 0; }
+  .admin-settings-grid { grid-template-columns: minmax(0,1fr) !important; }
+  .admin-settings-wide { grid-column: auto !important; }
+}
+@media (max-width: 430px) {
+  .admin-header { gap: 8px; padding-left: max(10px,env(safe-area-inset-left)); padding-right: max(10px,env(safe-area-inset-right)); }
+  .admin-header strong { font-size: 14px; }
+  .admin-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .admin-tabs button { flex: 0 0 auto; white-space: nowrap; }
+  .admin-settings-form-grid { grid-template-columns: minmax(0,1fr) !important; }
+  .admin-settings-card { padding: 14px !important; }
+  .admin-settings-card-head { gap: 8px; }
+  .admin-submit, .admin-settings-card .primary-btn, .admin-settings-card .secondary-btn { min-height: 44px; }
+  .admin-table { min-width: 720px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  body[data-motionPageTransition="true"] .app > main,
+  .admin-panel { animation: none !important; }
+}
