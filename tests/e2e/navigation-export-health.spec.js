@@ -58,7 +58,7 @@ test.describe('HJ GROUPS navigation and export regression', () => {
     await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible()
 
     // Books -> Book Details -> Reader -> Back -> Details -> Back -> Books.
-    await page.getByRole('button', { name: /^Books$/i }).last().click()
+    await page.getByRole('button', { name: /Books/i }).last().click()
     await page.waitForTimeout(500)
     const firstBook = page.locator('.media-catalog-card').first()
     await expect(firstBook).toBeVisible({ timeout: 15_000 })
@@ -80,7 +80,7 @@ test.describe('HJ GROUPS navigation and export regression', () => {
     await expect(page.getByRole('button', { name: /Book Language: All/i }).first()).toBeVisible({ timeout: 10_000 })
 
     // Videos -> Video Details -> Video Player -> Back minimizes -> Details -> Videos.
-    await page.getByRole('button', { name: /^Videos$/i }).last().click()
+    await page.getByRole('button', { name: /Videos/i }).last().click()
     await page.waitForTimeout(500)
     const firstVideo = page.locator('.media-catalog-card').first()
     await expect(firstVideo).toBeVisible({ timeout: 15_000 })
@@ -102,7 +102,7 @@ test.describe('HJ GROUPS navigation and export regression', () => {
     await expect(page.getByRole('button', { name: /Video Language: All/i }).first()).toBeVisible({ timeout: 10_000 })
 
     // Account -> Settings -> Back -> Account.
-    await page.getByRole('button', { name: /^Account$/i }).last().click()
+    await page.getByRole('button', { name: /Account/i }).last().click()
     await expect(page.getByRole('button', { name: /Settings/i }).first()).toBeVisible()
     await page.getByRole('button', { name: /Settings/i }).first().click()
     await expect(page.getByText('Personalize & Protect Your Account', { exact: true })).toBeVisible()
