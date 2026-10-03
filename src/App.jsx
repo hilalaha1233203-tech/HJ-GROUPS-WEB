@@ -5687,6 +5687,8 @@ export function App() {
 
     window.addEventListener('popstate', handleAppHistoryBack)
     return () => window.removeEventListener('popstate', handleAppHistoryBack)
+    // This listener intentionally mounts once; navigation helpers are stable for the SPA lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const closeReadAloud =
