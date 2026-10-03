@@ -4784,6 +4784,70 @@ body:has(.reader-overlay:not(.reader-minimized)),
   }
 }
 
+/* Mobile admin viewport hardening: use the dynamic viewport on Android browsers
+   so the fixed admin overlay cannot clip the Bulk Telegram Import workspace. */
+@media (max-width: 650px) {
+  .admin-overlay {
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .admin-panel {
+    width: 100%;
+    height: calc(100dvh - max(16px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .admin-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 19;
+  }
+
+  .admin-body,
+  .admin-section,
+  .admin-form,
+  .bulk-telegram-section {
+    min-width: 0;
+  }
+
+  .bulk-telegram-section {
+    overflow: visible;
+  }
+
+  .bulk-telegram-section > .admin-form {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .bulk-telegram-section input,
+  .bulk-telegram-section select,
+  .bulk-telegram-section textarea,
+  .bulk-telegram-section button {
+    min-width: 0;
+  }
+
+  .bulk-telegram-section [style*="max-height"] {
+    max-height: min(52dvh, 400px) !important;
+  }
+}
+
 @media (max-width: 650px) {
   .admin-overlay {
     padding: 8px;
