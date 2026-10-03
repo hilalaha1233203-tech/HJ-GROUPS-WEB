@@ -345,6 +345,7 @@ function AdminPanel({
   const [securityError, setSecurityError] = useState('')
   const [manualSecurityRunning, setManualSecurityRunning] = useState(false)
   const [manualSecurityResult, setManualSecurityResult] = useState(null)
+  const [securityProgress, setSecurityProgress] = useState({ progress_percent: 0, completed_checks: 0, total_checks: 7, current_check: null, checks: [] })
   const [playwrightState, setPlaywrightState] = useState({ status: 'not_run', run: null, tests: null, jobs: [], error: '' })
   const [playwrightLoading, setPlaywrightLoading] = useState(false)
   const [analyticsData, setAnalyticsData] = useState(null)
@@ -443,6 +444,16 @@ function AdminPanel({
       if (scansError) throw scansError
       setSecurityFindings(findings || [])
       setSecurityScans(scans || [])
+      const latestProgress = scans?.[0]?.summary
+      if (latestProgress && typeof latestProgress === 'object') {
+        setSecurityProgress({
+          progress_percent: Number(latestProgress.progress_percent) || 0,
+          completed_checks: Number(latestProgress.completed_checks) || 0,
+          total_checks: Number(latestProgress.total_checks) || 7,
+          current_check: latestProgress.current_check || null,
+          checks: Array.isArray(latestProgress.checks) ? latestProgress.checks : [],
+        })
+      }
       return { findings: findings || [], scans: scans || [] }
     } catch (error) {
       setSecurityError(String(error?.message || 'Security monitoring data unavailable.'))
@@ -457,6 +468,7 @@ function AdminPanel({
     setManualSecurityRunning(true)
     setSecurityError('')
     setManualSecurityResult({ status: 'running', startedAt: new Date().toISOString() })
+    setSecurityProgress({ progress_percent: 0, completed_checks: 0, total_checks: 7, current_check: 'Infrastructure & Headers', checks: [] })
     try {
       const { data, error } = await supabase.functions.invoke('hj-security-monitor', {
         body: { scheduled: false },
@@ -567,6 +579,12 @@ function AdminPanel({
     refreshSecurityData().catch(() => {})
     refreshPlaywrightStatus().catch(() => {})
   }, [tab, refreshSecurityData, refreshPlaywrightStatus])
+
+  useEffect(() => {
+    if (tab !== 'security' || !manualSecurityRunning) return undefined
+    const timer = window.setInterval(() => { void refreshSecurityData().catch(() => {}) }, 1000)
+    return () => window.clearInterval(timer)
+  }, [tab, manualSecurityRunning, refreshSecurityData])
 
   useEffect(() => {
     if (tab !== 'security' || !['queued', 'running', 'in_progress'].includes(playwrightState.status)) return undefined
@@ -2142,21 +2160,26 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
   }
 
   const securityCategoryCards = [
-    { key: 'authentication', label: 'Authentication', icon: '🔐', match: (f) => /auth|session|admin/i.test(String(f.component || '')) },
-    { key: 'database', label: 'Database / RLS', icon: '🗄️', match: (f) => /database|rls/i.test(String(f.component || '')) },
-    { key: 'environment', label: 'Environment Secrets', icon: '🔑', match: (f) => /secret|environment/i.test(String(f.component || '')) },
-    { key: 'api', label: 'API Security', icon: '🌐', match: (f) => /cors|api|web-server|public-settings/i.test(String(f.component || '')) },
-    { key: 'media', label: 'Media Protection', icon: '🎧', match: (f) => /media/i.test(String(f.component || '')) },
-    { key: 'client', label: 'Client Security', icon: '🛡️', match: (f) => /client/i.test(String(f.component || '')) },
-    { key: 'dependencies', label: 'Dependencies', icon: '📦', match: (f) => f.category === 'dependency' },
+    { key: 'authentication', label: 'Authentication', icon: '🔐', progressKey: 'Admin Authentication', match: (f) => /auth|session|admin/i.test(String(f.component || '')) },
+    { key: 'database', label: 'Database / RLS', icon: '🗄️', progressKey: 'Database / RLS', match: (f) => /database|rls/i.test(String(f.component || '')) },
+    { key: 'environment', label: 'Environment Secrets', icon: '🔑', progressKey: 'Source & Environment Secrets', match: (f) => /secret|environment/i.test(String(f.component || '')) },
+    { key: 'api', label: 'API Security', icon: '🌐', progressKey: 'API & CORS', match: (f) => /cors|api|web-server|public-settings/i.test(String(f.component || '')) },
+    { key: 'media', label: 'Media Protection', icon: '🎧', progressKey: 'Client & Media Protection', match: (f) => /media/i.test(String(f.component || '')) },
+    { key: 'client', label: 'Client Security', icon: '🛡️', progressKey: 'Client & Media Protection', match: (f) => /client/i.test(String(f.component || '')) },
+    { key: 'dependencies', label: 'Dependencies', icon: '📦', progressKey: 'Dependency Advisories', match: (f) => f.category === 'dependency' },
   ].map((item) => {
     const findings = securityFindings.filter((finding) => finding.status !== 'closed' && item.match(finding))
     const severe = findings.some((f) => ['critical', 'high'].includes(f.severity))
     const warning = findings.some((f) => ['medium', 'low'].includes(f.severity))
+    const phase = securityProgress.checks.find((check) => check.label === item.progressKey)
+    const phaseRunning = manualSecurityRunning && phase?.status === 'running'
+    const phasePending = manualSecurityRunning && (!phase || phase.status === 'pending')
     return {
       ...item,
       findings,
-      status: severe ? 'FAIL' : warning ? 'WARNING' : 'PASS',
+      status: manualSecurityRunning
+        ? phaseRunning ? 'RUNNING' : phasePending ? 'PENDING' : severe ? 'FAIL' : warning ? 'WARNING' : 'PASS'
+        : severe ? 'FAIL' : warning ? 'WARNING' : 'PASS',
     }
   })
 
@@ -2389,11 +2412,11 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
             <div className="admin-security-check-grid">
               {securityCategoryCards.map((card) => (
-                <article key={card.key} className={`admin-security-check-card status-${card.status.toLowerCase()}`}>
+                <article key={card.key} className={`admin-security-check-card status-${String(card.status).toLowerCase()}`}>
                   <div className="admin-security-check-card-head">
                     <span>{card.icon}</span>
                     <strong>{card.label}</strong>
-                    <b>{card.status === 'PASS' ? '🟢 PASS' : card.status === 'WARNING' ? '🟡 WARNING' : '🔴 FAIL'}</b>
+                    <b>{card.status === 'PASS' ? '🟢 PASS' : card.status === 'WARNING' ? '🟡 WARNING' : card.status === 'RUNNING' ? '🔄 RUNNING' : card.status === 'PENDING' ? '⚪ PENDING' : '🔴 FAIL'}</b>
                   </div>
                   <p>
                     {card.status === 'PASS'
@@ -2408,17 +2431,30 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
               <p className="auth-error" role="alert">{manualSecurityResult.error}</p>
             )}
 
-            {manualSecurityRunning && (
+            {(manualSecurityRunning || securityProgress.total_checks > 0) && (
               <div className="admin-security-scan-progress" role="status" aria-live="polite">
-                <span className="admin-security-scan-spinner" aria-hidden="true" />
-                <div>
-                  <strong>Security scan in progress…</strong>
-                  <small>Authentication, secrets, RLS, APIs, media protection, client sinks and dependency advisories are being checked.</small>
+                {manualSecurityRunning && <span className="admin-security-scan-spinner" aria-hidden="true" />}
+                <div className="admin-security-scan-progress-content">
+                  <div className="admin-security-scan-progress-head">
+                    <strong>{manualSecurityRunning ? 'Security scan in progress…' : 'Latest security scan progress'}</strong>
+                    <b>{Math.max(0, Math.min(100, securityProgress.progress_percent))}%</b>
+                  </div>
+                  <div className="admin-security-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.max(0, Math.min(100, securityProgress.progress_percent))}>
+                    <span style={{ width: Math.max(0, Math.min(100, securityProgress.progress_percent)) + '%' }} />
+                  </div>
+                  <small>Checks completed: <b>{securityProgress.completed_checks}/{securityProgress.total_checks}</b>{securityProgress.current_check ? ` · Current: ${securityProgress.current_check}` : ' · All checks completed'}</small>
+                  {Array.isArray(securityProgress.checks) && securityProgress.checks.length > 0 && (
+                    <div className="admin-security-progress-phases">
+                      {securityProgress.checks.map((check) => (
+                        <span key={check.key} className={'phase-' + check.status}>
+                          {check.status === 'completed' ? '✓' : check.status === 'running' ? '↻' : '○'} {check.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-
-            <section className="admin-security-browser">
+            )}           <section className="admin-security-browser">
               <div className="admin-security-browser-head">
                 <div>
                   <div className="admin-eyebrow">REAL BROWSER VERIFICATION</div>
