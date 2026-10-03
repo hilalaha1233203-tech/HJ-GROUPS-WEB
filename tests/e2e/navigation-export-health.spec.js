@@ -66,7 +66,7 @@ test.describe('HJ GROUPS navigation and export regression', () => {
     await expect(page.locator('.story-details-page').first()).toBeVisible()
     await expect(page.getByRole('button', { name: /Back to Books/i }).first()).toBeVisible()
 
-    const readBook = page.getByRole('button', { name: /^Read$/i }).first()
+    const readBook = page.getByRole('button', { name: /\bRead\b/i }).first()
     await expect(readBook).toBeVisible()
     await readBook.click()
     await expect(page.locator('.reader-overlay').first()).toBeVisible({ timeout: 10_000 })
