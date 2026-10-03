@@ -558,7 +558,8 @@ export function buildAdminExportModel({
       'Book': content.book,
       'Access Type': asText(row.access_type),
       'Session': asText(row.session_id) ? '…' + asText(row.session_id).slice(-8) : '',
-    })
+    }
+  })
 
   const storyInterestRows = [...storyStats.values()].map((stat) => {
     const story = maps.stories.get(stat.storyId)
