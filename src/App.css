@@ -7781,3 +7781,115 @@ body[data-animation-intensity="enhanced"] .hj-animated-emoji{animation-duration:
 @media (prefers-reduced-motion: reduce){
   .hj-animated-emoji{animation:none!important;transition:none!important}
 }
+
+
+/* =========================================================
+   HJ GROUPS — RESPONSIVE HARDENING PASS
+   Landscape + small-device safe-area/touch refinements.
+========================================================= */
+html{overflow-x:hidden}
+body{overflow-x:hidden}
+button,input,select,textarea{max-width:100%}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2px solid rgba(124,131,255,.92);
+  outline-offset:2px;
+}
+
+@media (hover:none),(pointer:coarse){
+  .top-nav button,
+  .bottom-nav button,
+  .main-controls button,
+  .player-top button,
+  .reader-header > button,
+  .reader-tools button,
+  .reader-navigation button,
+  .reader-zoom button,
+  .mini-player button{
+    min-width:44px;
+    min-height:44px;
+  }
+}
+
+@media (max-width:390px){
+  .top-header{padding-left:10px;padding-right:10px}
+  .brand-button img{width:94px}
+  .top-nav{gap:1px}
+  .top-nav button{width:34px;min-width:34px;padding:6px}
+  .section,.category-section{padding-left:12px;padding-right:12px}
+  .story-details-page{padding-left:12px;padding-right:12px}
+  .story-image{height:270px}
+  .story-details-info h1{font-size:32px}
+  .bottom-nav{width:calc(100% - 10px);bottom:max(5px,env(safe-area-inset-bottom));min-height:62px}
+  .bottom-nav button{min-width:0}
+  .bottom-nav button small{font-size:8px}
+  .mini-player{left:5px;right:5px;bottom:calc(73px + env(safe-area-inset-bottom));}
+  .mini-info strong,.mini-info span{max-width:34vw}
+  .reader-body{padding:5px}
+  .reader-navigation,.reader-zoom{gap:4px}
+  .reader-navigation button,.reader-zoom button{padding:6px;min-width:42px}
+}
+
+@media (max-width:900px) and (orientation:landscape){
+  body{padding-bottom:0}
+  .top-header{
+    height:56px;
+    padding-top:env(safe-area-inset-top);
+    box-sizing:content-box;
+  }
+  .top-nav button{padding:7px 9px}
+  .bottom-nav{bottom:max(5px,env(safe-area-inset-bottom));min-height:56px}
+  .mini-player{bottom:calc(66px + env(safe-area-inset-bottom));min-height:56px}
+
+  .player-overlay,.full-player{min-height:100dvh}
+  .player-top{
+    height:54px;
+    min-height:54px;
+    padding:0 12px;
+  }
+  .player-layout{
+    min-height:calc(100dvh - 54px);
+    padding:16px 14px calc(22px + env(safe-area-inset-bottom));
+    grid-template-columns:minmax(0,1fr) minmax(220px,30vw);
+    gap:18px;
+    align-items:start;
+  }
+  .player-cover-large{width:min(48vh,300px)}
+  .main-video{width:min(72vw,720px);max-height:58vh}
+  .player-main > h1{font-size:clamp(22px,4vw,32px);margin:5px 0}
+  .player-main > p{margin:2px 0}
+  .progress{margin-top:12px}
+  .main-controls{margin-top:12px;gap:8px}
+  .main-controls button{width:44px;height:44px}
+  .main-controls .big-play{width:52px;height:52px}
+  .player-options{margin-top:12px;gap:7px;flex-wrap:wrap;justify-content:center}
+  .volume{margin-top:10px}
+  .episode-sidebar{max-height:calc(100dvh - 90px);overflow:auto;padding-top:0}
+
+  .reader-window{height:100dvh}
+  .reader-header{min-height:50px;height:50px}
+  .reader-header > strong{font-size:12px}
+  .reader-tools{gap:3px}
+  .reader-tools button{min-width:40px;min-height:40px;padding:0}
+  .reader-middle{min-height:0}
+  .reader-body{padding:6px}
+  .reader-bottom{
+    max-height:34vh;
+    overflow:auto;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    gap:5px;
+  }
+  .reader-player{padding:6px 8px;gap:5px}
+  .reader-player > button{width:36px;height:36px}
+  .reader-navigation button,.reader-zoom button{padding:6px 8px}
+  .reader-chapter-panel{max-height:100%}
+  .reader-theme-picker{padding:5px 8px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    scroll-behavior:auto!important;
+  }
+}
