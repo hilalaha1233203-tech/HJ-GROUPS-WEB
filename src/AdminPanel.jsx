@@ -2406,7 +2406,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                       {stories.slice(0, 5).map((story) => (
                         <div key={story.id} className="admin-settings-item">
                           <span>{story.title}</span>
-                          <button type="button" onClick={() => { setTab('stories'); startEditStory(story) }}>✏️ Edit</button>
+                          <button type="button" onClick={() => { setAdminTab('stories'); startEditStory(story) }}>✏️ Edit</button>
                         </div>
                       ))}
                     </div>
@@ -2419,7 +2419,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                       {books.slice(0, 5).map((book) => (
                         <div key={book.id} className="admin-settings-item">
                           <span>{book.title}</span>
-                          <button type="button" onClick={() => { setTab('books'); startEditBook(book) }}>✏️ Edit</button>
+                          <button type="button" onClick={() => { setAdminTab('books'); startEditBook(book) }}>✏️ Edit</button>
                         </div>
                       ))}
                     </div>
@@ -2432,7 +2432,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                       {videoStories.slice(0, 5).map((video) => (
                         <div key={video.id} className="admin-settings-item">
                           <span>{video.title}</span>
-                          <button type="button" onClick={() => { setTab('videos'); startEditVideo(video) }}>✏️ Edit</button>
+                          <button type="button" onClick={() => { setAdminTab('videos'); startEditVideo(video) }}>✏️ Edit</button>
                         </div>
                       ))}
                     </div>
