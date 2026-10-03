@@ -4027,6 +4027,8 @@ export function App() {
       }
 
       if (isReading) {
+        // Existing TTS lifecycle helper is declared in the reader section below.
+        // eslint-disable-next-line react-hooks/immutability
         stopReadAloud()
       }
 
@@ -4162,7 +4164,11 @@ export function App() {
 
   const openPlayer = (story, episode) => {
     if (!episode) return
-    if (readerBook) teardownReader()
+    if (readerBook) {
+      // Existing reader lifecycle is intentionally ordered below the player helpers.
+      // eslint-disable-next-line react-hooks/immutability
+      teardownReader()
+    }
     const adsKey = adsKeyFor(episode.type === 'video' ? 'video-episode' : 'episode', story.id, episode.number)
     requestAccess(episode, adsKey, () => {
       analyticsPlaybackSessionCounterRef.current += 1
@@ -4649,7 +4655,7 @@ export function App() {
       }
     }
     openStoryDetails(story)
-  }, [stories])
+  }, [stories, openPlayer, openStoryDetails])
 
   const closeStoryDetails =
     () => {
