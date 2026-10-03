@@ -5,7 +5,6 @@ import { resolveAdUnlockPlan, validateAdUnlockRules } from '../src/lib/adUnlockR
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://yajkfglagnyvenddyvok.supabase.co').trim().replace(/\/+$/, '')
 const SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
 const UNLOCK_TOKEN_SECRET = String(process.env.UNLOCK_TOKEN_SECRET || '').trim()
-const ADMIN_EMAIL = 'hilalaha1233203@gmail.com'
 const INTENT_TTL_MS = 10 * 60_000
 
 let client = null
