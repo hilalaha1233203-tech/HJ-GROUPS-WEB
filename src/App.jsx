@@ -8688,17 +8688,17 @@ export function App() {
             <button
               className="back-btn"
               onClick={() => {
-                const returnTarget = preDetailsPage
-
-                setSelectedVideo(null)
-                setVideoModalOpen(false)
-                setBooksModalOpen(false)
-
-                setPage(
-                  returnTarget === 'videos-modal' || returnTarget === 'home'
-                    ? 'videos'
-                    : returnTarget
-                )
+                goBackApp('video-details', () => {
+                  const returnTarget = preDetailsPage
+                  setSelectedVideo(null)
+                  setVideoModalOpen(false)
+                  setBooksModalOpen(false)
+                  setPage(
+                    returnTarget === 'videos-modal' || returnTarget === 'home'
+                      ? 'videos'
+                      : returnTarget
+                  )
+                })
               }}
             >
               ← Back to Videos
