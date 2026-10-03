@@ -7,6 +7,12 @@ const serviceKey=secretKeys.default || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const db=createClient(supabaseUrl,serviceKey,{auth:{autoRefreshToken:false,persistSession:false}})
 const repo='hilalaha1233203-tech/HJ-GROUPS-WEB'
 const productionBase='https://hj-groups-website.getvoroa.com'
+let monitorKeyPromise: Promise<string> | null = null
+async function getMonitorKey(){
+  if(monitorKeyPromise) return monitorKeyPromise
+  monitorKeyPromise=(async()=>{const {data,error}=await db.rpc('get_security_monitor_key');if(error||!data) throw new Error('monitor key unavailable');return String(data)})()
+  return monitorKeyPromise
+}
 
 const safe=(v,max=700)=>String(v??'').replace(/(?:sk_|eyJ|sb_(?:secret|publishable)_)[A-Za-z0-9_\-.]+/g,'[REDACTED]').slice(0,max)
 const finding=(severity,category,component,location,description,impact,evidence,root,recommend,verification)=>({severity,category,component,location,description,impact,evidence:safe(evidence),root_cause:root,recommended_fix:recommend,verification})
@@ -35,4 +41,12 @@ async function runScan(){
  return {scanId:scanRow.id,summary:scan.summary,findings:findings.length}
 }
 
-Deno.serve(async(req)=>{if(req.method!=='POST')return new Response('Method Not Allowed',{status:405});try{return Response.json({ok:true,...await runScan()})}catch(e){return Response.json({ok:false,error:'Security scan failed'}, {status:500})}})
+Deno.serve(async(req)=>{
+  if(req.method!=='POST')return new Response('Method Not Allowed',{status:405})
+  try{
+    const expected=await getMonitorKey()
+    const supplied=req.headers.get('x-hj-monitor-key')||''
+    if(!supplied||supplied!==expected)return new Response('Forbidden',{status:403})
+    return Response.json({ok:true,...await runScan()})
+  }catch(e){return Response.json({ok:false,error:'Security scan failed'}, {status:500})}
+})
