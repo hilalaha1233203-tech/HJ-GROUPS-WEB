@@ -100,7 +100,7 @@ test.describe('HJ GROUPS admin health', () => {
     // Android/browser Back must close the admin overlay and remain inside the SPA.
     await page.evaluate(() => window.history.back()).catch(() => {})
     await expect(page.locator('.admin-overlay')).toHaveCount(0)
-    await expect(page.getByText('Audio Stories', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: /Control your streaming library/i })).toBeVisible({ timeout: 10_000 })
     expect(page.url()).toBe(adminUrlBeforeMobileQA)
 
     // Re-open the admin panel before continuing the existing admin regression suite.
