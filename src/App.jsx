@@ -972,6 +972,9 @@ export function App() {
   const [fullPlayer, setFullPlayer] =
     useState(false)
 
+  const [playerLocked, setPlayerLocked] =
+    useState(false)
+
   const [isPlaying, setIsPlaying] =
     useState(false)
 
@@ -4566,6 +4569,7 @@ export function App() {
 
       setPlayerOpen(false)
       setFullPlayer(false)
+      setPlayerLocked(false)
       setIsPlaying(false)
       mediaResolveRunRef.current += 1
       if (mediaLoadTimerRef.current) {
@@ -9578,13 +9582,25 @@ export function App() {
                   HJ GROUPS
                 </strong>
 
-                <button
-                  onClick={
-                    closePlayer
-                  }
-                >
-                  ✕
-                </button>
+                <div className="player-top-actions">
+                  <button
+                    type="button"
+                    className="player-lock-toggle"
+                    onClick={() => setPlayerLocked((locked) => !locked)}
+                    aria-pressed={playerLocked}
+                    aria-label={playerLocked ? 'Unlock player controls' : 'Lock player controls'}
+                    title={playerLocked ? 'Unlock player controls' : 'Lock player controls'}
+                  >
+                    {playerLocked ? '🔓 Unlock' : '🔒 Lock'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closePlayer}
+                    aria-label="Close player"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
               <div className="player-layout">
@@ -9930,6 +9946,17 @@ export function App() {
                   </div>
                 </aside>
               </div>
+
+              {playerLocked && (
+                <div className="player-lock-shield" role="dialog" aria-modal="false" aria-label="Player controls locked">
+                  <div className="player-lock-card">
+                    <span aria-hidden="true">🔒</span>
+                    <strong>Player locked</strong>
+                    <small>Touch controls are protected while playback continues.</small>
+                    <button type="button" onClick={() => setPlayerLocked(false)}>🔓 Unlock</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
