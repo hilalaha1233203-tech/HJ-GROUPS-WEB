@@ -78,7 +78,7 @@ export async function enableWebPush(preferences = WEB_PUSH_DEFAULT_PREFERENCES) 
       )),
     ])
 
-    if (!registration?.active || registration.active.state !== 'activated') {
+    if (!registration?.active || registration.active.state !== 'activated' || !registration.active.scriptURL.endsWith('/hj-push-sw.js')) {
       throw new Error('Notifications are still getting ready. Please try again in a moment.')
     }
   } catch (error) {
