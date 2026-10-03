@@ -37,7 +37,18 @@ async function runScan(){
  if(snapshot){for(const row of snapshot.public_execute_security_definer||[])findings.push(finding('high','security','database',row.name,'A SECURITY DEFINER function in public is executable by PUBLIC.','A privileged database function may become an unintended public API.',JSON.stringify(row),'PUBLIC execute privilege on a SECURITY DEFINER function.','Revoke PUBLIC execute and expose only through an authenticated server boundary.','Query function privileges and verify PUBLIC cannot execute it.'))}
  const scan={started_at:started,finished_at:new Date().toISOString(),status:'completed',summary:{finding_count:findings.length,critical:findings.filter(x=>x.severity==='critical').length,high:findings.filter(x=>x.severity==='high').length,medium:findings.filter(x=>x.severity==='medium').length,low:findings.filter(x=>x.severity==='low').length,informational:findings.filter(x=>x.severity==='informational').length}}
  const {data:scanRow,error:scanError}=await db.from('security_scans').insert(scan).select('id').single();if(scanError)throw scanError
- for(const f of findings){const fingerprint=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([f.category,f.component,f.location,f.description]))).then(b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''));await db.from('security_findings').upsert({fingerprint,first_detected_at:new Date().toISOString(),last_detected_at:new Date().toISOString(),severity:f.severity,category:f.category,status:'new',component:f.component,location:f.location,description:f.description,impact:f.impact,evidence:f.evidence,root_cause:f.root_cause,recommended_fix:f.recommended_fix,verification:f.verification,last_scan_id:scanRow.id,updated_at:new Date().toISOString()},{onConflict:'fingerprint',ignoreDuplicates:false})}
+ for(const f of findings){
+   const fingerprint=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([f.category,f.component,f.location,f.description]))).then(b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''))
+   const {data:existing}=await db.from('security_findings').select('first_detected_at,recurring_count,status').eq('fingerprint',fingerprint).maybeSingle()
+   const nextStatus=existing?.status&&['fixed','retested','closed'].includes(existing.status)?'new':(existing?.status||'new')
+   await db.from('security_findings').upsert({
+     fingerprint,
+     first_detected_at:existing?.first_detected_at||new Date().toISOString(),
+     last_detected_at:new Date().toISOString(),
+     severity:f.severity,category:f.category,status:nextStatus,component:f.component,location:f.location,description:f.description,impact:f.impact,evidence:f.evidence,root_cause:f.root_cause,recommended_fix:f.recommended_fix,verification:f.verification,
+     recurring_count:Number(existing?.recurring_count||0)+1,last_scan_id:scanRow.id,updated_at:new Date().toISOString()
+   },{onConflict:'fingerprint',ignoreDuplicates:false})
+ }
  return {scanId:scanRow.id,summary:scan.summary,findings:findings.length}
 }
 
