@@ -11065,43 +11065,44 @@ export function App() {
         className={`bottom-nav ${isAdmin ? 'admin-bottom-nav' : ''}`}
         aria-label="Mobile navigation"
       >
-        <button type="button" className={page === 'home' ? 'active' : ''} aria-current={page === 'home' ? 'page' : undefined} onClick={() => {
-          setPage('home')
-          setSelectedStory(null)
-          window.scrollTo({ top: 0, behavior: 'smooth' })
-        }}>
+        <button type="button" className={page === 'home' ? 'active' : ''} aria-current={page === 'home' ? 'page' : undefined} onClick={() => navigateTopLevel('home')}>
           <span>⌂</span><small>Home</small>
         </button>
 
         <button
           type="button"
           onClick={() => {
-            setPage('home')
             setSelectedStory(null)
+            setSelectedBook(null)
+            setSelectedVideo(null)
+            setBooksModalOpen(false)
+            setVideoModalOpen(false)
+            replaceAppHistory('audio-list')
+            setPage('home')
             requestAnimationFrame(() => document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
           }}
         >
           <span>🎧</span><small>Audio Stories</small>
         </button>
 
-        <button type="button" aria-current={page === 'books' ? 'page' : undefined} className={page === 'books' ? 'active' : ''} onClick={() => { setBooksModalOpen(false); setPage('books'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+        <button type="button" aria-current={page === 'books' ? 'page' : undefined} className={page === 'books' ? 'active' : ''} onClick={() => navigateTopLevel('books')}>
           <span>📚</span><small>Books</small>
         </button>
 
-        <button type="button" aria-current={page === 'videos' ? 'page' : undefined} className={page === 'videos' ? 'active' : ''} onClick={() => { setVideoModalOpen(false); setPage('videos'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+        <button type="button" aria-current={page === 'videos' ? 'page' : undefined} className={page === 'videos' ? 'active' : ''} onClick={() => navigateTopLevel('videos')}>
           <span>🎬</span><small>Videos</small>
         </button>
 
-        <button className={page === 'vip' ? 'active' : ''} onClick={() => setPage('vip')}>
+        <button className={page === 'vip' ? 'active' : ''} onClick={() => navigateTopLevel('vip')}>
           <span>♛</span><small>VIP</small>
         </button>
 
-        <button className={page === 'library' ? 'active' : ''} onClick={() => setPage('library')}>
+        <button className={page === 'library' ? 'active' : ''} onClick={() => navigateTopLevel('library')}>
           <span>♡</span><small>Library</small>
         </button>
 
         <button className={page === 'account' ? 'active' : ''} onClick={() => {
-          if (loggedIn) setPage('account')
+          if (loggedIn) navigateTopLevel('account')
           else setLoginOpen(true)
         }}>
           <span>👤</span><small>{loggedIn ? 'Account' : 'Login'}</small>
