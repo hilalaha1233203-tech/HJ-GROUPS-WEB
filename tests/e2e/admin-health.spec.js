@@ -117,6 +117,44 @@ test.describe('HJ GROUPS admin health', () => {
       await expect(page.locator('body')).toBeVisible()
     }
 
+    await adminOverlay.getByRole('button', { name: /Security/i }).first().click()
+    await expect(page.getByText(/Security & Health Dashboard/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: /Run Security Check/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Run Playwright Check/i })).toBeVisible()
+    await expect(page.getByText(/Browser \/ Playwright Verification/i)).toBeVisible()
+
+    await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
+    const bulkSection = page.locator('.bulk-telegram-section').first()
+    await expect(bulkSection).toBeVisible()
+    for (const width of [320, 360, 375, 390, 412, 430]) {
+      await page.setViewportSize({ width, height: 844 })
+      await expect(bulkSection).toBeVisible()
+      const bulkMetrics = await bulkSection.evaluate((element) => {
+        const rect = element.getBoundingClientRect()
+        return {
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+          viewport: document.documentElement.clientWidth,
+          scrollWidth: element.scrollWidth,
+        }
+      })
+      expect(bulkMetrics.left).toBeGreaterThanOrEqual(0)
+      expect(bulkMetrics.right).toBeLessThanOrEqual(bulkMetrics.viewport + 1)
+      expect(bulkMetrics.width).toBeGreaterThan(0)
+      expect(bulkMetrics.scrollWidth).toBeLessThanOrEqual(bulkMetrics.viewport + 1)
+      await expect(page.getByRole('button', { name: /Scan Telegram Messages/i })).toBeVisible()
+    }
+
+    if (process.env.E2E_SECURITY_TRIGGER_PLAYWRIGHT === 'true') {
+      await adminOverlay.getByRole('button', { name: /Security/i }).first().click()
+      await expect(page.getByRole('button', { name: /Run Playwright Check/i })).toBeVisible()
+      await page.getByRole('button', { name: /Run Playwright Check/i }).click()
+      await expect(page.getByText(/Queued|Running|Passed|Failed/i).first()).toBeVisible({ timeout: 30_000 })
+    }
+
+    await page.setViewportSize({ width: 1280, height: 900 })
+
     await adminOverlay.getByRole('button', { name: /Audio Stories/i }).first().click()
     await expect(page.getByText(/Bulk Telegram Import/i)).toBeVisible()
     await expect(adminOverlay.getByLabel('Audio story status')).toBeVisible()

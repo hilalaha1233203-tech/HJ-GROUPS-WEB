@@ -11,7 +11,7 @@ import {
   validateAdUnlockRules,
 } from './lib/adUnlockRules'
 import { supabase } from './supabase'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import AdminAnalyticsCharts from './components/AdminAnalyticsCharts'
 import AdminNotificationCenter from './components/AdminNotificationCenter'
@@ -343,6 +343,10 @@ function AdminPanel({
   const [securityScans, setSecurityScans] = useState([])
   const [securityLoading, setSecurityLoading] = useState(false)
   const [securityError, setSecurityError] = useState('')
+  const [manualSecurityRunning, setManualSecurityRunning] = useState(false)
+  const [manualSecurityResult, setManualSecurityResult] = useState(null)
+  const [playwrightState, setPlaywrightState] = useState({ status: 'not_run', run: null, tests: null, jobs: [], error: '' })
+  const [playwrightLoading, setPlaywrightLoading] = useState(false)
   const [analyticsData, setAnalyticsData] = useState(null)
   const [analyticsStorySearch, setAnalyticsStorySearch] = useState('')
   const [analyticsStoryPickerOpen, setAnalyticsStoryPickerOpen] = useState(false)
@@ -427,25 +431,148 @@ function AdminPanel({
   }
 
 
+  const refreshSecurityData = useCallback(async () => {
+    setSecurityLoading(true)
+    setSecurityError('')
+    try {
+      const [{ data: findings, error: findingsError }, { data: scans, error: scansError }] = await Promise.all([
+        supabase.from('security_findings').select('*').order('last_detected_at', { ascending: false }).limit(200),
+        supabase.from('security_scans').select('*').order('started_at', { ascending: false }).limit(30),
+      ])
+      if (findingsError) throw findingsError
+      if (scansError) throw scansError
+      setSecurityFindings(findings || [])
+      setSecurityScans(scans || [])
+      return { findings: findings || [], scans: scans || [] }
+    } catch (error) {
+      setSecurityError(String(error?.message || 'Security monitoring data unavailable.'))
+      throw error
+    } finally {
+      setSecurityLoading(false)
+    }
+  }, [])
+
+  const runManualSecurityCheck = async () => {
+    if (manualSecurityRunning) return
+    setManualSecurityRunning(true)
+    setSecurityError('')
+    setManualSecurityResult({ status: 'running', startedAt: new Date().toISOString() })
+    try {
+      const { data, error } = await supabase.functions.invoke('hj-security-monitor', {
+        body: { scheduled: false },
+      })
+      if (error) {
+        let message = error.message || 'Manual security check failed.'
+        try {
+          const payload = await error.context?.json?.()
+          message = payload?.error || message
+        } catch {}
+        throw new Error(message)
+      }
+      setManualSecurityResult(data || { status: 'completed' })
+      await refreshSecurityData()
+      showToast('Manual security check completed.')
+    } catch (error) {
+      setManualSecurityResult({ status: 'failed', error: String(error?.message || 'Manual security check failed.') })
+      showToast(String(error?.message || 'Manual security check failed.'), 'error')
+    } finally {
+      setManualSecurityRunning(false)
+    }
+  }
+
+  const callAdminPlaywright = useCallback(async (action) => {
+    const { data: { session } = {} } = await supabase.auth.getSession()
+    if (!session?.access_token) throw new Error('Admin session is unavailable.')
+    const response = await fetch('/api/admin/playwright', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({ action }),
+      cache: 'no-store',
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      const error = new Error(payload?.error || 'Playwright control failed.')
+      error.status = response.status
+      error.payload = payload
+      throw error
+    }
+    return payload || {}
+  }, [])
+
+  const refreshPlaywrightStatus = useCallback(async () => {
+    setPlaywrightLoading(true)
+    try {
+      const data = await callAdminPlaywright('status')
+      setPlaywrightState({
+        status: data?.run?.status === 'completed'
+          ? (data?.run?.conclusion === 'success' ? 'passed' : data?.run?.conclusion ? 'failed' : 'running')
+          : (data?.status === 'queued' ? 'queued' : data?.run?.status || 'not_run'),
+        run: data?.run || null,
+        tests: data?.tests || null,
+        jobs: data?.jobs || [],
+        error: '',
+        browserCoverage: data?.browserCoverage || [],
+      })
+    } catch (error) {
+      const payload = error?.payload
+      if (payload?.status === 'not_configured') {
+        setPlaywrightState((current) => ({ ...current, status: 'not_configured', error: String(error?.message || 'Playwright control is not configured.') }))
+      } else {
+        setPlaywrightState((current) => ({ ...current, error: String(error?.message || 'Playwright status unavailable.') }))
+      }
+    } finally {
+      setPlaywrightLoading(false)
+    }
+  }, [callAdminPlaywright])
+
+  const runPlaywrightCheck = async () => {
+    if (playwrightLoading || ['queued', 'running', 'in_progress'].includes(playwrightState.status)) return
+    setPlaywrightLoading(true)
+    setPlaywrightState((current) => ({ ...current, status: 'queued', error: '' }))
+    try {
+      const data = await callAdminPlaywright('start')
+      if (data?.status === 'already_running') {
+        setPlaywrightState((current) => ({
+          ...current,
+          status: data?.run?.status || 'running',
+          run: data?.run || current.run,
+          tests: data?.tests || current.tests,
+          jobs: data?.jobs || current.jobs,
+          error: '',
+        }))
+      } else {
+        setPlaywrightState((current) => ({ ...current, status: 'queued', error: '' }))
+      }
+      showToast(data?.status === 'already_running' ? 'Playwright is already running.' : 'Playwright verification queued.')
+    } catch (error) {
+      const payload = error?.payload
+      const message = String(error?.message || 'Could not trigger Playwright.')
+      setPlaywrightState((current) => ({
+        ...current,
+        status: payload?.status === 'not_configured' ? 'not_configured' : 'failed',
+        error: message,
+      }))
+      showToast(message, 'error')
+    } finally {
+      setPlaywrightLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (tab !== 'security') return undefined
-    let mounted = true
-    const loadSecurity = async () => {
-      setSecurityLoading(true); setSecurityError('')
-      try {
-        const [{ data: findings, error: findingsError }, { data: scans, error: scansError }] = await Promise.all([
-          supabase.from('security_findings').select('*').order('last_detected_at', { ascending: false }).limit(200),
-          supabase.from('security_scans').select('*').order('started_at', { ascending: false }).limit(30),
-        ])
-        if (findingsError) throw findingsError
-        if (scansError) throw scansError
-        if (mounted) { setSecurityFindings(findings || []); setSecurityScans(scans || []) }
-      } catch (error) { if (mounted) setSecurityError(String(error?.message || 'Security monitoring data unavailable.')) }
-      finally { if (mounted) setSecurityLoading(false) }
-    }
-    loadSecurity()
-    return () => { mounted = false }
-  }, [tab])
+    refreshSecurityData().catch(() => {})
+    refreshPlaywrightStatus().catch(() => {})
+  }, [tab, refreshSecurityData, refreshPlaywrightStatus])
+
+  useEffect(() => {
+    if (tab !== 'security' || !['queued', 'running', 'in_progress'].includes(playwrightState.status)) return undefined
+    const timer = window.setInterval(() => { void refreshPlaywrightStatus() }, 5000)
+    return () => window.clearInterval(timer)
+  }, [tab, playwrightState.status, refreshPlaywrightStatus])
 
   useEffect(() => {
     if (tab !== 'analytics') return undefined
@@ -2014,6 +2141,32 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
     }
   }
 
+  const securityCategoryCards = [
+    { key: 'authentication', label: 'Authentication', icon: '🔐', match: (f) => /auth|session|admin/i.test(String(f.component || '')) },
+    { key: 'database', label: 'Database / RLS', icon: '🗄️', match: (f) => /database|rls/i.test(String(f.component || '')) },
+    { key: 'environment', label: 'Environment Secrets', icon: '🔑', match: (f) => /secret|environment/i.test(String(f.component || '')) },
+    { key: 'api', label: 'API Security', icon: '🌐', match: (f) => /cors|api|web-server|public-settings/i.test(String(f.component || '')) },
+    { key: 'media', label: 'Media Protection', icon: '🎧', match: (f) => /media/i.test(String(f.component || '')) },
+    { key: 'client', label: 'Client Security', icon: '🛡️', match: (f) => /client/i.test(String(f.component || '')) },
+    { key: 'dependencies', label: 'Dependencies', icon: '📦', match: (f) => f.category === 'dependency' },
+  ].map((item) => {
+    const findings = securityFindings.filter(item.match)
+    const severe = findings.some((f) => ['critical', 'high'].includes(f.severity))
+    const warning = findings.some((f) => ['medium', 'low'].includes(f.severity))
+    return {
+      ...item,
+      findings,
+      status: severe ? 'FAIL' : warning ? 'WARNING' : 'PASS',
+    }
+  })
+
+  const overallSecurityStatus = manualSecurityResult?.summary?.overall
+    || (securityFindings.some((f) => f.status !== 'closed' && ['critical', 'high'].includes(f.severity))
+      ? 'issues_found'
+      : securityFindings.some((f) => f.status !== 'closed' && ['medium', 'low'].includes(f.severity))
+        ? 'warnings'
+        : 'secure')
+
   return (
     <>
       {toastMessage && typeof document !== 'undefined'
@@ -2186,14 +2339,237 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
         {tab === 'security' && (
           <section className="admin-section admin-security-dashboard">
-            <div className="admin-security-head"><div><div className="admin-eyebrow">DETECT · ANALYZE · REPORT</div><h2>Security & Health Dashboard</h2><p>Automated scans report findings; they do not auto-fix production.</p></div><div className="admin-security-status">{securityFindings.some(f=>f.status!=='closed'&&f.severity==='critical')?'🔴 Critical Issues':securityFindings.some(f=>f.status!=='closed'&&['high','medium'].includes(f.severity))?'🟡 Warnings':'🟢 Healthy'}</div></div>
-            {securityLoading&&<p>Loading security history…</p>}{securityError&&<p className="auth-error">{securityError}</p>}
-            {!securityLoading&&!securityError&&<>
-              <div className="admin-stat-grid">{[['🧾','Total Findings',securityFindings.length],['🔴','Critical',securityFindings.filter(f=>f.severity==='critical'&&f.status!=='closed').length],['🟠','High',securityFindings.filter(f=>f.severity==='high'&&f.status!=='closed').length],['🟡','Medium',securityFindings.filter(f=>f.severity==='medium'&&f.status!=='closed').length],['🔵','Low',securityFindings.filter(f=>f.severity==='low'&&f.status!=='closed').length],['✓','Fixed / Closed',securityFindings.filter(f=>['fixed','retested','closed'].includes(f.status)).length]].map(([i,l,v])=><div className="admin-stat-card" key={l}><span className="admin-stat-icon">{i}</span><small>{l}</small><strong>{v}</strong></div>)}</div>
-              <div className="admin-security-filters"><select aria-label="Severity filter" onChange={e=>document.querySelectorAll('[data-security-row]').forEach(el=>{el.hidden=!!e.target.value&&el.dataset.severity!==e.target.value})}><option value="">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="informational">Informational</option></select></div>
-              <div className="admin-security-list">{securityFindings.map(f=><article key={f.id} data-security-row data-severity={f.severity} className="admin-security-finding"><header><strong>{({critical:'🔴 Critical',high:'🟠 High',medium:'🟡 Medium',low:'🔵 Low',informational:'🟢 Informational'})[f.severity]||f.severity}</strong><span>{String(f.status||'new').replace('_',' ')}</span></header><h3>{f.description}</h3><p><b>Component:</b> {f.component} · <b>Location:</b> {f.location||'Not specified'}</p><p><b>Impact:</b> {f.impact||'Not provided'}</p><p><b>Evidence:</b> {f.evidence||'Not provided'}</p><p><b>Root cause:</b> {f.root_cause||'Not verified'}</p><p><b>Recommended fix:</b> {f.recommended_fix||'Not provided'}</p><p><b>Verification:</b> {f.verification||'Retest after remediation.'}</p><small>First: {f.first_detected_at?new Date(f.first_detected_at).toLocaleString():'—'} · Last: {f.last_detected_at?new Date(f.last_detected_at).toLocaleString():'—'} · Recurrences: {f.recurring_count||1}</small></article>)}{!securityFindings.length&&<div className="admin-empty">No recorded findings yet.</div>}</div>
-              <section className="admin-section"><h3>Recent scans</h3><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Started</th><th>Status</th><th>Findings</th><th>Critical</th><th>High</th></tr></thead><tbody>{securityScans.map(s=><tr key={s.id}><td>{new Date(s.started_at).toLocaleString()}</td><td>{s.status}</td><td>{s.summary?.finding_count??0}</td><td>{s.summary?.critical??0}</td><td>{s.summary?.high??0}</td></tr>)}</tbody></table></div></section>
-            </>}
+            <div className="admin-security-head">
+              <div>
+                <div className="admin-eyebrow">DETECT · ANALYZE · REPORT</div>
+                <h2>🔐 Security & Health Dashboard</h2>
+                <p>Manual audits run the existing server-side security monitor and report findings without changing production.</p>
+              </div>
+              <div className="admin-security-actions">
+                <button
+                  type="button"
+                  className="admin-submit"
+                  onClick={runManualSecurityCheck}
+                  disabled={manualSecurityRunning}
+                >
+                  {manualSecurityRunning ? '🔄 Scanning…' : '🔐 Run Security Check'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => { void refreshSecurityData(); void refreshPlaywrightStatus() }}
+                  disabled={securityLoading || playwrightLoading}
+                >
+                  🔄 Refresh Results
+                </button>
+              </div>
+            </div>
+
+            {securityError && <p className="auth-error" role="alert">{securityError}</p>}
+
+            <div className="admin-security-summary">
+              <div className="admin-security-overall">
+                <small>Latest overall status</small>
+                <strong>
+                  {manualSecurityRunning
+                    ? '🔄 SCANNING'
+                    : overallSecurityStatus === 'issues_found'
+                      ? '🔴 ISSUES FOUND'
+                      : overallSecurityStatus === 'warnings'
+                        ? '🟡 WARNINGS'
+                        : '🟢 SECURE'}
+                </strong>
+                {manualSecurityResult?.scanId && <span>Scan #{manualSecurityResult.scanId}</span>}
+              </div>
+              <div className="admin-security-scan-meta">
+                <span>Status: <b>{manualSecurityRunning ? 'Running' : manualSecurityResult?.status === 'failed' ? 'Failed' : manualSecurityResult?.status === 'completed' ? 'Completed' : 'Ready'}</b></span>
+                {manualSecurityResult?.summary && <span>Findings: <b>{manualSecurityResult.summary.finding_count ?? 0}</b></span>}
+              </div>
+            </div>
+
+            <div className="admin-security-check-grid">
+              {securityCategoryCards.map((card) => (
+                <article key={card.key} className={`admin-security-check-card status-${card.status.toLowerCase()}`}>
+                  <div className="admin-security-check-card-head">
+                    <span>{card.icon}</span>
+                    <strong>{card.label}</strong>
+                    <b>{card.status === 'PASS' ? '🟢 PASS' : card.status === 'WARNING' ? '🟡 WARNING' : '🔴 FAIL'}</b>
+                  </div>
+                  <p>
+                    {card.status === 'PASS'
+                      ? 'No active finding was reported for this check.'
+                      : `${card.findings.length} finding${card.findings.length === 1 ? '' : 's'} require attention.`}
+                  </p>
+                </article>
+              ))}
+            </div>
+
+            {manualSecurityResult?.error && (
+              <p className="auth-error" role="alert">{manualSecurityResult.error}</p>
+            )}
+
+            {manualSecurityRunning && (
+              <div className="admin-security-scan-progress" role="status" aria-live="polite">
+                <span className="admin-security-scan-spinner" aria-hidden="true" />
+                <div>
+                  <strong>Security scan in progress…</strong>
+                  <small>Authentication, secrets, RLS, APIs, media protection, client sinks and dependency advisories are being checked.</small>
+                </div>
+              </div>
+            )}
+
+            <section className="admin-security-browser">
+              <div className="admin-security-browser-head">
+                <div>
+                  <div className="admin-eyebrow">REAL BROWSER VERIFICATION</div>
+                  <h3>🧪 Browser / Playwright Verification</h3>
+                  <p>Uses the existing <code>.github/workflows/playwright.yml</code> workflow. No simulated PASS results.</p>
+                </div>
+                <div className={`admin-security-playwright-badge status-${String(playwrightState.status || 'not_run').toLowerCase()}`}>
+                  {playwrightState.status === 'passed' ? '🟢 Passed'
+                    : playwrightState.status === 'failed' ? '🔴 Failed'
+                      : playwrightState.status === 'queued' ? '🟡 Queued'
+                        : ['running', 'in_progress'].includes(playwrightState.status) ? '🔄 Running'
+                          : playwrightState.status === 'not_configured' ? '⚪ Not Configured'
+                            : '⚪ Not Run'}
+                </div>
+              </div>
+
+              <div className="admin-security-browser-actions">
+                <button
+                  type="button"
+                  className="admin-submit"
+                  onClick={runPlaywrightCheck}
+                  disabled={playwrightLoading || ['queued', 'running', 'in_progress'].includes(playwrightState.status)}
+                >
+                  {playwrightLoading ? '⏳ Preparing…' : '▶ Run Playwright Check'}
+                </button>
+                <button type="button" className="secondary-btn" onClick={() => void refreshPlaywrightStatus()} disabled={playwrightLoading}>
+                  🔄 Refresh Results
+                </button>
+              </div>
+
+              {playwrightState.error && (
+                <p className="auth-error" role="alert">{playwrightState.error}</p>
+              )}
+
+              {playwrightState.status === 'not_configured' && (
+                <p className="admin-settings-note">
+                  The UI is connected to the real workflow controller, but the server-side GitHub Actions credential is not configured. Set <code>HJ_GITHUB_ACTIONS_TOKEN</code> on the Supabase Edge Function; do not place it in VITE_ variables.
+                </p>
+              )}
+
+              <div className="admin-security-playwright-grid">
+                <div><small>Status</small><strong>{playwrightState.status || 'not_run'}</strong></div>
+                <div><small>Last run</small><strong>{playwrightState.run?.createdAt ? new Date(playwrightState.run.createdAt).toLocaleString() : 'Not run'}</strong></div>
+                <div><small>Commit SHA</small><strong>{playwrightState.run?.commitSha ? playwrightState.run.commitSha.slice(0, 12) : '—'}</strong></div>
+                <div><small>Workflow run</small><strong>{playwrightState.run?.runNumber ? `#${playwrightState.run.runNumber}` : '—'}</strong></div>
+                <div><small>Duration</small><strong>{playwrightState.run?.durationMs ? `${Math.round(playwrightState.run.durationMs / 1000)}s` : '—'}</strong></div>
+                <div><small>Tests</small><strong>{playwrightState.tests ? `${playwrightState.tests.passed} passed · ${playwrightState.tests.failed} failed · ${playwrightState.tests.skipped} skipped` : '—'}</strong></div>
+              </div>
+
+              {Array.isArray(playwrightState.browserCoverage) && playwrightState.browserCoverage.length > 0 && (
+                <div className="admin-security-browser-coverage">
+                  <small>Browser / device coverage</small>
+                  <div>{playwrightState.browserCoverage.map((item) => <span key={item}>{item}</span>)}</div>
+                </div>
+              )}
+            </section>
+
+            {!securityLoading && (
+              <>
+                <div className="admin-stat-grid">
+                  {[
+                    ['🧾', 'Total Findings', securityFindings.length],
+                    ['🔴', 'Critical', securityFindings.filter(f => f.severity === 'critical' && f.status !== 'closed').length],
+                    ['🟠', 'High', securityFindings.filter(f => f.severity === 'high' && f.status !== 'closed').length],
+                    ['🟡', 'Medium', securityFindings.filter(f => f.severity === 'medium' && f.status !== 'closed').length],
+                    ['🔵', 'Low', securityFindings.filter(f => f.severity === 'low' && f.status !== 'closed').length],
+                    ['✓', 'Fixed / Closed', securityFindings.filter(f => ['fixed', 'retested', 'closed'].includes(f.status)).length],
+                  ].map(([i, l, v]) => (
+                    <div className="admin-stat-card" key={l}><span className="admin-stat-icon">{i}</span><small>{l}</small><strong>{v}</strong></div>
+                  ))}
+                </div>
+
+                <div className="admin-security-filters">
+                  <select aria-label="Severity filter" onChange={e => document.querySelectorAll('[data-security-row]').forEach(el => { el.hidden = !!e.target.value && el.dataset.severity !== e.target.value })}>
+                    <option value="">All severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="informational">Informational</option>
+                  </select>
+                </div>
+
+                <div className="admin-security-list">
+                  {securityFindings.map(f => (
+                    <article key={f.id} data-security-row data-severity={f.severity} className="admin-security-finding">
+                      <header>
+                        <strong>{({ critical: '🔴 Critical', high: '🟠 High', medium: '🟡 Medium', low: '🔵 Low', informational: '🟢 Informational' })[f.severity] || f.severity}</strong>
+                        <span>{String(f.status || 'new').replace('_', ' ')}</span>
+                      </header>
+                      <h3>{f.description}</h3>
+                      <p><b>Component:</b> {f.component} · <b>Location:</b> {f.location || 'Not specified'}</p>
+                      <p><b>Impact:</b> {f.impact || 'Not provided'}</p>
+                      <p><b>Evidence:</b> {f.evidence || 'Not provided'}</p>
+                      <p><b>Root cause:</b> {f.root_cause || 'Not verified'}</p>
+                      <p><b>Recommended fix:</b> {f.recommended_fix || 'Not provided'}</p>
+                      <p><b>Verification:</b> {f.verification || 'Retest after remediation.'}</p>
+                      <small>First: {f.first_detected_at ? new Date(f.first_detected_at).toLocaleString() : '—'} · Last: {f.last_detected_at ? new Date(f.last_detected_at).toLocaleString() : '—'} · Recurrences: {f.recurring_count || 1}</small>
+                    </article>
+                  ))}
+                  {!securityFindings.length && <div className="admin-empty">No recorded findings yet. Run a manual security check to populate the report.</div>}
+                </div>
+
+                <section className="admin-section">
+                  <h3>📋 Manual Check History</h3>
+                  <div className="admin-table-wrap">
+                    <table className="admin-table">
+                      <thead><tr><th>Check</th><th>Time</th><th>Result</th><th>Findings</th></tr></thead>
+                      <tbody>
+                        {securityScans.map(s => (
+                          <tr key={s.id}>
+                            <td>🔐 Security Scan</td>
+                            <td>{new Date(s.started_at).toLocaleString()}</td>
+                            <td>{s.summary?.overall === 'issues_found' ? '🔴 FAIL' : s.summary?.overall === 'warnings' ? '🟡 WARNING' : '🟢 PASS'}</td>
+                            <td>{s.summary?.finding_count ?? 0}</td>
+                          </tr>
+                        ))}
+                        {playwrightState.run?.createdAt && (
+                          <tr>
+                            <td>🧪 Playwright</td>
+                            <td>{new Date(playwrightState.run.createdAt).toLocaleString()}</td>
+                            <td>{playwrightState.status === 'passed' ? '🟢 PASS' : playwrightState.status === 'failed' ? '🔴 FAIL' : '🟡 ' + String(playwrightState.status || 'RUNNING').toUpperCase()}</td>
+                            <td>{playwrightState.tests ? `${playwrightState.tests.passed} passed / ${playwrightState.tests.failed} failed / ${playwrightState.tests.skipped} skipped` : '—'}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section className="admin-section">
+                  <h3>Recent security monitor scans</h3>
+                  <div className="admin-table-wrap">
+                    <table className="admin-table">
+                      <thead><tr><th>Started</th><th>Status</th><th>Findings</th><th>Critical</th><th>High</th></tr></thead>
+                      <tbody>
+                        {securityScans.map(s => (
+                          <tr key={`monitor-${s.id}`}>
+                            <td>{new Date(s.started_at).toLocaleString()}</td>
+                            <td>{s.status}</td>
+                            <td>{s.summary?.finding_count ?? 0}</td>
+                            <td>{s.summary?.critical ?? 0}</td>
+                            <td>{s.summary?.high ?? 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
           </section>
         )}
 
