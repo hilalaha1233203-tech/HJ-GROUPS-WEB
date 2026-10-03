@@ -1999,6 +1999,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                     ['📢', 'Ad Unlock Starts', analyticsData.overview?.ad_unlock_starts ?? 0],
                     ['✅', 'Ad Unlock Completions', analyticsData.overview?.ad_unlock_completions ?? 0],
                     ['🔓', 'Actual Ad Unlocks', analyticsData.overview?.actual_ad_unlocks ?? 0],
+                    ['🔗', 'Actual Shortener Unlocks', analyticsData.overview?.actual_shortener_unlocks ?? 0],
                     ['♛', 'Premium/VIP Accesses', analyticsData.overview?.premium_vip_accesses ?? 0],
                   ].map(([icon, label, value]) => (
                     <div className="admin-stat-card" key={label}><span className="admin-stat-icon">{icon}</span><small>{label}</small><strong>{value}</strong></div>
@@ -2006,8 +2007,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 </div>
                 <section className="admin-section" style={{ marginTop: '18px' }}>
                   <h3>📚 Story Analytics</h3>
-                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Story</th><th>Views</th><th>Unique Viewers</th><th>Episode Plays</th><th>Unique Episode Viewers</th><th>Completions</th><th>Ad Starts</th><th>Ad Completions</th></tr></thead><tbody>
-                    {(analyticsData.stories || []).map((row) => <tr key={row.id}><td>{row.title || 'Untitled'}</td><td>{row.story_views}</td><td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td><td>{row.episode_plays}</td><td>{Number(row.logged_in_episode_viewers || 0) + Number(row.anonymous_episode_viewers || 0)}</td><td>{row.episode_completions}</td><td>{row.ad_unlock_starts}</td><td>{row.ad_unlock_completions}</td></tr>)}
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Story</th><th>Views</th><th>Unique Viewers</th><th>Episode Plays</th><th>Unique Episode Viewers</th><th>Completions</th><th>Ad Starts</th><th>Ad Completions</th><th>Shortener Completions</th><th>Actual Ad Unlocks</th><th>Actual Shortener Unlocks</th></tr></thead><tbody>
+                    {(analyticsData.stories || []).map((row) => <tr key={row.id}><td>{row.title || 'Untitled'}</td><td>{row.story_views}</td><td>{Number(row.logged_in_unique_viewers || 0) + Number(row.anonymous_unique_viewers || 0)}</td><td>{row.episode_plays}</td><td>{Number(row.logged_in_episode_viewers || 0) + Number(row.anonymous_episode_viewers || 0)}</td><td>{row.episode_completions}</td><td>{row.ad_unlock_starts}</td><td>{row.ad_unlock_completions}</td><td>{row.shortener_unlock_completions}</td><td>{row.actual_ad_unlocks ?? 0}</td><td>{row.actual_shortener_unlocks ?? 0}</td></tr>)}
                   </tbody></table></div>
                 </section>
                 {(() => {
@@ -2232,11 +2233,13 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                             <div><small>Total Plays</small><strong>{batchSummary.total_plays}</strong></div>
                             <div><small>Completed</small><strong>{batchSummary.completed_plays}</strong></div>
                             <div><small>Ad Starts</small><strong>{batchSummary.ad_unlock_starts}</strong></div>
+                            <div><small>Ad Completions</small><strong>{batchSummary.ad_unlock_completions}</strong></div>
+                            <div><small>Shortener Completions</small><strong>{batchSummary.shortener_unlock_completions}</strong></div>
                             <div><small>Avg Plays / Episode</small><strong>{batchSummary.average_plays_per_episode.toFixed(1)}</strong></div>
                           </div>
                           <div style={{ overflowX: 'auto' }}>
                             <table className="admin-table">
-                              <thead><tr><th>Episode</th><th>Title</th><th>Total Plays</th><th>Unique Viewers</th><th>Completed Plays</th><th>Ad Starts</th><th>Ad Completions</th><th>Actual Unlocks</th></tr></thead>
+                              <thead><tr><th>Episode</th><th>Title</th><th>Total Plays</th><th>Unique Viewers</th><th>Completed Plays</th><th>Ad Starts</th><th>Ad Completions</th><th>Shortener Completions</th><th>Actual Ad Unlocks</th><th>Actual Shortener Unlocks</th></tr></thead>
                               <tbody>
                                 {appliedBatchEpisodes.map((row) => (
                                   <tr key={row.id}>
@@ -2247,7 +2250,9 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                                     <td>{row.completed_plays}</td>
                                     <td>{row.ad_unlock_starts}</td>
                                     <td>{row.ad_unlock_completions}</td>
+                                    <td>{row.shortener_unlock_completions}</td>
                                     <td>{row.actual_unlocks ?? 0}</td>
+                                    <td>{row.actual_shortener_unlocks ?? 0}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -2263,20 +2268,20 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   )
                 })()}
                 <section className="admin-section" style={{ marginTop: '18px' }}>
-                  <h3>📢 Ad Analytics</h3>
-                  <p style={{ opacity: 0.75 }}>Started ≠ Completed ≠ Actual Unlock. Actual Unlock is read from the existing HJ GROUPS <code>ad_unlocks</code> state.</p>
+                  <h3>📢 Unlock Analytics</h3>
+                  <p style={{ opacity: 0.75 }}>Rewarded Ads and Shortener are separate unlock paths. Rewarded Ad Completions / Actual Ad Unlocks count only verified rewarded ads; Shortener Completions / Actual Shortener Unlocks count shortener access separately.</p>
                   <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Time</th><th>Event</th><th>User</th><th>Session</th><th>Story</th><th>Episode</th></tr></thead><tbody>
                     {(analyticsData.ad_activity || []).map((row) => <tr key={row.id}><td>{row.created_at ? new Date(row.created_at).toLocaleString() : '—'}</td><td>{row.event_type}</td><td>{row.user_id || '—'}</td><td>{row.session_suffix ? <>…{row.session_suffix}</> : '—'}</td><td>{row.story_id || '—'}</td><td>{row.episode_id || '—'}</td></tr>)}
                   </tbody></table></div>
                 </section>
                 <section className="admin-section" style={{ marginTop: '18px' }}>
                   <h3>👥 User Activity</h3>
-                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>User ID</th><th>Profile</th><th>Last Activity</th><th>Plays</th><th>Completed</th><th>Ad Unlocks</th></tr></thead><tbody>
-                    {(analyticsData.users || []).map((row) => <tr key={row.user_id}><td>{row.user_id}</td><td>{row.full_name || '—'}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.completed_episodes}</td><td>{row.ad_unlocks}</td></tr>)}
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>User ID</th><th>Profile</th><th>Last Activity</th><th>Plays</th><th>Completed</th><th>Rewarded Ad Unlocks</th><th>Shortener Unlocks</th><th>Total Unlocks</th></tr></thead><tbody>
+                    {(analyticsData.users || []).map((row) => <tr key={row.user_id}><td>{row.user_id}</td><td>{row.full_name || '—'}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.completed_episodes}</td><td>{row.ad_unlocks}</td><td>{row.shortener_unlocks ?? 0}</td><td>{row.total_unlocks ?? (Number(row.ad_unlocks || 0) + Number(row.shortener_unlocks || 0))}</td></tr>)}
                   </tbody></table></div>
                   <h4 style={{ marginTop: '18px' }}>Anonymous Sessions</h4>
-                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Session</th><th>Last Activity</th><th>Plays</th><th>Unlocks</th></tr></thead><tbody>
-                    {(analyticsData.anonymous_sessions || []).map((row) => <tr key={row.session_suffix}><td>…{row.session_suffix}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.unlocks}</td></tr>)}
+                  <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Session</th><th>Last Activity</th><th>Plays</th><th>Rewarded Ad Unlocks</th><th>Shortener Unlocks</th><th>Total Unlocks</th></tr></thead><tbody>
+                    {(analyticsData.anonymous_sessions || []).map((row) => <tr key={row.session_suffix}><td>…{row.session_suffix}</td><td>{row.last_activity ? new Date(row.last_activity).toLocaleString() : '—'}</td><td>{row.plays}</td><td>{row.unlocks}</td><td>{row.shortener_unlocks ?? 0}</td><td>{row.total_unlocks ?? (Number(row.unlocks || 0) + Number(row.shortener_unlocks || 0))}</td></tr>)}
                   </tbody></table></div>
                 </section>
               </>
