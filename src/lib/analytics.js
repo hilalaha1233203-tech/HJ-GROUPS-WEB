@@ -26,10 +26,12 @@ function getAnonymousSessionId() {
 async function getAnalyticsIdentity() {
   try {
     const { data } = await supabase.auth.getSession()
-    const userId = data?.session?.user?.id || null
+    const session = data?.session
+    const userId = session?.user?.id || null
+    const isAdmin = String(session?.user?.app_metadata?.role || '').toLowerCase() === 'admin'
     return userId
-      ? { user_id: userId, session_id: null }
-      : { user_id: null, session_id: getAnonymousSessionId() }
+      ? { user_id: userId, session_id: null, is_admin: isAdmin }
+      : { user_id: null, session_id: getAnonymousSessionId(), is_admin: false }
   } catch {
     return { user_id: null, session_id: getAnonymousSessionId() }
   }
@@ -43,6 +45,7 @@ export async function trackUserActivity(eventType, payload = {}, dedupeKey = nul
 
   try {
     const identity = await getAnalyticsIdentity()
+    if (identity.is_admin) return false
     if (!identity.user_id && !identity.session_id) return false
 
     const row = {
