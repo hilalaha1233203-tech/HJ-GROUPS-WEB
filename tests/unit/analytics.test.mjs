@@ -43,8 +43,8 @@ test('episode analytics batches start at the selected episode and cap at the ava
 test('episode analytics batch summary keeps additive metrics without summing unique viewers', () => {
   assert.deepEqual(
     summarizeEpisodeAnalyticsBatch([
-      { total_plays: 4, completed_plays: 1, ad_unlock_starts: 2, ad_unlock_completions: 1, actual_unlocks: 1 },
-      { total_plays: 6, completed_plays: 2, ad_unlock_starts: 3, ad_unlock_completions: 2, actual_unlocks: 4 },
+      { total_plays: 4, completed_plays: 1, ad_unlock_starts: 2, ad_unlock_completions: 1, shortener_unlock_completions: 1, actual_unlocks: 1 },
+      { total_plays: 6, completed_plays: 2, ad_unlock_starts: 3, ad_unlock_completions: 2, shortener_unlock_completions: 2, actual_unlocks: 4 },
     ]),
     {
       episode_count: 2,
@@ -52,6 +52,7 @@ test('episode analytics batch summary keeps additive metrics without summing uni
       completed_plays: 3,
       ad_unlock_starts: 5,
       ad_unlock_completions: 3,
+      shortener_unlock_completions: 3,
       average_plays_per_episode: 5,
     }
   )
@@ -59,4 +60,17 @@ test('episode analytics batch summary keeps additive metrics without summing uni
 
 test('analytics batch size options are fixed to supported review sizes', () => {
   assert.deepEqual([...ANALYTICS_BATCH_SIZES], [10, 25, 50, 100])
+})
+
+
+test('admin analytics explicitly separates rewarded Ads from Shortener unlocks', () => {
+  const panel = fs.readFileSync('src/AdminPanel.jsx', 'utf8')
+  const migration = fs.readFileSync('supabase/migrations/20261003100500_separate_rewarded_and_shortener_user_counts.sql', 'utf8')
+  assert.match(panel, /Rewarded Ad Unlocks/)
+  assert.match(panel, /Shortener Unlocks/)
+  assert.match(panel, /Actual Shortener Unlocks/)
+  assert.match(panel, /Rewarded Ads and Shortener are separate unlock paths/)
+  assert.match(migration, /shortener_unlock_completions/)
+  assert.match(migration, /total_unlocks/)
+  assert.match(migration, /actual_shortener_unlocks/)
 })
