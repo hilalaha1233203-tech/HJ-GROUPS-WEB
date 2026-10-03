@@ -10084,6 +10084,7 @@ export function App() {
                         setPreDetailsPage(
                           videoModalOpen ? 'videos-modal' : (page === 'videos' ? 'videos' : page)
                         )
+                        pushAppHistory('video-details', { hjGroupsVideoId: story?.id ?? null })
 
                         setVideoModalOpen(false)
                         setBooksModalOpen(false)
