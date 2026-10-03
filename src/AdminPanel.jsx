@@ -12,6 +12,7 @@ import {
 } from './lib/adUnlockRules'
 import { supabase } from './supabase'
 import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import AdminAnalyticsCharts from './components/AdminAnalyticsCharts'
 import AdminNotificationCenter from './components/AdminNotificationCenter'
 import { DEFAULT_APPEARANCE, FONT_OPTIONS, ANIMATION_INTENSITIES, EMOJI_ANIMATIONS, EMOJI_STYLES, normalizeAppearance } from './lib/appearance'
@@ -1968,56 +1969,61 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
   return (
     <>
-      {toastMessage && (
-        <div
-          role={toastType === 'error' ? 'alert' : 'status'}
-          aria-live={toastType === 'error' ? 'assertive' : 'polite'}
-          aria-atomic="true"
-          style={{
-            position: 'fixed',
-            top: 'calc(16px + env(safe-area-inset-top))',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 'min(560px, calc(100vw - 32px))',
-            boxSizing: 'border-box',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            backgroundColor: toastType === 'error' ? '#b91c1c' : '#166534',
-            color: '#fff',
-            padding: '12px 16px',
-            border: '1px solid rgba(255,255,255,.16)',
-            borderRadius: '12px',
-            boxShadow: '0 14px 38px rgba(0,0,0,.38)',
-            zIndex: 100000,
-            pointerEvents: 'auto',
-          }}
-        >
-          <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{toastMessage}</span>
-          <button
-            type="button"
-            aria-label="Dismiss notification"
-            onClick={() => {
-              if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
-              toastTimerRef.current = null
-              setToastMessage('')
-            }}
-            style={{
-              flex: '0 0 auto',
-              border: 0,
-              background: 'transparent',
-              color: 'inherit',
-              fontSize: '18px',
-              lineHeight: 1,
-              cursor: 'pointer',
-              padding: '2px 4px',
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {toastMessage && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="admin-toast"
+              data-testid="admin-toast"
+              role={toastType === 'error' ? 'alert' : 'status'}
+              aria-live={toastType === 'error' ? 'assertive' : 'polite'}
+              aria-atomic="true"
+              style={{
+                position: 'fixed',
+                top: 'calc(16px + env(safe-area-inset-top))',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 'min(560px, calc(100vw - 32px))',
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                backgroundColor: toastType === 'error' ? '#b91c1c' : '#166534',
+                color: '#fff',
+                padding: '12px 16px',
+                border: '1px solid rgba(255,255,255,.16)',
+                borderRadius: '12px',
+                boxShadow: '0 14px 38px rgba(0,0,0,.38)',
+                zIndex: 2147483000,
+                pointerEvents: 'auto',
+              }}
+            >
+              <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{toastMessage}</span>
+              <button
+                type="button"
+                aria-label="Dismiss notification"
+                onClick={() => {
+                  if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+                  toastTimerRef.current = null
+                  setToastMessage('')
+                }}
+                style={{
+                  flex: '0 0 auto',
+                  border: 0,
+                  background: 'transparent',
+                  color: 'inherit',
+                  fontSize: '18px',
+                  lineHeight: 1,
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                }}
+              >
+                ×
+              </button>
+            </div>,
+            document.body
+          )
+        : null}
       <div className="admin-panel">
         <div className="admin-header">
         {tab !== 'overview' ? (
