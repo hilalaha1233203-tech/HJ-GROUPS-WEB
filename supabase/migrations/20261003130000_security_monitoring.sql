@@ -1,3 +1,6 @@
+create extension if not exists pg_cron;
+create extension if not exists pg_net with schema extensions;
+
 create table if not exists public.security_scans (
   id bigint generated always as identity primary key,
   started_at timestamptz not null default now(),
@@ -103,7 +106,7 @@ grant execute on function public.get_security_monitor_key() to service_role;
 select cron.schedule(
   'hj-groups-daily-security-scan',
   '15 3 * * *',
-  $$ select net.http_post(
+  $$ select extensions.http_post(
     url := 'https://yajkfglagnyvenddyvok.supabase.co/functions/v1/hj-security-monitor',
     headers := jsonb_build_object('Content-Type','application/json','x-hj-monitor-key',(select decrypted_secret from vault.decrypted_secrets where name='hj_security_monitor_key')),
     body := jsonb_build_object('scheduled',true,'time',now())
