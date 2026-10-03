@@ -147,6 +147,7 @@ async function handleAdminAnalytics(req, res) {
     const range = url.searchParams.get('range') || '7d'
     const requestedStart = url.searchParams.get('start')
     const requestedEnd = url.searchParams.get('end')
+    const grouping = ['day','week','month'].includes(url.searchParams.get('group')) ? url.searchParams.get('group') : 'day'
     let start = null
     let end = null
     if (requestedStart && requestedEnd) {
@@ -169,9 +170,10 @@ async function handleAdminAnalytics(req, res) {
       end = now.toISOString()
     }
 
-    const { data, error } = await adminClient.rpc('get_hj_admin_analytics', {
+    const { data, error } = await adminClient.rpc('get_hj_admin_analytics_v2', {
       p_start_at: start,
       p_end_at: end,
+      p_grouping: grouping,
     })
     if (error) throw error
 
