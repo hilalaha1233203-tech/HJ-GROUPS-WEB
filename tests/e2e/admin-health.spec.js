@@ -290,7 +290,8 @@ test.describe('HJ GROUPS admin health', () => {
     const episodeSearch = analyticsSection.getByRole('searchbox', { name: /Search episodes/i })
     await expect(episodeSearch).toBeVisible()
 
-    const blankEpisodeResults = analyticsSection.locator('.admin-episode-picker-results button')
+    const episodePickerPanel = analyticsSection.locator('.admin-episode-picker-panel').filter({ has: episodeSearch }).last()
+    const blankEpisodeResults = episodePickerPanel.locator('.admin-episode-picker-results button')
     await expect(blankEpisodeResults.first()).toBeVisible()
     const firstEpisodeResult = blankEpisodeResults.first()
     const firstEpisodeText = await firstEpisodeResult.innerText()
