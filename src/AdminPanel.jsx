@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import AdminAnalyticsCharts from './components/AdminAnalyticsCharts'
 import AdminNotificationCenter from './components/AdminNotificationCenter'
+import AdminContentV2 from './AdminContentV2'
 import { DEFAULT_APPEARANCE, FONT_OPTIONS, ANIMATION_INTENSITIES, EMOJI_ANIMATIONS, EMOJI_STYLES, normalizeAppearance } from './lib/appearance'
 
 const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
@@ -2350,9 +2351,8 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
       <div className="admin-tabs">
         <button className={tab === 'overview' ? 'active' : ''} onClick={() => setAdminTab('overview')}>⌂ Overview</button>
-        <button className={tab === 'stories' ? 'active' : ''} onClick={() => setAdminTab('stories')}>🎧 Audio Stories</button>
-        <button className={tab === 'books' ? 'active' : ''} onClick={() => setAdminTab('books')}>📚 Books</button>
-        <button className={tab === 'videos' ? 'active' : ''} onClick={() => setAdminTab('videos')}>🎬 Videos</button>
+        <button className={tab === 'create' ? 'active' : ''} onClick={() => setAdminTab('create')}>➕ Create</button>
+        <button className={tab === 'manage' ? 'active' : ''} onClick={() => setAdminTab('manage')}>🛠️ Manage</button>
         <button className={tab === 'analytics' ? 'active' : ''} onClick={() => setAdminTab('analytics')}>📊 Analytics</button>
         <button className={tab === 'security' ? 'active' : ''} onClick={() => setAdminTab('security')}>🛡 Security</button>
         <button className={`admin-settings-tab-button ${tab === 'settings' ? 'active' : ''}`} onClick={() => setAdminTab('settings')}>⚙ Management & Settings</button>
@@ -2697,6 +2697,29 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
               </>
             )}
           </section>
+        )}
+
+        {(tab === 'create' || tab === 'manage') && (
+          <AdminContentV2
+            mode={tab}
+            stories={stories}
+            books={books}
+            videoStories={videoStories}
+            adminStoryIds={adminStoryIds}
+            adminBookIds={adminBookIds}
+            adminVideoIds={adminVideoIds}
+            onAddStory={onAddStory}
+            onUpdateStory={onUpdateStory}
+            onAddEpisode={onAddEpisode}
+            onUpdateEpisode={onUpdateEpisode}
+            onAddBook={onAddBook}
+            onUpdateBook={onUpdateBook}
+            onAddVideo={onAddVideo}
+            onUpdateVideo={onUpdateVideo}
+            onAddVideoEpisode={onAddVideoEpisode}
+            onUpdateVideoEpisode={onUpdateVideoEpisode}
+            toast={showToast}
+          />
         )}
 
         {tab === 'analytics' && (
