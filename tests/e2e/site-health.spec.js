@@ -200,23 +200,40 @@ test.describe('HJ GROUPS public website health', () => {
       expect((nextBox?.y || 0) + (nextBox?.height || 0)).toBeGreaterThan(desktopBox.y)
     }
 
-    await page.setViewportSize({ width: 390, height: 844 })
-    await page.waitForTimeout(700)
+    for (const [width, height] of [[430, 932], [414, 896], [390, 844], [375, 812], [360, 800]]) {
+      await page.setViewportSize({ width, height })
+      await page.waitForTimeout(350)
 
-    const mobileViewport = await page.evaluate(() => ({
-      width: document.documentElement.clientWidth,
-      height: document.documentElement.clientHeight,
-      scrollWidth: document.documentElement.scrollWidth,
-    }))
-    const mobileHero = page.locator('.hero-section').first()
-    const mobileBox = await mobileHero.boundingBox()
-    expect(mobileBox?.height || 0).toBeLessThan(mobileViewport.height * 0.78)
-    expect(mobileViewport.scrollWidth).toBeLessThanOrEqual(mobileViewport.width)
+      const mobileViewport = await page.evaluate(() => ({
+        width: document.documentElement.clientWidth,
+        height: document.documentElement.clientHeight,
+        scrollWidth: document.documentElement.scrollWidth,
+      }))
+      const mobileHero = page.locator('.hero-section').first()
+      const mobileBox = await mobileHero.boundingBox()
+      expect(mobileBox?.height || 0).toBeLessThan(mobileViewport.height * 0.78)
+      expect(mobileViewport.scrollWidth).toBeLessThanOrEqual(mobileViewport.width)
 
-    const mobileNextSection = page.locator('.stories-section').first()
-    if (await mobileNextSection.count()) {
-      const nextBox = await mobileNextSection.boundingBox()
-      expect(nextBox?.y || 0).toBeLessThan(mobileViewport.height * 1.6)
+      const nav = page.locator('.bottom-nav').first()
+      await expect(nav).toBeVisible()
+      const navBox = await nav.boundingBox()
+      expect(navBox?.x || -1).toBeGreaterThanOrEqual(0)
+      expect((navBox?.x || 0) + (navBox?.width || 0)).toBeLessThanOrEqual(mobileViewport.width + 1)
+
+      const navButtons = nav.locator('button')
+      await expect(navButtons).toHaveCount(7)
+      for (let index = 0; index < 7; index += 1) {
+        const buttonBox = await navButtons.nth(index).boundingBox()
+        expect(buttonBox?.width || 0).toBeGreaterThan(0)
+        expect(buttonBox?.x || -1).toBeGreaterThanOrEqual(0)
+        expect((buttonBox?.x || 0) + (buttonBox?.width || 0)).toBeLessThanOrEqual(mobileViewport.width + 1)
+      }
+
+      const mobileNextSection = page.locator('.stories-section').first()
+      if (await mobileNextSection.count()) {
+        const nextBox = await mobileNextSection.boundingBox()
+        expect(nextBox?.y || 0).toBeLessThan(mobileViewport.height * 1.6)
+      }
     }
   }
 })
