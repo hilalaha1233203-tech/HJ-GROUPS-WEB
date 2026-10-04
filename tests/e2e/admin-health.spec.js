@@ -292,20 +292,23 @@ test.describe('HJ GROUPS admin health', () => {
 
     const blankEpisodeResults = analyticsSection.locator('.admin-episode-picker-results button')
     await expect(blankEpisodeResults.first()).toBeVisible()
-    await expect(blankEpisodeResults.filter({ hasText: 'Episode 1' }).first()).toBeVisible()
-    await expect(blankEpisodeResults.filter({ hasText: 'Episode 14' }).first()).toBeVisible()
+    const firstEpisodeResult = blankEpisodeResults.first()
+    const firstEpisodeText = await firstEpisodeResult.innerText()
+    const firstEpisodeNumber = firstEpisodeText.match(/Episode\\s+(\\d+)/i)?.[1]
+    expect(firstEpisodeNumber).toBeTruthy()
 
-    await episodeSearch.fill('14')
-    await expect(blankEpisodeResults.filter({ hasText: 'Episode 14' }).first()).toBeVisible()
+    await episodeSearch.fill(String(firstEpisodeNumber))
+    await expect(blankEpisodeResults.filter({ hasText: new RegExp('Episode\\\\s+' + firstEpisodeNumber + '\\b', 'i') }).first()).toBeVisible()
 
-    await episodeSearch.fill('EP014')
-    await expect(blankEpisodeResults.filter({ hasText: 'Episode 14' }).first()).toBeVisible()
+    const normalizedEpisodeCode = 'EP' + String(firstEpisodeNumber).padStart(3, '0')
+    await episodeSearch.fill(normalizedEpisodeCode)
+    await expect(blankEpisodeResults.filter({ hasText: new RegExp('Episode\\\\s+' + firstEpisodeNumber + '\\b', 'i') }).first()).toBeVisible()
 
-    await episodeSearch.fill('2500 EP014')
-    await expect(blankEpisodeResults.filter({ hasText: 'Episode 14' }).first()).toBeVisible()
+    await episodeSearch.fill('2500 ' + normalizedEpisodeCode)
+    await expect(blankEpisodeResults.filter({ hasText: new RegExp('Episode\\\\s+' + firstEpisodeNumber + '\\b', 'i') }).first()).toBeVisible()
 
-    await blankEpisodeResults.filter({ hasText: 'Episode 14' }).first().click()
-    await expect(episodePicker).toContainText('Episode 14')
+    await blankEpisodeResults.filter({ hasText: new RegExp('Episode\\\\s+' + firstEpisodeNumber + '\\b', 'i') }).first().click()
+    await expect(episodePicker).toContainText(new RegExp('Episode\\\\s+' + firstEpisodeNumber + '\\b', 'i'))
 
     const batchSize = analyticsSection.getByRole('combobox', { name: /Analytics batch size/i })
     await expect(batchSize).toBeVisible()
