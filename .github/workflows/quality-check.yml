@@ -220,6 +220,12 @@ jobs:
             ['server/payment.mjs', '/api/payments/webhook'],
             ['server/payment.mjs', 'CASHFREE_API_VERSION'],
             ['supabase/production-cashfree-payments.sql', 'payment_orders'],
+            ['src/lib/accessControl.js', 'hasVipAccess'],
+            ['src/App.jsx', '/api/vip-access'],
+            ['src/AdminPanel.jsx', '/api/admin/vip-access'],
+            ['server/vipAccess.mjs', 'user_vip_grants'],
+            ['server/shortenerUnlock.mjs', 'hasActiveVipGrant'],
+            ['supabase/migrations/20261004030000_user_vip_grants.sql', 'user_vip_grants_admin_select'],
           ]
           for (const [file, needle] of checks) {
             if (!read(file).includes(needle)) throw new Error(`Missing required text: ${file} :: ${needle}`)
