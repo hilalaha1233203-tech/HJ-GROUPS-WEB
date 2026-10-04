@@ -216,7 +216,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   }
 
   function clearForm(){setTitle('');setDescription('');setCover('');setFile('');setFilePath('');setAuthor('');setNumber('');setSrc('');setTelegramUrl('');setEdit(null);setSelectedId('')}
-  function extractId(v){const m=String(v||'').match(/(\\d+)(?:\\/?$)/);return m?Number(m[1]):null}
+  function extractId(v){const m=String(v||'').match(/(\\d+)(?:\/?$)/);return m?Number(m[1]):null}
 
   const renderForm=(editing=false, type=category)=>{
     const episodeMode=(type==='audio'&&createAction==='add-episode')||(type==='videos'&&createAction==='add-video-episode')||(type==='audio'&&manageAction==='episode-edit')||(type==='videos'&&manageAction==='video-episode-edit')
