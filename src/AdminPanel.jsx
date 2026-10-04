@@ -2342,7 +2342,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       <div className="admin-panel">
         <div className="admin-header">
         {tab !== 'overview' ? (
-          <button type="button" className="secondary-btn" onClick={goBackAdminTab} title="Back to previous admin section">
+          <button type="button" className="secondary-btn" onClick={goBackAdminTab} aria-label="Back to previous admin section" title="Back to previous admin section">
             ← Back
           </button>
         ) : <span />}
