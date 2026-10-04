@@ -361,6 +361,13 @@ function AdminPanel({
   const [analyticsError, setAnalyticsError] = useState('')
   const [userExportLoading, setUserExportLoading] = useState(false)
   const [userExportError, setUserExportError] = useState('')
+  const [vipUsers, setVipUsers] = useState([])
+  const [vipGrants, setVipGrants] = useState([])
+  const [vipSelectedUserId, setVipSelectedUserId] = useState('')
+  const [vipExpiry, setVipExpiry] = useState('')
+  const [vipNote, setVipNote] = useState('')
+  const [vipLoading, setVipLoading] = useState(false)
+  const [vipSaving, setVipSaving] = useState(false)
   const tabHistoryRef = useRef([])
 
   const setAdminTab = (nextTab) => {
@@ -780,6 +787,89 @@ function AdminPanel({
     ? adminSettings.shortener.episodeUnlockRules
     : DEFAULT_AD_UNLOCK_RULES.map((rule) => ({ ...rule }))
   const shortenerRuleValidation = validateAdUnlockRules(shortenerUnlockRules)
+
+  const refreshVipAccess = useCallback(async () => {
+    setVipLoading(true)
+    try {
+      const { data: { session } = {} } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Admin session is unavailable.')
+      const response = await fetch('/api/admin/vip-access', {
+        headers: { Authorization: 'Bearer ' + session.access_token },
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'VIP users could not be loaded.')
+      setVipUsers(Array.isArray(payload?.users) ? payload.users : [])
+      setVipGrants(Array.isArray(payload?.grants) ? payload.grants : [])
+    } catch (error) {
+      showToast(String(error?.message || 'VIP users could not be loaded.'), 'error')
+    } finally {
+      setVipLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'settings') void refreshVipAccess()
+  }, [tab, refreshVipAccess])
+
+  const saveVipGrant = async () => {
+    if (!vipSelectedUserId || vipSaving) return
+    setVipSaving(true)
+    try {
+      const { data: { session } = {} } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Admin session is unavailable.')
+      const response = await fetch('/api/admin/vip-access', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + session.access_token,
+        },
+        body: JSON.stringify({
+          action: 'grant',
+          userId: vipSelectedUserId,
+          expiresAt: vipExpiry ? new Date(vipExpiry).toISOString() : null,
+          note: vipNote.trim(),
+        }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'VIP access could not be granted.')
+      await refreshVipAccess()
+      setVipNote('')
+      showToast(vipExpiry ? 'VIP access granted until the selected date.' : 'Lifetime VIP access granted.')
+    } catch (error) {
+      showToast(String(error?.message || 'VIP access could not be granted.'), 'error')
+    } finally {
+      setVipSaving(false)
+    }
+  }
+
+  const revokeVipGrant = async (userId) => {
+    if (!userId || vipSaving) return
+    setVipSaving(true)
+    try {
+      const { data: { session } = {} } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Admin session is unavailable.')
+      const response = await fetch('/api/admin/vip-access', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + session.access_token,
+        },
+        body: JSON.stringify({ action: 'revoke', userId }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'VIP access could not be revoked.')
+      await refreshVipAccess()
+      showToast('VIP access revoked.')
+    } catch (error) {
+      showToast(String(error?.message || 'VIP access could not be revoked.'), 'error')
+    } finally {
+      setVipSaving(false)
+    }
+  }
 
   const updateAdminSetting = (section, key, value) => {
     setAdminSettings((current) => ({
@@ -2998,6 +3088,57 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 <div className="admin-settings-card-head"><div><small>SECURITY MONITORING</small><h3>Daily Security & Health</h3></div><span>🛡</span></div>
                 <p className="admin-settings-note">Daily monitoring is detection + analysis + reporting only. It never changes production code, RLS, authentication, payments, unlocks, environment variables or deployment.</p>
                 <button type="button" className="admin-submit" onClick={()=>setAdminTab('security')}>Open Security Dashboard</button>
+              </div>
+              <div className="admin-settings-card admin-settings-wide admin-vip-access-card">
+                <div className="admin-settings-card-head">
+                  <div><small>USER ENTITLEMENTS</small><h3>⭐ Give VIP Access to a User</h3></div>
+                  <span>👑</span>
+                </div>
+                <p className="admin-settings-note">Select a registered user and grant VIP access without creating a payment purchase. The grant is stored server-side and enforced by the protected media server. Leave expiry empty for lifetime VIP until manually revoked.</p>
+                <div className="admin-settings-form-grid">
+                  <label className="admin-settings-span-2">
+                    Select user
+                    <select aria-label="VIP user" value={vipSelectedUserId} onChange={(event) => setVipSelectedUserId(event.target.value)} disabled={vipLoading || vipSaving}>
+                      <option value="">Choose a user…</option>
+                      {vipUsers.filter((item) => !item.isAdmin).map((item) => (
+                        <option key={item.id} value={item.id}>{item.name ? item.name + ' — ' : ''}{item.email || item.id}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Expiry (optional)
+                    <input aria-label="VIP expiry" type="datetime-local" value={vipExpiry} onChange={(event) => setVipExpiry(event.target.value)} disabled={vipSaving} />
+                  </label>
+                  <label>
+                    Admin note (optional)
+                    <input aria-label="VIP note" value={vipNote} maxLength={500} onChange={(event) => setVipNote(event.target.value)} disabled={vipSaving} placeholder="Reason / reference" />
+                  </label>
+                </div>
+                <div className="admin-settings-actions">
+                  <button type="button" className="admin-submit" onClick={saveVipGrant} disabled={!vipSelectedUserId || vipSaving || vipLoading}>
+                    {vipSaving ? '⏳ Saving…' : '👑 Grant VIP Access'}
+                  </button>
+                  <button type="button" className="secondary-btn" onClick={() => void refreshVipAccess()} disabled={vipLoading || vipSaving}>
+                    🔄 Refresh Users
+                  </button>
+                </div>
+                <div className="admin-vip-grants-list" aria-live="polite">
+                  <strong>Active VIP grants</strong>
+                  {!vipGrants.length && <p className="admin-settings-note">No separate user VIP grants are currently active.</p>}
+                  {vipGrants.map((grant) => {
+                    const target = vipUsers.find((item) => item.id === grant.user_id)
+                    const expired = grant.expires_at && Date.parse(grant.expires_at) <= Date.now()
+                    return (
+                      <div className="admin-vip-grant-row" key={grant.user_id}>
+                        <div>
+                          <strong>{target?.email || grant.user_id}</strong>
+                          <small>{grant.expires_at ? (expired ? 'Expired' : 'Until ' + new Date(grant.expires_at).toLocaleString()) : 'Lifetime'}{grant.note ? ' · ' + grant.note : ''}</small>
+                        </div>
+                        <button type="button" className="admin-cancel" onClick={() => void revokeVipGrant(grant.user_id)} disabled={vipSaving}>Revoke</button>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
               <div className="admin-settings-card admin-settings-wide">
                 <div className="admin-settings-card-head">
