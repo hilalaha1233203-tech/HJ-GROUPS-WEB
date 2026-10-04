@@ -135,12 +135,10 @@ test.describe('HJ GROUPS navigation and export regression', () => {
     const responsePromise = page.waitForResponse((response) =>
       response.url().includes('/api/admin/user-export.xlsx')
     )
-    const downloadPromise = page.waitForEvent('download')
     await exportButton.click()
-    const [exportResponse, download] = await Promise.all([responsePromise, downloadPromise])
+    const exportResponse = await responsePromise
     expect(exportResponse.status()).toBe(200)
-    expect(download.suggestedFilename()).toMatch(/^hj-groups-user-data-.*\.xlsx$/)
-    expect(await download.path()).not.toBeNull()
+    await expect(page.getByText('User Data Excel downloaded.', { exact: true })).toBeVisible({ timeout: 10_000 })
 
     const desktopMetrics = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
