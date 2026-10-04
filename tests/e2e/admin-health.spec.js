@@ -117,6 +117,28 @@ test.describe('HJ GROUPS admin health', () => {
       await expect(page.locator('body')).toBeVisible()
     }
 
+    await adminOverlay.getByRole('button', { name: /Management & Settings/i }).first().click()
+    await expect(page.getByText(/Give VIP Access to a User/i)).toBeVisible()
+    await expect(page.getByLabel('VIP user')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Grant VIP Access/i })).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    const vipMobileMetrics = await page.evaluate(() => {
+      const card = document.querySelector('.admin-vip-access-card')
+      const rect = card?.getBoundingClientRect()
+      return {
+        viewport: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        left: rect?.left ?? 0,
+        right: rect?.right ?? 0,
+        width: rect?.width ?? 0,
+      }
+    })
+    expect(vipMobileMetrics.scrollWidth).toBeLessThanOrEqual(vipMobileMetrics.viewport)
+    expect(vipMobileMetrics.left).toBeGreaterThanOrEqual(0)
+    expect(vipMobileMetrics.right).toBeLessThanOrEqual(vipMobileMetrics.viewport + 1)
+    expect(vipMobileMetrics.width).toBeGreaterThan(0)
+    await page.setViewportSize({ width: 1280, height: 900 })
+
     await adminOverlay.getByRole('button', { name: /Security/i }).first().click()
     await expect(page.getByText(/Security & Health Dashboard/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Run Security Check/i })).toBeVisible()
