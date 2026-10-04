@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { resolveAdUnlockPlan, validateAdUnlockRules } from '../src/lib/adUnlockRules.js'
 import { isHjAdminUser } from './adminAuth.mjs'
+import { hasActiveVipGrant } from './vipAccess.mjs'
 
 function resolveSupabaseUrl() {
   const candidates = [
@@ -723,6 +724,10 @@ async function createIntent({ user, contentType, contentId, provider, destinatio
 async function getExistingAccess(user, contentType, contentId, content) {
   if (isHjAdminUser(user)) {
     return { source: 'admin', expiresAt: null }
+  }
+
+  if (await hasActiveVipGrant(user.id)) {
+    return { source: 'admin_vip', expiresAt: null }
   }
 
   if (isAdsEnabled(content)) {
