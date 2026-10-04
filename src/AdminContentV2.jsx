@@ -1,12 +1,11 @@
-import React, { useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import FileUploadField from './components/FileUploadField'
 import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentStatus } from './lib/contentStatus.js'
-import { MAX_GENRES, normalizeGenreSelection, serializeGenreSelection } from './lib/genreSelection.js'
+import { normalizeGenreSelection, serializeGenreSelection } from './lib/genreSelection.js'
 import { STREAMING_SERVER_URL } from './lib/streamingUrl'
 import { supabase } from './supabase'
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100]
 const GENRES = ['Fantasy','Action','Adventure','Romance','Mystery','Thriller','Sci-Fi','Horror','Comedy','Drama','Historical','Mythology','Crime','Supernatural','System','Isekai','Cultivation']
 const BOOK_GENRES = ['Tamil Literature','Fiction','Fantasy','Action','Adventure','Romance','Mystery','Thriller','Sci-Fi','Horror','Comedy','Drama','Historical','Mythology','Crime','Supernatural','Self Help','Biography','Education','Children','Poetry','Other']
 const VIDEO_GENRES = ['Action','Adventure','Drama','Romance','Comedy','Thriller','Mystery','Crime','Horror','Sci-Fi','Fantasy','Historical','Documentary','Short Film','Music','Kids','Family','Animation','Educational','Other']
@@ -241,6 +240,11 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     {mode==='create' ? <section className="admin-section"><ActionCards items={actionItems} value={createAction} onChange={x=>{setCreateAction(x);clearForm()}}/>
       {createAction==='telegram'?<TelegramImport category={category} stories={stories} books={books} videoStories={videoStories} onAddEpisode={onAddEpisode} onAddBook={onAddBook} onAddVideoEpisode={onAddVideoEpisode} toast={notify}/>:createAction==='other'?<div className="admin-v2-empty">Other existing creation options remain available through the existing workflows; no existing backend was replaced.</div>:renderForm(false,category)}</section>
     : <section className="admin-section"><ActionCards items={manageItems} value={manageAction} onChange={x=>{setManageAction(x);resetList();setParentId('')}}/>
+      <div style={{display:'flex',justifyContent:'flex-end',marginTop:12}}>
+        <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13}}>Page size
+          <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}}><option value="25">25</option><option value="50">50</option><option value="100">100</option></select>
+        </label>
+      </div>
       {manageAction==='episode-edit'||manageAction==='video-episode-edit'?<><label>Parent Story<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList()}}><option value="">Select Story</option>{(category==='audio'?stories:videoStories).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>{parentId&&<><input aria-label="Episode search" placeholder="Search Episode…" value={search} onChange={e=>onSearch(e.target.value)}/><div className="admin-v2-list">{episodePageRows.map(e=><button type="button" key={e.id||e.number} className={'admin-v2-list-row '+(String(selectedId)===String(e.id||e.number)?'active':'')} onClick={()=>{setSelectedId(e.id||e.number);setEdit(e);setTitle(e.title||'');setNumber(String(e.number));setSrc(e.src||'');setTelegramUrl(e.telegram_message_id?String(e.telegram_message_id):'');setAccessType(resolveAccessType(e))}}><span><strong>#{e.number} · {e.title}</strong><small>{resolveAccessType(e).join(', ')}</small></span><span>›</span></button>)}</div><div className="admin-v2-pagination"><button type="button" disabled={page<=1} onClick={()=>setPage(page-1)}>‹ Previous</button><span>{page} / {episodePages}</span><button type="button" disabled={page>=episodePages} onClick={()=>setPage(page+1)}>Next ›</button></div>{edit&&renderForm(true,category)}</>}</> : (manageAction==='volume-edit'?<><ListPicker rows={books} selectedId={parentId} onSelect={id=>{setParentId(id);setSearch('');setPage(1)}} search={search} onSearch={onSearch} page={page} totalPages={Math.max(1,Math.ceil(books.length/pageSize))} onPage={setPage} label="Books"/>{parentId&&<div className="admin-v2-list">{(books.find(x=>String(x.id)===String(parentId))?.volumes||[]).map((v,i)=><button type="button" className="admin-v2-list-row" key={i} onClick={()=>{setSelectedId(String(i));setEdit(v);setTitle(v.title||'');setFile(v.file||'');setFilePath(v.filePath||'')}}><span><strong>Volume {i+1} · {v.title}</strong></span><span>›</span></button>)}</div>}{edit&&renderForm(true,'books')}</>:
       <><ListPicker rows={pageRows} selectedId={selectedId} onSelect={id=>selectDetail(id)} search={search} onSearch={onSearch} page={page} totalPages={pages} onPage={setPage} label={category==='audio'?(manageAction==='story-edit'?'Stories':'Stories'):category==='books'?'Books':'Video Stories'}/>{edit&&renderForm(true,category)}</>)}
     </section>}
