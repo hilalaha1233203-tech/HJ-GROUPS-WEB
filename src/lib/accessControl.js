@@ -34,8 +34,9 @@ export function resolveAccessType(item) {
   return item.premium ? ['premium'] : ['free']
 }
 
-export function accessLabel(item, { isAdmin } = {}) {
+export function accessLabel(item, { isAdmin, hasVipAccess } = {}) {
   if (isAdmin) return '👑 Admin VIP'
+  if (hasVipAccess && resolveAccessType(item).some((type) => ['vip', 'premium'].includes(type))) return '⭐ VIP Access'
   const types = resolveAccessType(item)
 
   const labels = types.map((type) => {
@@ -170,7 +171,7 @@ export function adsKeyFor(kind, ...ids) {
 
 export function canAccess(
   item,
-  { isAdmin, loggedIn = false, adsKey, purchasedStoryIds, storyId } = {}
+  { isAdmin, hasVipAccess = false, loggedIn = false, adsKey, purchasedStoryIds, storyId } = {}
 ) {
   if (!item) return false
   if (isAdmin) return true
@@ -180,6 +181,8 @@ export function canAccess(
   const requiresPurchase =
     types.includes('vip') ||
     types.includes('premium')
+
+  if (hasVipAccess && requiresPurchase) return true
 
   // Ads is an explicit alternate access path. For mixed items such as
   // ["premium", "ads"], a valid ad unlock must grant access even when the
