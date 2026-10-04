@@ -4374,25 +4374,101 @@ body:has(.reader-overlay:not(.reader-minimized)),
 }
 
 @media (max-width: 450px) {
+  /* Mobile hero must grow with its stacked content. A fixed 420px height
+     caused the copy/meta row to collide with the artwork on short screens. */
   .hero-section {
-    height: min(420px, calc(100dvh - 170px));
+    height: auto;
+    min-height: 0;
     padding: 16px;
     gap: 12px;
+    align-items: stretch;
+  }
+
+  .hero-copy {
+    overflow: visible;
+    min-height: 0;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(30px, 9vw, 40px);
+    line-height: 1.02;
+  }
+
+  .hero-copy p {
+    margin-bottom: 0;
+  }
+
+  .hero-actions {
+    width: 100%;
   }
 
   .hero-actions button {
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
+    min-height: 52px;
+  }
+
+  .hero-meta {
+    gap: 7px;
+  }
+
+  .hero-meta span {
+    max-width: 100%;
+    padding: 7px 9px;
+    line-height: 1.25;
   }
 
   .hero-art,
   .hero-art img {
     min-height: 0;
-    height: 205px;
+    height: 188px;
+  }
+
+  .hero-art {
+    width: 100%;
+    border-radius: 18px;
+  }
+
+  .hero-art-caption {
+    left: 16px;
+    right: 16px;
+    bottom: 14px;
+  }
+
+  .hero-art-caption strong {
+    font-size: 13px;
   }
 
   .top-nav button {
-    min-width: 54px;
+    min-width: 44px;
+  }
+
+  /* All 7 destinations stay visible without a second horizontal scrollbar. */
+  .bottom-nav {
+    width: calc(100% - 10px);
+    min-height: 62px;
+    padding: 5px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    overflow: hidden;
+  }
+
+  .bottom-nav button {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 100%;
+    padding: 5px 1px;
+    gap: 3px;
+  }
+
+  .bottom-nav button span {
+    font-size: 16px;
+  }
+
+  .bottom-nav button small {
+    max-width: 100%;
+    font-size: 7px;
+    line-height: 1.1;
+    letter-spacing: -.1px;
   }
 }
 
