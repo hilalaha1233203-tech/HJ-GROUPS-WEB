@@ -1056,6 +1056,7 @@ export function App() {
   const [supportTelegramUrl, setSupportTelegramUrl] = useState('')
 
   const [purchasedStoryIds, setPurchasedStoryIds] = useState(new Set())
+  const [hasVipAccess, setHasVipAccess] = useState(false)
   const [contentAccessSettings, setContentAccessSettings] = useState(() => loadCachedContentAccessSettings())
   const [accountSettings, setAccountSettings] = useState(DEFAULT_ACCOUNT_SETTINGS)
   const [accountSettingsReadyFor, setAccountSettingsReadyFor] = useState('')
@@ -2981,10 +2982,31 @@ export function App() {
   useEffect(() => {
     if (!user) {
       setPurchasedStoryIds(new Set())
+      setHasVipAccess(false)
       return
     }
 
     let mounted = true
+    const fetchVipAccess = async () => {
+      try {
+        const { data: { session } = {} } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          if (mounted) setHasVipAccess(false)
+          return
+        }
+        const response = await fetch('/api/vip-access', {
+          headers: { Authorization: 'Bearer ' + session.access_token },
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        const payload = await response.json().catch(() => null)
+        if (mounted) setHasVipAccess(response.ok && payload?.active === true)
+      } catch (error) {
+        if (mounted) setHasVipAccess(false)
+        console.warn('Could not verify VIP access:', error)
+      }
+    }
+
     const fetchPurchases = async () => {
       try {
         const { data, error } = await supabase
@@ -3053,6 +3075,7 @@ export function App() {
       fetchPurchases()
     }
 
+    fetchVipAccess()
     fetchPurchases()
     verifyReturnedPayment()
     window.addEventListener('hj-payment-complete', handlePaymentComplete)
@@ -3610,6 +3633,7 @@ export function App() {
       adsKey,
       purchasedStoryIds,
       storyId,
+      hasVipAccess,
     })
   }
 
@@ -3618,6 +3642,7 @@ export function App() {
   ) =>
     accessLabel(episode, {
       isAdmin,
+      hasVipAccess,
     })
 
   const startShortenerUnlock = async () => {
