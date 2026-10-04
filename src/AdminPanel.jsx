@@ -371,10 +371,8 @@ function AdminPanel({
   const tabHistoryRef = useRef([])
 
   const setAdminTab = (nextTab) => {
-    setTab((currentTab) => {
-      if (currentTab !== nextTab) tabHistoryRef.current.push(currentTab)
-      return nextTab
-    })
+    if (tab !== nextTab) tabHistoryRef.current.push(tab)
+    setTab(nextTab)
   }
 
   const goBackAdminTab = () => {
