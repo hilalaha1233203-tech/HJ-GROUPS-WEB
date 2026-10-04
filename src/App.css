@@ -8106,3 +8106,40 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 .admin-analytics-state{min-height:140px;display:grid;align-content:start;gap:10px}.admin-analytics-state .secondary-btn{width:max-content;max-width:100%}
 @media(max-width:650px){.admin-analytics-state .secondary-btn{width:100%;min-height:44px}}
+
+.admin-vip-access-card .admin-settings-actions {
+  margin-top: 14px;
+}
+.admin-vip-grants-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.admin-vip-grant-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(124,131,255,.18);
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+}
+.admin-vip-grant-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.admin-vip-grant-row strong,
+.admin-vip-grant-row small {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .admin-vip-grant-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .admin-vip-grant-row .admin-cancel {
+    width: 100%;
+  }
+}
