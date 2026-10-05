@@ -2254,6 +2254,7 @@ export function App() {
     if (supabaseId !== null) {
       const { error } = await supabase.from('stories').delete().eq('id', supabaseId)
       if (error) throw error
+      await refreshTelegramContent()
       return
     }
     persistStories(adminStories.filter((story) => story.id !== storyId))
