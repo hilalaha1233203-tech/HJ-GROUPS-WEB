@@ -1773,6 +1773,7 @@ export function App() {
         cover_path: updates.coverPath || '',
         description: updates.description || '',
         status: normalizeContentStatus(updates.status),
+        access_type: serializeAccessType(updates.accessType),
       }
 
       let result = await supabase.from('stories').update(next).eq('id', supabaseId)
@@ -1783,6 +1784,7 @@ export function App() {
         }
         const legacy = { ...next }
         delete legacy.language
+        delete legacy.access_type
         result = await supabase.from('stories').update(legacy).eq('id', supabaseId)
       }
       if (result.error) throw result.error
