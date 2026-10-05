@@ -1892,6 +1892,7 @@ export function App() {
       }
 
       let result = await supabase.from('episodes').insert(hybridRow)
+      let recoveredFromNumberConflict = false
 
       if (result.error) {
         const isDuplicate =
@@ -1926,6 +1927,7 @@ export function App() {
           }
 
           result = await supabase.from('episodes').insert(hybridRow)
+          recoveredFromNumberConflict = !result.error
 
           if (
             result.error &&
@@ -1941,7 +1943,7 @@ export function App() {
           }
         }
 
-        if (isDuplicate && telegramImportKey) {
+        if (isDuplicate && telegramImportKey && !recoveredFromNumberConflict) {
           const duplicateLookup = await supabase
             .from('episodes')
             .select('id')
