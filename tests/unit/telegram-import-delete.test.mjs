@@ -42,7 +42,7 @@ test('Telegram import is protected by database identity and a unique import key'
   assert.match(app, /eq\('telegram_import_key', telegramImportKey\)/)
   assert.match(app, /status: 'duplicate'/)
 
-  const hybridSectionStart = app.indexOf('const hybridRow')
+  const hybridSectionStart = app.search(/(?:const|let) hybridRow/)
   const hybridSectionEnd = app.indexOf('let result = await supabase.from(\'episodes\').insert(hybridRow)')
   assert.ok(hybridSectionStart >= 0 && hybridSectionEnd > hybridSectionStart)
   assert.doesNotMatch(app.slice(hybridSectionStart, hybridSectionEnd), /file_id:/)
