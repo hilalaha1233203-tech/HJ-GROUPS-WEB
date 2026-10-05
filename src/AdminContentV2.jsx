@@ -814,6 +814,5 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
 
       <div className="admin-v2-progress" aria-live="polite">Manage target: {targetLabel} · {targetRows.length} total · {bulkSelectedIds.length} selected</div>
     </section>}
-    </div>
   </div>
 }
