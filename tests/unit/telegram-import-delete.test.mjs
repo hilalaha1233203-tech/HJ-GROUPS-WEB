@@ -112,6 +112,22 @@ test('Bulk edit preserves existing episode media while changing only selected co
   assert.match(block, /Video episode database ID is missing; bulk edit is unsafe/)
 })
 
+test('Manage V2 passes video episode IDs to update/delete callbacks', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(v2, /onUpdateVideoEpisode\(parentId,Number\(edit\.number\),\{[\s\S]*?\},edit\.id\)/)
+  assert.match(v2, /onUpdateVideoEpisode\(parentId,Number\(row\.number\),patch,row\.id\)/)
+  assert.match(v2, /onDeleteVideoEpisode\(parentId, selectedTarget\.number, selectedTarget\.id\)/)
+  assert.match(v2, /onDeleteVideoEpisode\(parentId,row\.number,row\.id\)/)
+})
+
+test('Video episode App CRUD accepts an optional primary-key ID for precise Manage mutations', () => {
+  const app = read('src/App.jsx')
+  assert.match(app, /const updateVideoEpisode = async \(videoId, episodeNumber, updates, episodeId = null\)/)
+  assert.match(app, /query\.eq\('id', numericEpisodeId\)/)
+  assert.match(app, /const deleteVideoEpisode = async \(videoId, episodeNumber, episodeId = null\)/)
+  assert.match(app, /deletion\.eq\('id', numericEpisodeId\)/)
+})
+
 test('Manage V2 keeps UI selection keys separate from database IDs', () => {
   const v2 = read('src/AdminContentV2.jsx')
   assert.match(v2, /manageKey:'story:'/)
