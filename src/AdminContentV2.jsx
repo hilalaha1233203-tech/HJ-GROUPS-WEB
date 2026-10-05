@@ -42,7 +42,7 @@ function ListPicker({ rows, selectedId, onSelect, search, onSearch, page, totalP
   return <div className="admin-v2-picker">
     <input aria-label={label+' search'} placeholder={'Search '+label+'…'} value={search} onChange={e=>onSearch(e.target.value)} />
     <div className="admin-v2-list">
-      {rows.map(row => <button type="button" key={row.id} className={'admin-v2-list-row '+(String(selectedId)===String(row.id)?'active':'')} onClick={()=>onSelect(row.id)}>
+      {rows.map(row => <button type="button" key={row.id} className={'admin-v2-list-row '+(String(selectedId)===String(row.manageKey)?'active':'')} onClick={()=>onSelect(row.id)}>
         <span><strong>{row.title || row.name || 'Untitled'}</strong><small>{row.category || row.language || ''}</small></span><span>›</span>
       </button>)}
       {!rows.length && <div className="admin-v2-empty">No matching {label.toLowerCase()} found.</div>}
@@ -409,14 +409,14 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   },[videoStories,parentId,search])
 
   const targetRows = useMemo(()=>{
-    if(manageTarget==='story') return sourceRows
-    if(manageTarget==='book') return sourceRows
-    if(manageTarget==='video-story') return sourceRows
-    if(manageTarget==='episode') return audioEpisodeRows.map((row)=>({ ...row, id: row.id || row.number }))
-    if(manageTarget==='video-episode') return videoEpisodeRows.map((row)=>({ ...row, id: row.id || row.number }))
+    if(manageTarget==='story') return sourceRows.map((row)=>({ ...row, manageKey:'story:'+String(row.id) }))
+    if(manageTarget==='book') return sourceRows.map((row)=>({ ...row, manageKey:'book:'+String(row.id) }))
+    if(manageTarget==='video-story') return sourceRows.map((row)=>({ ...row, manageKey:'video-story:'+String(row.id) }))
+    if(manageTarget==='episode') return audioEpisodeRows.map((row)=>({ ...row, manageKey: row.id != null ? 'episode-id:'+String(row.id) : 'episode-number:'+String(row.number) }))
+    if(manageTarget==='video-episode') return videoEpisodeRows.map((row)=>({ ...row, manageKey: row.id != null ? 'video-episode-id:'+String(row.id) : 'video-episode-number:'+String(row.number) }))
     if(manageTarget==='volume'){
       const book=books.find(x=>String(x.id)===String(parentId))
-      return (book?.volumes||[]).map((volume,index)=>({ ...volume, id:String(index), volumeIndex:index }))
+      return (book?.volumes||[]).map((volume,index)=>({ ...volume, manageKey:'volume:'+String(index), volumeIndex:index }))
     }
     return []
   },[manageTarget,sourceRows,audioEpisodeRows,videoEpisodeRows,books,parentId])
@@ -425,7 +425,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   const targetPageRows=targetRows.slice((page-1)*pageSize,page*pageSize)
   const targetLabel = manageTarget==='story' ? 'Story' : manageTarget==='episode' ? 'Episode' : manageTarget==='book' ? 'Book' : manageTarget==='volume' ? 'Volume' : manageTarget==='video-story' ? 'Video Story' : 'Video Episode'
   const targetPlural = manageTarget==='story' ? 'Stories' : manageTarget==='episode' ? 'Episodes' : manageTarget==='book' ? 'Books' : manageTarget==='volume' ? 'Volumes' : manageTarget==='video-story' ? 'Video Stories' : 'Video Episodes'
-  const selectedTarget = targetRows.find(row => String(row.id)===String(selectedId))
+  const selectedTarget = targetRows.find(row => String(row.manageKey)===String(selectedId))
 
   const selectDetail=(id, rows=sourceRows)=>{
     setSelectedId(id)
@@ -437,7 +437,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   }
 
   const selectManageRow = (row) => {
-    setSelectedId(String(row.id))
+    setSelectedId(String(row.manageKey))
     if(manageTarget==='episode' || manageTarget==='video-episode'){
       setEdit(row)
       setTitle(row.title||'')
@@ -525,7 +525,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
 
   const runBulkEdit = async () => {
     if(bulkBusy) return
-    const selectedRows=targetRows.filter(row=>bulkSelectedIds.some(id=>String(id)===String(row.id)))
+    const selectedRows=targetRows.filter(row=>bulkSelectedIds.some(id=>String(id)===String(row.manageKey)))
     if(!selectedRows.length) return notify('Select at least one '+targetLabel.toLowerCase()+'.','error')
     const hasPatch=bulkEditApplyTitlePrefix||bulkEditApplyAccess||bulkEditApplyStatus||bulkEditApplyLanguage||bulkEditApplyCategory||bulkEditApplyAvailable
     if(!hasPatch) return notify('Choose at least one field to update.','error')
@@ -663,17 +663,17 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   }
 
   const toggleBulkRow = (row) => {
-    setBulkSelectedIds((current)=>current.some(id=>String(id)===String(row.id))
-      ? current.filter(id=>String(id)!==String(row.id))
-      : [...current,row.id])
+    setBulkSelectedIds((current)=>current.some(id=>String(id)===String(row.manageKey))
+      ? current.filter(id=>String(id)!==String(row.manageKey))
+      : [...current,row.manageKey])
   }
 
   const toggleBulkAll = () => {
-    const pageIds=targetPageRows.map(row=>String(row.id))
-    const allSelected=pageIds.length>0 && pageIds.every(id=>bulkSelectedIds.some(selectedId=>String(selectedId)===id))
+    const pageKeys=targetPageRows.map(row=>String(row.manageKey))
+    const allSelected=pageKeys.length>0 && pageKeys.every(key=>bulkSelectedIds.some(selectedKey=>String(selectedKey)===key))
     setBulkSelectedIds((current)=>{
-      if(allSelected) return current.filter(id=>!pageIds.includes(String(id)))
-      return [...current,...targetPageRows.map(row=>row.id).filter(id=>!current.some(existing=>String(existing)===String(id)))]
+      if(allSelected) return current.filter(id=>!pageKeys.includes(String(id)))
+      return [...current,...targetPageRows.map(row=>row.manageKey).filter(key=>!current.some(existing=>String(existing)===String(key)))]
     })
   }
 
@@ -748,8 +748,8 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
       </div>}
 
       {!!targetRows.length && (manageAction==='bulk-edit'||manageAction==='bulk-delete')
-        ? <div className="admin-v2-list">{targetPageRows.map(row=><label key={row.id} className={'admin-v2-selection-row '+(bulkSelectedIds.some(id=>String(id)===String(row.id))?'selected':'')}>
-            <input type="checkbox" checked={bulkSelectedIds.some(id=>String(id)===String(row.id))} onChange={()=>toggleBulkRow(row)}/>
+        ? <div className="admin-v2-list">{targetPageRows.map(row=><label key={row.id} className={'admin-v2-selection-row '+(bulkSelectedIds.some(id=>String(id)===String(row.manageKey))?'selected':'')}>
+            <input type="checkbox" checked={bulkSelectedIds.some(id=>String(id)===String(row.manageKey))} onChange={()=>toggleBulkRow(row)}/>
             <span><strong>{manageTarget==='episode'||manageTarget==='video-episode' ? '#'+row.number+' · ' : manageTarget==='volume' ? 'Volume '+(Number(row.volumeIndex)+1)+' · ' : ''}{row.title||'Untitled'}</strong><small>{manageTarget==='episode'||manageTarget==='video-episode' ? resolveAccessType(row).join(', ') : manageTarget==='book' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : manageTarget==='video-story' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : (row.language||'')}</small></span>
           </label>)}</div>
         : targetRows.length && manageAction!=='bulk-edit' && manageAction!=='bulk-delete'
