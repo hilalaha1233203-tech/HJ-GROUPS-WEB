@@ -445,7 +445,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
       setSrc(row.src||'')
       setTelegramUrl(row.telegram_message_id?String(row.telegram_message_id):'')
       setAccessType(resolveAccessType(row))
-      setBulkSelectedIds((current)=>current.filter((id)=>String(id)!==String(row.id)))
+      setBulkSelectedIds((current)=>current.filter((id)=>String(id)!==String(row.manageKey)))
       return
     }
     if(manageTarget==='volume'){
@@ -783,12 +783,12 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
       </div>}
 
       {!!targetRows.length && (manageAction==='bulk-edit'||manageAction==='bulk-delete')
-        ? <div className="admin-v2-list">{targetPageRows.map(row=><label key={row.id} className={'admin-v2-selection-row '+(bulkSelectedIds.some(id=>String(id)===String(row.manageKey))?'selected':'')}>
+        ? <div className="admin-v2-list">{targetPageRows.map(row=><label key={row.manageKey} className={'admin-v2-selection-row '+(bulkSelectedIds.some(id=>String(id)===String(row.manageKey))?'selected':'')}>
             <input type="checkbox" checked={bulkSelectedIds.some(id=>String(id)===String(row.manageKey))} onChange={()=>toggleBulkRow(row)}/>
             <span><strong>{manageTarget==='episode'||manageTarget==='video-episode' ? '#'+row.number+' · ' : manageTarget==='volume' ? 'Volume '+(Number(row.volumeIndex)+1)+' · ' : ''}{row.title||'Untitled'}</strong><small>{manageTarget==='episode'||manageTarget==='video-episode' ? resolveAccessType(row).join(', ') : manageTarget==='book' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : manageTarget==='video-story' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : (row.language||'')}</small></span>
           </label>)}</div>
         : targetRows.length && manageAction!=='bulk-edit' && manageAction!=='bulk-delete'
-          ? <div className="admin-v2-list">{targetPageRows.map(row=><button type="button" key={row.id} className={'admin-v2-list-row '+(String(selectedId)===String(row.id)?'active':'')} onClick={()=>selectManageRow(row)}>
+          ? <div className="admin-v2-list">{targetPageRows.map(row=><button type="button" key={row.manageKey} className={'admin-v2-list-row '+(String(selectedId)===String(row.manageKey)?'active':'')} onClick={()=>selectManageRow(row)}>
               <span><strong>{manageTarget==='episode'||manageTarget==='video-episode' ? '#'+row.number+' · ' : manageTarget==='volume' ? 'Volume '+(Number(row.volumeIndex)+1)+' · ' : ''}{row.title||'Untitled'}</strong><small>{manageTarget==='episode'||manageTarget==='video-episode' ? resolveAccessType(row).join(', ') : manageTarget==='book' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : manageTarget==='video-story' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : (row.language||'')}</small></span><span>›</span>
             </button>)}</div>
         : (manageTarget==='episode'||manageTarget==='video-episode'||manageTarget==='volume') && !parentId ? <div className="admin-v2-empty">Select the parent {manageTarget==='volume'?'book':'story'} first.</div>
