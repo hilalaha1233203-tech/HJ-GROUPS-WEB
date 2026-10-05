@@ -13,6 +13,7 @@ import { handleAdminPlaywright } from './server/playwrightControl.mjs'
 import { isHjAdminUser } from './server/adminAuth.mjs'
 import { handleVipAdminRequest, handleVipSelfRequest } from './server/vipAccess.mjs'
 import { handleWebPushRequest, handleWebPushUnsubscribe, handleAdminWebPushSend, startWebPushDispatcher } from './server/webPush.mjs'
+import { handleAnalyticsSessionRequest } from './server/analyticsSession.mjs'
 import { createClient } from '@supabase/supabase-js'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
@@ -488,6 +489,9 @@ const server = createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/public-settings') return handlePublicSettings(req, res)
+  if (url.pathname === '/api/analytics/link-session') {
+    return handleAnalyticsSessionRequest(req, res, { readJson, send, corsHeaders })
+  }
   if (url.pathname === '/api/admin/analytics') return handleAdminAnalytics(req, res)
   if (url.pathname === '/api/admin/user-export.xlsx') return handleAdminUserExport(req, res)
   if (url.pathname === '/api/admin/playwright') return handleAdminPlaywright(req, res, { send, jsonHeaders, readJson })
