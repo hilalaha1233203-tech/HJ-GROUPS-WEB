@@ -16,4 +16,12 @@ const ensureAppDefaultExport = () => ({
 
 export default defineConfig({
   plugins: [ensureAppDefaultExport(), react()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:4173',
+        changeOrigin: true,
+      },
+    },
+  },
 })
