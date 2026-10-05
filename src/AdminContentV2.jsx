@@ -334,13 +334,29 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
 
   const notify = (m,t='success') => toast?.(m,t)
   const resetList=()=>{setPage(1);setSelectedId('');setEdit(null)}
+  const resetBulkEditor=()=>{
+    setBulkSelectedIds([])
+    setBulkEditApplyTitlePrefix(false)
+    setBulkEditTitlePrefix('')
+    setBulkEditApplyAccess(false)
+    setBulkEditAccessType(['free'])
+    setBulkEditApplyStatus(false)
+    setBulkEditStatus('ongoing')
+    setBulkEditApplyLanguage(false)
+    setBulkEditLanguage('Tamil')
+    setBulkEditApplyCategory(false)
+    setBulkEditCategory('Fantasy')
+    setBulkEditApplyAvailable(false)
+    setBulkEditAvailable(true)
+  }
   const onCat=(c)=>{
     setCategory(c)
     resetList()
     setParentId('')
     setSearch('')
     setCreateAction(c==='audio'?'new-story':c==='books'?'new-book':'new-video')
-    setManageAction(c==='audio'?'story-edit':c==='books'?'book-edit':'video-story-edit')
+    setManageAction('edit')
+    setManageTarget(c==='audio'?'story':c==='books'?'book':'video-story')
   }
   const onSearch=(v)=>{setSearch(v);setPage(1);setSelectedId('');setEdit(null);setBulkSelectedIds([])}
 
@@ -349,7 +365,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     resetList()
     setParentId('')
     setSearch('')
-    setBulkSelectedIds([])
+    resetBulkEditor()
     setEdit(null)
   }
 
@@ -358,7 +374,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     resetList()
     setParentId('')
     setSearch('')
-    setBulkSelectedIds([])
+    resetBulkEditor()
     setEdit(null)
   }
 
@@ -578,7 +594,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
           }
         }
       }
-      setBulkSelectedIds([])
+      resetBulkEditor()
       notify(updated+' '+targetLabel.toLowerCase()+(updated===1?' updated.':'s updated.')+(failed?' '+failed+' failed.':''))
     } catch(err) {
       console.error('Bulk edit failed',err)
@@ -633,7 +649,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
           }
         }
       }
-      setBulkSelectedIds([])
+      resetBulkEditor()
       resetList()
       notify(deleted+' deleted.'+(failed?' '+failed+' failed.':''))
     } catch(err) {
