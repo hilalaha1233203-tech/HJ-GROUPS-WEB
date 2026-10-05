@@ -36,6 +36,32 @@ test('Telegram scan remains paginated at 100 messages and exposes an older-messa
   assert.match(v2, /X-HJ-Telegram-Has-More/)
 })
 
+test('Admin Create/Manage category changes reset to a valid category-specific action', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(v2, /setCreateAction\(c==='audio'\?'new-story':c==='books'\?'new-book':'new-video'\)/)
+  assert.match(v2, /setManageAction\(c==='audio'\?'story-edit':c==='books'?'book-edit':'video-story-edit'\)/)
+})
+
+test('Manage V2 preserves Telegram media playback URLs when saving an episode', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(v2, /const messageId = extractId\(telegramUrl\) \|\| Number\(edit\.telegram_message_id\) \|\| null/)
+  assert.match(v2, /STREAMING_SERVER_URL \+ '\/audio\/message\/'/)
+  assert.match(v2, /STREAMING_SERVER_URL \+ '\/video\/message\/'/)
+  assert.match(v2, /setSrc\(e\.src\|\|e\.file_url/)
+})
+
+test('Audio episode edits keep number and legacy episode_number synchronized', () => {
+  const app = read('src/App.jsx')
+  assert.match(app, /const baseUpdate = \{\n\s*number,\n\s*episode_number: number,/)
+})
+
+test('Telegram number-conflict retries cannot be misclassified as a message duplicate forever', () => {
+  const app = read('src/App.jsx')
+  assert.match(app, /telegramNumberRetryCount < 3/)
+  assert.match(app, /__telegramNumberRetryCount/)
+  assert.match(app, /return addEpisodeToStory\(storyId, \{/)
+})
+ 
 test('Telegram import is protected by database identity and a unique import key', () => {
   const app = read('src/App.jsx')
   assert.match(app, /eq\('story_id', supabaseId\)\n\s*\.eq\('telegram_message_id', messageId\)/)
