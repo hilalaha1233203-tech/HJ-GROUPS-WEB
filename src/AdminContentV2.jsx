@@ -427,15 +427,6 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   const targetPlural = manageTarget==='story' ? 'Stories' : manageTarget==='episode' ? 'Episodes' : manageTarget==='book' ? 'Books' : manageTarget==='volume' ? 'Volumes' : manageTarget==='video-story' ? 'Video Stories' : 'Video Episodes'
   const selectedTarget = targetRows.find(row => String(row.manageKey)===String(selectedId))
 
-  const selectDetail=(id, rows=sourceRows)=>{
-    setSelectedId(id)
-    const item=rows.find(x=>String(x.id)===String(id))
-    if(!item) return
-    setEdit(item); setTitle(item.title||''); setDescription(item.description||''); setCover(item.cover||''); setLanguage(item.language||'Tamil')
-    setGenre(normalizeGenreSelection(item.genre,['Fantasy'])); setStatus(normalizeContentStatus(item.status)); setAccessType(resolveAccessType(item))
-    setAuthor(item.author||''); setBookType(item.type||'pdf'); setFile(item.file||''); setFilePath(item.filePath||'')
-  }
-
   const selectManageRow = (row) => {
     setSelectedId(String(row.manageKey))
     if(manageTarget==='episode' || manageTarget==='video-episode'){
