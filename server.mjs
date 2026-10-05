@@ -199,14 +199,44 @@ async function handlePublicSettings(req, res) {
     })
   }
 
-  if (!PUBLIC_SETTINGS_SERVICE_KEY) {
-    return send(res, 503, JSON.stringify({ error: 'Public settings service is not configured' }), {
+  const defaults = {
+    website: { supportTelegramUrl: '' },
+    appearance: {
+      typography: Object.fromEntries(['primary','heading','body','ui','reader'].map((key) => [key, 'Montserrat'])),
+      colors: {
+        primary: '#7C83FF',
+        secondary: '#9AA0FF',
+        accent: '#FFFFFF',
+        background: '#050509',
+        surface: '#10121B',
+        text: '#F7F8FF',
+        muted: '#A9AEC3',
+        success: '#36D399',
+        warning: '#FBBF24',
+        error: '#F87171',
+        premium: '#FFD166',
+      },
+      ui: { radius: 12, animationIntensity: 'normal' },
+      emoji: { enabled: true, animationEnabled: true, style: 'native', speed: 1 },
+      motion: Object.fromEntries(['global','pageTransition','cardHover','buttonHover','loading','skeleton','storyCard','player','emoji','premium','notification','modal','reader','scroll'].map((key) => [key, true])),
+      logo: { watermark: true },
+    },
+  }
+
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  if (!serviceKey) {
+    return send(res, 200, JSON.stringify({
+      ok: true,
+      website: defaults.website,
+      appearance: defaults.appearance,
+      source: 'safe-local-defaults',
+    }), {
       'Content-Type': 'application/json; charset=utf-8',
     })
   }
 
   try {
-    const client = createClient(PUBLIC_SETTINGS_SUPABASE_URL, PUBLIC_SETTINGS_SERVICE_KEY, {
+    const client = createClient(PUBLIC_SETTINGS_SUPABASE_URL, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
     const { data, error } = await client
@@ -228,27 +258,45 @@ async function handlePublicSettings(req, res) {
         }
       } catch {}
     }
-    const rawAppearance = data?.value?.appearance && typeof data.value.appearance === 'object' ? data.value.appearance : {}
+
+    const rawAppearance = data?.value?.appearance && typeof data.value.appearance === 'object'
+      ? data.value.appearance
+      : {}
+
     const fontAllow = new Set(['Montserrat','Inter','Poppins','Nunito Sans','Manrope','DM Sans','Roboto','Open Sans','Lato','Merriweather','Noto Sans','Noto Serif','Space Grotesk','Sora','Outfit','Plus Jakarta Sans','Urbanist','Raleway','Archivo','Lexend','Work Sans','Figtree','Bricolage Grotesque','Playfair Display','Cormorant Garamond','Libre Baskerville','IBM Plex Sans','IBM Plex Serif'])
     const animationAllow = new Set(['off','minimal','normal','enhanced'])
-    const safeHex = (v,f) => /^#[0-9a-f]{6}$/i.test(String(v||'')) ? String(v) : f
-    const defaults = {primary:'#7C83FF',secondary:'#9AA0FF',accent:'#FFFFFF',background:'#050509',surface:'#10121B',text:'#F7F8FF',muted:'#A9AEC3',success:'#36D399',warning:'#FBBF24',error:'#F87171',premium:'#FFD166'}
+    const safeHex = (v, fallback) => /^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : fallback
+    const defaultsColors = defaults.appearance.colors
     const rawTypography = rawAppearance.typography || {}
     const rawColors = rawAppearance.colors || {}
+
     const safeAppearance = {
-      typography: Object.fromEntries(['primary','heading','body','ui','reader'].map(k => [k, fontAllow.has(rawTypography[k]) ? rawTypography[k] : 'Montserrat'])),
-      colors: Object.fromEntries(Object.keys(defaults).map(k => [k, safeHex(rawColors[k], defaults[k])])),
+      typography: Object.fromEntries(['primary','heading','body','ui','reader'].map((key) => [
+        key,
+        fontAllow.has(rawTypography[key]) ? rawTypography[key] : 'Montserrat',
+      ])),
+      colors: Object.fromEntries(Object.keys(defaultsColors).map((key) => [
+        key,
+        safeHex(rawColors[key], defaultsColors[key]),
+      ])),
       ui: {
         radius: Math.max(0, Math.min(28, Number(rawAppearance.ui?.radius) || 12)),
-        animationIntensity: animationAllow.has(rawAppearance.ui?.animationIntensity) ? rawAppearance.ui.animationIntensity : 'normal',
+        animationIntensity: animationAllow.has(rawAppearance.ui?.animationIntensity)
+          ? rawAppearance.ui.animationIntensity
+          : 'normal',
       },
       emoji: {
         enabled: rawAppearance.emoji?.enabled !== false,
         animationEnabled: rawAppearance.emoji?.animationEnabled !== false,
-        style: ['native','soft','bold','mono'].includes(rawAppearance.emoji?.style) ? rawAppearance.emoji.style : 'native',
+        style: ['native','soft','bold','mono'].includes(rawAppearance.emoji?.style)
+          ? rawAppearance.emoji.style
+          : 'native',
         speed: Math.max(.5, Math.min(2, Number(rawAppearance.emoji?.speed) || 1)),
       },
-      motion: Object.fromEntries(['global','pageTransition','cardHover','buttonHover','loading','skeleton','storyCard','player','emoji','premium','notification','modal','reader','scroll'].map(k => [k, rawAppearance.motion?.[k] !== false])),
+      motion: Object.fromEntries(
+        ['global','pageTransition','cardHover','buttonHover','loading','skeleton','storyCard','player','emoji','premium','notification','modal','reader','scroll']
+          .map((key) => [key, rawAppearance.motion?.[key] !== false])
+      ),
       logo: { watermark: rawAppearance.logo?.watermark !== false },
     }
 
@@ -256,12 +304,18 @@ async function handlePublicSettings(req, res) {
       ok: true,
       website: { supportTelegramUrl },
       appearance: safeAppearance,
+      source: 'cloud',
     }), {
       'Content-Type': 'application/json; charset=utf-8',
     })
   } catch (error) {
     console.warn('[public-settings] load failed:', String(error?.message || error).slice(0, 300))
-    return send(res, 503, JSON.stringify({ error: 'Public settings unavailable' }), {
+    return send(res, 200, JSON.stringify({
+      ok: true,
+      website: defaults.website,
+      appearance: defaults.appearance,
+      source: 'safe-fallback',
+    }), {
       'Content-Type': 'application/json; charset=utf-8',
     })
   }
