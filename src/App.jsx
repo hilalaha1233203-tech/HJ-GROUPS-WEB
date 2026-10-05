@@ -2093,6 +2093,7 @@ export function App() {
       const targetId = Number(episodeId)
       const baseUpdate = {
         number,
+        episode_number: number,
         title: updates.title,
         type: updates.type || 'audio',
         file_url: updates.src || null,
