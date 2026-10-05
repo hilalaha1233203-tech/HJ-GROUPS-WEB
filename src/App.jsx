@@ -1807,6 +1807,35 @@ export function App() {
         : (episode.src || null)
 
       const accessType = episode.accessType || 'free'
+      let effectiveEpisodeNumber = Number(episode.number)
+
+      if (Number.isFinite(messageId) && Number.isInteger(effectiveEpisodeNumber) && effectiveEpisodeNumber > 0) {
+        const numberConflict = await supabase
+          .from('episodes')
+          .select('id,telegram_message_id')
+          .eq('story_id', supabaseId)
+          .eq('number', effectiveEpisodeNumber)
+          .limit(1)
+          .maybeSingle()
+
+        if (numberConflict.error) {
+          const message = String(numberConflict.error.message || '')
+          const schemaMismatch = /column .* does not exist|Could not find the .* column|schema cache|PGRST204|PGRST205|relation .* does not exist/i.test(message)
+          if (!schemaMismatch) throw numberConflict.error
+        } else if (numberConflict.data?.id && Number(numberConflict.data.telegram_message_id) !== messageId) {
+          const [maxNumberResult, maxLegacyResult] = await Promise.all([
+            supabase.from('episodes').select('number').eq('story_id', supabaseId).not('number', 'is', null).order('number', { ascending: false }).limit(1),
+            supabase.from('episodes').select('episode_number').eq('story_id', supabaseId).not('episode_number', 'is', null).order('episode_number', { ascending: false }).limit(1),
+          ])
+          if (maxNumberResult.error) throw maxNumberResult.error
+          if (maxLegacyResult.error) throw maxLegacyResult.error
+          effectiveEpisodeNumber = Math.max(
+            Number(maxNumberResult.data?.[0]?.number) || 0,
+            Number(maxLegacyResult.data?.[0]?.episode_number) || 0,
+          ) + 1
+        }
+      }
+
 
       if (Number.isFinite(messageId)) {
         const duplicateByMessage = await supabase
@@ -1845,10 +1874,10 @@ export function App() {
         }
       }
 
-      const hybridRow = {
+      let hybridRow = {
         story_id: supabaseId,
-        episode_number: Number(episode.number),
-        number: Number(episode.number),
+        episode_number: effectiveEpisodeNumber,
+        number: effectiveEpisodeNumber,
         title: String(episode.title || 'Untitled Episode'),
         audio_url: streamUrl,
         file_url: streamUrl,
@@ -1869,6 +1898,34 @@ export function App() {
           /duplicate key value violates unique constraint|episodes_telegram_import_key/i.test(
             String(result.error.message || '')
           )
+
+        if (
+          isDuplicate &&
+          telegramImportKey &&
+          /episodes_story_number_unique|duplicate key.*story_id.*number|episodes.*number/i.test(
+            String(result.error.message || '')
+          )
+        ) {
+          const [maxNumberResult, maxLegacyResult] = await Promise.all([
+            supabase.from('episodes').select('number').eq('story_id', supabaseId).not('number', 'is', null).order('number', { ascending: false }).limit(1),
+            supabase.from('episodes').select('episode_number').eq('story_id', supabaseId).not('episode_number', 'is', null).order('episode_number', { ascending: false }).limit(1),
+          ])
+          if (maxNumberResult.error) throw maxNumberResult.error
+          if (maxLegacyResult.error) throw maxLegacyResult.error
+
+          effectiveEpisodeNumber = Math.max(
+            Number(maxNumberResult.data?.[0]?.number) || 0,
+            Number(maxLegacyResult.data?.[0]?.episode_number) || 0,
+          ) + 1
+
+          hybridRow = {
+            ...hybridRow,
+            episode_number: effectiveEpisodeNumber,
+            number: effectiveEpisodeNumber,
+          }
+
+          result = await supabase.from('episodes').insert(hybridRow)
+        }
 
         if (isDuplicate && telegramImportKey) {
           const duplicateLookup = await supabase
@@ -1899,7 +1956,7 @@ export function App() {
 
         const modernRow = {
           story_id: supabaseId,
-          number: Number(episode.number),
+          number: effectiveEpisodeNumber,
           title: String(episode.title || 'Untitled Episode'),
           type: episode.type || 'audio',
           file_url: streamUrl,
@@ -1948,7 +2005,7 @@ export function App() {
 
           const legacyRow = {
             story_id: supabaseId,
-            episode_number: Number(episode.number),
+            episode_number: effectiveEpisodeNumber,
             title: String(episode.title || 'Untitled Episode'),
             audio_url: streamUrl,
           }
@@ -1998,7 +2055,7 @@ export function App() {
               .from('episodes')
               .update({ [column]: value })
               .eq('story_id', supabaseId)
-              .eq('episode_number', Number(episode.number))
+              .eq('episode_number', effectiveEpisodeNumber)
 
             if (
               metadataError &&
