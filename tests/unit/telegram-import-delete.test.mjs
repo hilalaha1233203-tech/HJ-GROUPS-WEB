@@ -4,6 +4,38 @@ import fs from 'node:fs'
 
 const read = (path) => fs.readFileSync(new URL('../..' + '/' + path, import.meta.url), 'utf8')
 
+test('Telegram import no longer depends on stale client episode arrays for numbering', () => {
+  const helper = read('src/lib/telegramImport.js')
+  const v2 = read('src/AdminContentV2.jsx')
+  const panelStart = read('src/AdminPanel.jsx')
+  const panel = panelStart.slice(panelStart.indexOf('const handleBulkImport'), panelStart.indexOf('const resetStoryForm'))
+  assert.match(helper, /getFreshEpisodeImportState/)
+  assert.match(helper, /getFreshVideoEpisodeImportState/)
+  assert.match(helper, /sortTelegramMessagesOldestFirst/)
+  assert.match(helper, /\.in\('telegram_message_id', batch\)/)
+  assert.doesNotMatch(v2, /Math\.max\(0,\.\.\.\(parent\.episodes\|\|\[\]\)/)
+  assert.doesNotMatch(panel, /parent\.episodes\s*\|\|\s*\[\]/)
+  assert.match(v2, /X-HJ-Telegram-Next-Offset/)
+})
+
+test('Telegram titles prefer caption, filename and Telegram audio metadata before deterministic fallback', () => {
+  const helper = read('src/lib/telegramImport.js')
+  assert.match(helper, /caption/)
+  assert.match(helper, /fileName/)
+  assert.match(helper, /audioTitle/)
+  assert.match(helper, /performer/)
+  assert.match(helper, /parseTelegramEpisodeNumber/)
+  assert.match(helper, /Episode/)
+})
+
+test('Telegram scan remains paginated at 100 messages and exposes an older-message cursor', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(v2, /limit: '100'/)
+  assert.match(v2, /offset_id/)
+  assert.match(v2, /Load Older/)
+  assert.match(v2, /X-HJ-Telegram-Has-More/)
+})
+
 test('Telegram import is protected by database identity and a unique import key', () => {
   const app = read('src/App.jsx')
   assert.match(app, /eq\('story_id', supabaseId\)\n\s*\.eq\('telegram_message_id', messageId\)/)
