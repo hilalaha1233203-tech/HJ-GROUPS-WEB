@@ -749,7 +749,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     const book=type==='books'
     return <form className="admin-form admin-v2-form" onSubmit={editing?save:createSubmit}>
       {episodeMode && <label>Parent Story<select value={parentId} onChange={e=>{setParentId(e.target.value);setPage(1)}}><option value="">Select Story</option>{(type==='audio'?stories:videoStories).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}
-      {book && ((mode==='create'&&createAction==='add-volume')||(mode==='manage'&&manageTarget==='volume')) && <label>Parent Book<select value={parentId} onChange={e=>setParentId(e.target.value)}><option value="">Select Book</option>{books.map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}
+      {book && ((mode==='create'&&createAction==='add-volume')||(mode==='manage'&&manageTarget==='volume')) && <label>Parent Book<select value={parentId} onChange={e=>setParentId(e.target.value)}><option value="">Select Book</option>{books.filter(x=>adminBookIds.includes(x.id)).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}
       {episodeMode && <input type="number" min="1" placeholder="Episode number" value={number} onChange={e=>setNumber(e.target.value)}/>}
       <input required placeholder={episodeMode?'Episode title':book?'Book title':type==='videos'?'Video story title':'Story title'} value={title} onChange={e=>setTitle(e.target.value)}/>
       {!episodeMode && <><textarea placeholder="Description (optional)" value={description} onChange={e=>setDescription(e.target.value)}/><label>Language<select value={language} onChange={e=>setLanguage(e.target.value)}>{LANGUAGES.map(x=><option key={x}>{x}</option>)}</select></label><label>Genre / Category<select value={genre[0]||''} onChange={e=>setGenre([e.target.value])}>{(type==='audio'?GENRES:type==='books'?BOOK_GENRES:VIDEO_GENRES).map(x=><option key={x}>{x}</option>)}</select></label><label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="draft">Draft</option></select></label></>}
@@ -778,7 +778,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
       <ActionCards items={manageTargetItems} value={manageTarget} onChange={setManageTargetAndReset} className="admin-v2-target-actions"/>
 
       {(manageTarget==='episode'||manageTarget==='video-episode') && <label className="admin-v2-parent-field">
-        Parent Story<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList();setBulkSelectedIds([])}}><option value="">Select Story</option>{(category==='audio'?stories:videoStories).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
+        Parent Story<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList();setBulkSelectedIds([])}}><option value="">Select Story</option>{(category==='audio' ? stories.filter(x=>adminStoryIds.includes(x.id)) : videoStories.filter(x=>adminVideoIds.includes(x.id))).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
       </label>}
       {manageTarget==='volume' && <label className="admin-v2-parent-field">
         Parent Book<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList();setBulkSelectedIds([])}}><option value="">Select Book</option>{books.map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
