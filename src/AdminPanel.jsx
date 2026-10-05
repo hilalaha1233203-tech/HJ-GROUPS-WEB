@@ -22,7 +22,7 @@ const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1
 
 // The streaming service is deployed separately. Use its stable Vercel project URL
 // instead of pinning the website to an immutable deployment URL.
-import { STREAMING_SERVER_URL } from './lib/streamingUrl'
+import { fetchTelegramMessages } from './lib/streamingUrl'
 import { buildTelegramMediaTitle, getFreshEpisodeImportState, sortTelegramMessagesOldestFirst } from './lib/telegramImport.js'
 
 
@@ -365,6 +365,7 @@ function AdminPanel({
   const [userExportError, setUserExportError] = useState('')
   const [vipUsers, setVipUsers] = useState([])
   const [vipGrants, setVipGrants] = useState([])
+  const [vipError, setVipError] = useState('')
   const [vipSelectedUserId, setVipSelectedUserId] = useState('')
   const [vipExpiry, setVipExpiry] = useState('')
   const [vipNote, setVipNote] = useState('')
@@ -419,7 +420,13 @@ function AdminPanel({
         throw new Error(message)
       }
 
-      const blob = await response.blob()
+      const buffer = await response.arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+      if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+        const serverText = new TextDecoder().decode(bytes).trim().slice(0, 240)
+        throw new Error(serverText || 'Server returned an invalid XLSX file. Start the local HJ GROUPS backend server and retry.')
+      }
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const objectUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = objectUrl
@@ -790,6 +797,7 @@ function AdminPanel({
 
   const refreshVipAccess = useCallback(async () => {
     setVipLoading(true)
+    setVipError('')
     try {
       const { data: { session } = {} } = await supabase.auth.getSession()
       if (!session?.access_token) throw new Error('Admin session is unavailable.')
@@ -803,7 +811,9 @@ function AdminPanel({
       setVipUsers(Array.isArray(payload?.users) ? payload.users : [])
       setVipGrants(Array.isArray(payload?.grants) ? payload.grants : [])
     } catch (error) {
-      showToast(String(error?.message || 'VIP users could not be loaded.'), 'error')
+      const message = String(error?.message || 'VIP users could not be loaded.')
+      setVipError(message)
+      showToast(message, 'error')
     } finally {
       setVipLoading(false)
     }
@@ -1278,7 +1288,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         return
       }
 
-      const res = await fetch(`${STREAMING_SERVER_URL}/telegram/messages`, {
+      const res = await fetchTelegramMessages('', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -1785,7 +1795,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         return
       }
 
-      const res = await fetch(`${STREAMING_SERVER_URL}/telegram/messages?type=video`, {
+      const res = await fetchTelegramMessages('type=video', {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
       if (!res.ok) {
@@ -1925,7 +1935,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         return
       }
 
-      const res = await fetch(`${STREAMING_SERVER_URL}/telegram/messages?type=document`, {
+      const res = await fetchTelegramMessages('type=document', {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
       if (!res.ok) {
@@ -2569,7 +2579,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
               {playwrightState.status === 'not_configured' && (
                 <p className="admin-settings-note">
-                  The UI is connected to the real workflow controller, but the server-side GitHub Actions credential is not configured. Set <code>HJ_GITHUB_ACTIONS_TOKEN</code> on the Supabase Edge Function; do not place it in VITE_ variables.
+                  The UI is connected to the real workflow controller, but the server-side GitHub Actions credential is not configured. Set <code>HJ_GITHUB_ACTIONS_TOKEN</code> in the backend/server environment (Voroa/Node server); do not place it in VITE_ variables.
                 </p>
               )}
 
@@ -3118,6 +3128,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                         <option key={item.id} value={item.id}>{item.name ? item.name + ' — ' : ''}{item.email || item.id}</option>
                       ))}
                     </select>
+                    {vipError && <small className="auth-error" role="alert">{vipError}</small>}
                   </label>
                   <label>
                     Expiry (optional)
