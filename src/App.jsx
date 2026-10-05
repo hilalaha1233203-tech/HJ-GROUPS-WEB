@@ -2252,7 +2252,12 @@ export function App() {
   const deleteAdminStory = async (storyId) => {
     const supabaseId = getSupabaseStoryId(storyId)
     if (supabaseId !== null) {
-      const { error } = await supabase.from('stories').delete().eq('id', supabaseId)
+      const { data, error } = await supabase.from('stories').delete().eq('id', supabaseId).select('id')
+      if (error) throw error
+      if (!Array.isArray(data) || data.length !== 1 || Number(data[0]?.id) !== supabaseId) throw new Error('Story delete did not affect the expected database row.')
+      const verify = await supabase.from('stories').select('id').eq('id', supabaseId).maybeSingle()
+      if (verify.error) throw verify.error
+      if (verify.data) throw new Error('Story delete could not be verified; the database row still exists.')
       if (error) throw error
       await refreshTelegramContent()
       return
