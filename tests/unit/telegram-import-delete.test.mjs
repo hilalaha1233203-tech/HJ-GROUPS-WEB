@@ -36,18 +36,29 @@ test('Telegram scan remains paginated at 100 messages and exposes an older-messa
   assert.match(v2, /X-HJ-Telegram-Has-More/)
 })
 
-test('Admin Create/Manage category changes reset to a valid category-specific action', () => {
+test('Admin Create/Manage category changes reset to valid category-specific actions', () => {
   const v2 = read('src/AdminContentV2.jsx')
-  assert.match(v2, /setCreateAction\(c==='audio'\?'new-story':c==='books'\?'new-book':'new-video'\)/)
-  assert.match(v2, /setManageAction\(c==='audio'\?'story-edit':c==='books'?'book-edit':'video-story-edit'\)/)
+  const categoryBlockStart = v2.indexOf('  const onCat=')
+  const categoryBlockEnd = v2.indexOf('\n  const onSearch=', categoryBlockStart)
+  assert.ok(categoryBlockStart >= 0 && categoryBlockEnd > categoryBlockStart)
+  const categoryBlock = v2.slice(categoryBlockStart, categoryBlockEnd)
+  assert.match(categoryBlock, /setCategory\(c\)/)
+  assert.match(categoryBlock, /setCreateAction\(/)
+  assert.match(categoryBlock, /new-story/)
+  assert.match(categoryBlock, /new-book/)
+  assert.match(categoryBlock, /new-video/)
+  assert.match(categoryBlock, /setManageAction\(/)
+  assert.match(categoryBlock, /story-edit/)
+  assert.match(categoryBlock, /book-edit/)
+  assert.match(categoryBlock, /video-story-edit/)
 })
 
 test('Manage V2 preserves Telegram media playback URLs when saving an episode', () => {
   const v2 = read('src/AdminContentV2.jsx')
   assert.match(v2, /const messageId = extractId\(telegramUrl\) \|\| Number\(edit\.telegram_message_id\) \|\| null/)
-  assert.match(v2, /STREAMING_SERVER_URL \+ '\/audio\/message\/'/)
-  assert.match(v2, /STREAMING_SERVER_URL \+ '\/video\/message\/'/)
-  assert.match(v2, /setSrc\(e\.src\|\|e\.file_url/)
+  assert.match(v2, /const nextSrc = messageId \? STREAMING_SERVER_URL \+ '\/audio\/message\/'/)
+  assert.match(v2, /const nextSrc = messageId \? STREAMING_SERVER_URL \+ '\/video\/message\/'/)
+  assert.match(v2, /onChange=\{e=>\{const value=e\.target\.value;if\(book\)setFile\(value\);else\{setTelegramUrl\(value\);setSrc\(value\)\}\}\}/)
 })
 
 test('Audio episode edits keep number and legacy episode_number synchronized', () => {
