@@ -61,6 +61,13 @@ test('Manage V2 preserves Telegram media playback URLs when saving an episode', 
   assert.match(v2, /onChange=\{e=>\{const value=e\.target\.value;if\(book\)setFile\(value\);else\{setTelegramUrl\(value\);setSrc\(value\)\}\}\}/)
 })
 
+test('Manage V2 can replace an existing Telegram media URL with a non-Telegram URL', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(v2, /const rawMediaUrl = String\(telegramUrl \|\| ''\)\.trim\(\)/)
+  assert.match(v2, /!rawMediaUrl \? Number\(edit\.telegram_message_id\) \|\| null : null/)
+  assert.match(v2, /const nextSrc = messageId \? STREAMING_SERVER_URL/)
+})
+
 test('Audio episode edits keep number and legacy episode_number synchronized', () => {
   const app = read('src/App.jsx')
   assert.match(app, /const baseUpdate = \{\n\s*number,\n\s*episode_number: number,/)
