@@ -32,8 +32,8 @@ function CategoryCards({ value, onChange }) {
   ].map(([id,label]) => <button key={id} type="button" className={'admin-v2-card '+(value===id?'active':'')} onClick={() => onChange(id)}>{label}</button>)}</div>
 }
 
-function ActionCards({ items, value, onChange }) {
-  return <div className="admin-v2-action-grid">{items.map(([id,label]) =>
+function ActionCards({ items, value, onChange, className = '' }) {
+  return <div className={'admin-v2-action-grid '+className}>{items.map(([id,label]) =>
     <button key={id} type="button" className={'admin-v2-card '+(value===id?'active':'')} onClick={() => onChange(id)}>{label}</button>
   )}</div>
 }
@@ -291,7 +291,7 @@ function TelegramImport({ category, stories, books, videoStories, onAddEpisode, 
     {progress && <div className="admin-v2-progress">Processed {progress.processed}/{progress.total} · Imported {progress.imported} · Duplicates {progress.duplicates} · Failed {progress.failed}</div>}
   </section>
 }
-export default function AdminContentV2({mode, stories, books, videoStories, adminStoryIds, adminBookIds, adminVideoIds, onAddStory, onUpdateStory, onAddEpisode, onUpdateEpisode, onAddBook, onUpdateBook, onAddVideo, onUpdateVideo, onAddVideoEpisode, onUpdateVideoEpisode, toast}) {
+export default function AdminContentV2({mode, stories, books, videoStories, adminStoryIds, adminBookIds, adminVideoIds, onAddStory, onUpdateStory, onAddEpisode, onUpdateEpisode, onDeleteStory, onDeleteEpisode, onAddBook, onUpdateBook, onDeleteBook, onAddVideo, onUpdateVideo, onAddVideoEpisode, onUpdateVideoEpisode, onDeleteVideo, onDeleteVideoEpisode, toast}) {
   const [category,setCategory]=useState('audio')
   const [createAction,setCreateAction]=useState('new-story')
   const [manageAction,setManageAction]=useState('story-edit')
@@ -299,6 +299,21 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   const [page,setPage]=useState(1)
   const [pageSize,setPageSize]=useState(50)
   const [selectedId,setSelectedId]=useState('')
+  const [manageTarget,setManageTarget]=useState('story')
+  const [bulkSelectedIds,setBulkSelectedIds]=useState([])
+  const [bulkBusy,setBulkBusy]=useState(false)
+  const [bulkEditApplyTitlePrefix,setBulkEditApplyTitlePrefix]=useState(false)
+  const [bulkEditTitlePrefix,setBulkEditTitlePrefix]=useState('')
+  const [bulkEditApplyAccess,setBulkEditApplyAccess]=useState(false)
+  const [bulkEditAccessType,setBulkEditAccessType]=useState(['free'])
+  const [bulkEditApplyStatus,setBulkEditApplyStatus]=useState(false)
+  const [bulkEditStatus,setBulkEditStatus]=useState('ongoing')
+  const [bulkEditApplyLanguage,setBulkEditApplyLanguage]=useState(false)
+  const [bulkEditLanguage,setBulkEditLanguage]=useState('Tamil')
+  const [bulkEditApplyCategory,setBulkEditApplyCategory]=useState(false)
+  const [bulkEditCategory,setBulkEditCategory]=useState('Fantasy')
+  const [bulkEditApplyAvailable,setBulkEditApplyAvailable]=useState(false)
+  const [bulkEditAvailable,setBulkEditAvailable]=useState(true)
   const [parentId,setParentId]=useState('')
   const [edit,setEdit]=useState(null)
   const [title,setTitle]=useState('')
@@ -327,12 +342,35 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     setCreateAction(c==='audio'?'new-story':c==='books'?'new-book':'new-video')
     setManageAction(c==='audio'?'story-edit':c==='books'?'book-edit':'video-story-edit')
   }
-  const onSearch=(v)=>{setSearch(v);setPage(1);setSelectedId('');setEdit(null)}
+  const onSearch=(v)=>{setSearch(v);setPage(1);setSelectedId('');setEdit(null);setBulkSelectedIds([])}
+
+  const setManageActionAndReset = (nextAction) => {
+    setManageAction(nextAction)
+    resetList()
+    setParentId('')
+    setSearch('')
+    setBulkSelectedIds([])
+    setEdit(null)
+  }
+
+  const setManageTargetAndReset = (nextTarget) => {
+    setManageTarget(nextTarget)
+    resetList()
+    setParentId('')
+    setSearch('')
+    setBulkSelectedIds([])
+    setEdit(null)
+  }
 
   const actionItems = category==='audio' ? [['new-story','🆕 New Story'],['add-episode','➕ Add Episode'],['telegram','📲 Bulk Telegram Import'],['other','⚙️ Other Existing Audio Creation Options']]
     : category==='books' ? [['new-book','🆕 New Book'],['add-volume','➕ Add Volume'],['telegram','📲 Bulk Telegram Import'],['other','⚙️ Other Existing Book Creation Options']]
     : [['new-video','🆕 New Video Story'],['add-video-episode','➕ Add Video Episode'],['telegram','📲 Bulk Telegram Import'],['other','⚙️ Other Existing Video Creation Options']]
-  const manageItems = category==='audio' ? [['story-edit','📚 Story Edit'],['episode-edit','🎧 Episode Edit']] : category==='books' ? [['book-edit','📕 Book Edit'],['volume-edit','📖 Volume Edit']] : [['video-story-edit','🎬 Video Story Edit'],['video-episode-edit','🎞️ Video Episode Edit']]
+  const manageItems = [['edit','✏️ Edit'],['delete','🗑️ Delete'],['bulk-edit','🧩 Bulk Edit'],['bulk-delete','🗑️ Bulk Delete']]
+  const manageTargetItems = category==='audio'
+    ? [['story','📚 Stories'],['episode','🎧 Episodes']]
+    : category==='books'
+      ? [['book','📕 Books'],['volume','📖 Volumes']]
+      : [['video-story','🎬 Video Stories'],['video-episode','🎞️ Video Episodes']]
 
   const sourceRows = useMemo(()=>{
     const rows = category==='audio'?stories:category==='books'?books:videoStories
@@ -353,6 +391,24 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   const episodePages=Math.max(1,Math.ceil(episodeRows.length/pageSize))
   const episodePageRows=episodeRows.slice((page-1)*pageSize,page*pageSize)
 
+  const targetRows = useMemo(()=>{
+    if(manageTarget==='story') return sourceRows
+    if(manageTarget==='book') return sourceRows
+    if(manageTarget==='video-story') return sourceRows
+    if(manageTarget==='episode' || manageTarget==='video-episode') return episodeRows.map((row)=>({ ...row, id: row.id || row.number }))
+    if(manageTarget==='volume'){
+      const book=books.find(x=>String(x.id)===String(parentId))
+      return (book?.volumes||[]).map((volume,index)=>({ ...volume, id:String(index), volumeIndex:index }))
+    }
+    return []
+  },[manageTarget,sourceRows,episodeRows,books,parentId])
+
+  const targetPages=Math.max(1,Math.ceil(targetRows.length/pageSize))
+  const targetPageRows=targetRows.slice((page-1)*pageSize,page*pageSize)
+  const targetLabel = manageTarget==='story' ? 'Story' : manageTarget==='episode' ? 'Episode' : manageTarget==='book' ? 'Book' : manageTarget==='volume' ? 'Volume' : manageTarget==='video-story' ? 'Video Story' : 'Video Episode'
+  const targetPlural = targetLabel+'s'
+  const selectedTarget = targetRows.find(row => String(row.id)===String(selectedId))
+
   const selectDetail=(id, rows=sourceRows)=>{
     setSelectedId(id)
     const item=rows.find(x=>String(x.id)===String(id))
@@ -362,22 +418,44 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     setAuthor(item.author||''); setBookType(item.type||'pdf'); setFile(item.file||''); setFilePath(item.filePath||'')
   }
 
+  const selectManageRow = (row) => {
+    setSelectedId(String(row.id))
+    if(manageTarget==='episode' || manageTarget==='video-episode'){
+      setEdit(row)
+      setTitle(row.title||'')
+      setNumber(String(row.number||''))
+      setSrc(row.src||'')
+      setTelegramUrl(row.telegram_message_id?String(row.telegram_message_id):'')
+      setAccessType(resolveAccessType(row))
+      setBulkSelectedIds((current)=>current.filter((id)=>String(id)!==String(row.id)))
+      return
+    }
+    if(manageTarget==='volume'){
+      setEdit(row)
+      setTitle(row.title||'')
+      setFile(row.file||'')
+      setFilePath(row.filePath||'')
+      return
+    }
+    selectDetail(row.id,targetRows)
+  }
+
   const save = async (e)=>{
     e.preventDefault()
     try {
-      if(category==='audio' && manageAction==='story-edit') await onUpdateStory(selectedId,{title:title.trim(),genre:serializeGenreSelection(genre),language,cover:cover.trim(),description:description.trim(),status})
-      else if(category==='audio' && manageAction==='episode-edit') {
+      if(category==='audio' && manageTarget==='story') await onUpdateStory(selectedId,{title:title.trim(),genre:serializeGenreSelection(genre),language,cover:cover.trim(),description:description.trim(),status})
+      else if(category==='audio' && manageTarget==='episode') {
         const rawMediaUrl = String(telegramUrl || '').trim()
         const messageId = extractId(rawMediaUrl) || (!rawMediaUrl ? Number(edit.telegram_message_id) || null : null)
         const nextSrc = messageId ? STREAMING_SERVER_URL + '/audio/message/' + encodeURIComponent(messageId) : src.trim()
         await onUpdateEpisode(parentId,Number(edit.number),{number:Number(number),title:title.trim(),type:'audio',src:nextSrc,available:true,accessType,telegram_message_id:messageId || undefined},edit.id)
       }
-      else if(category==='books' && manageAction==='book-edit') await onUpdateBook(selectedId,{...edit,title:title.trim(),author:author.trim(),description:description.trim(),type:bookType,language,cover:cover.trim(),file:file.trim(),filePath,accessType,status})
-      else if(category==='books' && manageAction==='volume-edit') {
+      else if(category==='books' && manageTarget==='book') await onUpdateBook(selectedId,{...edit,title:title.trim(),author:author.trim(),description:description.trim(),type:bookType,language,cover:cover.trim(),file:file.trim(),filePath,accessType,status})
+      else if(category==='books' && manageTarget==='volume') {
         const b=books.find(x=>String(x.id)===String(parentId)); const vols=Array.isArray(b?.volumes)?b.volumes:[]; const idx=vols.findIndex((_,i)=>String(i)===String(selectedId)); if(idx<0) throw new Error('Volume not found.')
         const next=vols.map((v,i)=>i===idx?{...v,title:title.trim(),file:file.trim(),filePath,type:b.type||bookType}:v); await onUpdateBook(b.id,{...b,volumes:next})
-      } else if(category==='videos' && manageAction==='video-story-edit') await onUpdateVideo(selectedId,{title:title.trim(),category:genre[0]||'Action',language,cover:cover.trim(),status,accessType})
-      else if(category==='videos' && manageAction==='video-episode-edit') {
+      } else if(category==='videos' && manageTarget==='video-story') await onUpdateVideo(selectedId,{title:title.trim(),category:genre[0]||'Action',language,cover:cover.trim(),status,accessType})
+      else if(category==='videos' && manageTarget==='video-episode') {
         const rawMediaUrl = String(telegramUrl || '').trim()
         const messageId = extractId(rawMediaUrl) || (!rawMediaUrl ? Number(edit.telegram_message_id) || null : null)
         const nextSrc = messageId ? STREAMING_SERVER_URL + '/video/message/' + encodeURIComponent(messageId) : src.trim()
@@ -387,6 +465,198 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
       const current=selectedId; setSelectedId(''); setEdit(null)
       setTimeout(()=>setSelectedId(current),0)
     } catch(err){ console.error(err); notify(err.message||'Save failed.','error') }
+  }
+
+  const deleteSingle = async () => {
+    if(!selectedTarget) return notify('Select an item first.','error')
+    if(!window.confirm('Delete '+targetLabel.toLowerCase()+' "'+(selectedTarget.title||selectedTarget.name||targetLabel)+'"? This cannot be undone.')) return
+
+    try {
+      if(manageTarget==='story') {
+        if(!onDeleteStory) throw new Error('Story delete operation is unavailable.')
+        await onDeleteStory(selectedTarget.id)
+      } else if(manageTarget==='episode') {
+        if(!selectedTarget.id) throw new Error('This episode is missing its database ID and cannot be safely deleted.')
+        if(!onDeleteEpisode) throw new Error('Episode delete operation is unavailable.')
+        await onDeleteEpisode(parentId, selectedTarget.id)
+      } else if(manageTarget==='book') {
+        if(!onDeleteBook) throw new Error('Book delete operation is unavailable.')
+        await onDeleteBook(selectedTarget.id)
+      } else if(manageTarget==='volume') {
+        const book=books.find(x=>String(x.id)===String(parentId))
+        if(!book) throw new Error('Parent book not found.')
+        const volumes=Array.isArray(book.volumes)?book.volumes:[]
+        const index=Number(selectedTarget.volumeIndex)
+        if(!Number.isInteger(index)||!volumes[index]) throw new Error('Volume not found.')
+        const nextVolumes=volumes.filter((_,i)=>i!==index).map((volume,i)=>({...volume,number:i+1}))
+        await onUpdateBook(book.id,{...book,volumes:nextVolumes})
+      } else if(manageTarget==='video-story') {
+        if(!onDeleteVideo) throw new Error('Video story delete operation is unavailable.')
+        await onDeleteVideo(selectedTarget.id)
+      } else if(manageTarget==='video-episode') {
+        if(!onDeleteVideoEpisode) throw new Error('Video episode delete operation is unavailable.')
+        await onDeleteVideoEpisode(parentId, selectedTarget.number)
+      }
+      notify(targetLabel+' deleted successfully.')
+      resetList()
+    } catch(err) {
+      console.error('Manage delete error',err)
+      notify(err.message||'Delete failed.','error')
+    }
+  }
+
+  const runBulkEdit = async () => {
+    if(bulkBusy) return
+    const selectedRows=targetRows.filter(row=>bulkSelectedIds.some(id=>String(id)===String(row.id)))
+    if(!selectedRows.length) return notify('Select at least one '+targetLabel.toLowerCase()+'.','error')
+    const hasPatch=bulkEditApplyTitlePrefix||bulkEditApplyAccess||bulkEditApplyStatus||bulkEditApplyLanguage||bulkEditApplyCategory||bulkEditApplyAvailable
+    if(!hasPatch) return notify('Choose at least one field to update.','error')
+    if(bulkEditApplyTitlePrefix && !bulkEditTitlePrefix.trim()) return notify('Enter a title prefix.','error')
+
+    setBulkBusy(true)
+    let updated=0
+    let failed=0
+
+    try {
+      if(manageTarget==='volume'){
+        const book=books.find(x=>String(x.id)===String(parentId))
+        if(!book) throw new Error('Parent book not found.')
+        const chosen=new Set(selectedRows.map(row=>Number(row.volumeIndex)))
+        const volumes=Array.isArray(book.volumes)?book.volumes:[]
+        const nextVolumes=volumes.map((volume,index)=>{
+          if(!chosen.has(index)) return volume
+          return bulkEditApplyTitlePrefix ? {...volume,title:bulkEditTitlePrefix.trim()+String(volume.title||'')} : volume
+        })
+        await onUpdateBook(book.id,{...book,volumes:nextVolumes})
+        updated=selectedRows.length
+      } else {
+        for(const row of selectedRows){
+          try{
+            if(manageTarget==='story'){
+              const patch={}
+              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
+              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
+              if(bulkEditApplyStatus) patch.status=bulkEditStatus
+              if(bulkEditApplyLanguage) patch.language=bulkEditLanguage
+              if(bulkEditApplyCategory) patch.genre=serializeGenreSelection([bulkEditCategory])
+              await onUpdateStory(row.id,patch)
+            } else if(manageTarget==='episode'){
+              const patch={}
+              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
+              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
+              if(bulkEditApplyAvailable) patch.available=bulkEditAvailable
+              if(!Object.keys(patch).length) throw new Error('No episode fields selected.')
+              await onUpdateEpisode(parentId,Number(row.number),patch,row.id)
+            } else if(manageTarget==='book'){
+              const patch={...row}
+              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
+              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
+              if(bulkEditApplyStatus) patch.status=bulkEditStatus
+              if(bulkEditApplyLanguage) patch.language=bulkEditLanguage
+              if(bulkEditApplyCategory) patch.category=bulkEditCategory
+              await onUpdateBook(row.id,patch)
+            } else if(manageTarget==='video-story'){
+              const patch={}
+              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
+              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
+              if(bulkEditApplyStatus) patch.status=bulkEditStatus
+              if(bulkEditApplyLanguage) patch.language=bulkEditLanguage
+              if(bulkEditApplyCategory) patch.category=bulkEditCategory
+              await onUpdateVideo(row.id,patch)
+            } else if(manageTarget==='video-episode'){
+              const patch={}
+              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
+              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
+              if(bulkEditApplyAvailable) patch.available=bulkEditAvailable
+              if(!Object.keys(patch).length) throw new Error('No video episode fields selected.')
+              await onUpdateVideoEpisode(parentId,Number(row.number),patch,row.id)
+            }
+            updated++
+          } catch(error){
+            failed++
+            console.error('Bulk edit item failed',row,error)
+          }
+        }
+      }
+      setBulkSelectedIds([])
+      notify(updated+' '+targetLabel.toLowerCase()+(updated===1?' updated.':'s updated.')+(failed?' '+failed+' failed.':''))
+    } catch(err) {
+      console.error('Bulk edit failed',err)
+      notify(err.message||'Bulk edit failed.','error')
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const runBulkDelete = async () => {
+    if(bulkBusy) return
+    const selectedRows=targetRows.filter(row=>bulkSelectedIds.some(id=>String(id)===String(row.id)))
+    if(!selectedRows.length) return notify('Select at least one '+targetLabel.toLowerCase()+'.','error')
+    if(!window.confirm('Delete '+selectedRows.length+' selected '+targetPlural.toLowerCase()+'? This cannot be undone.')) return
+
+    setBulkBusy(true)
+    let deleted=0
+    let failed=0
+    try{
+      if(manageTarget==='volume'){
+        const book=books.find(x=>String(x.id)===String(parentId))
+        if(!book) throw new Error('Parent book not found.')
+        const chosen=new Set(selectedRows.map(row=>Number(row.volumeIndex)))
+        const volumes=Array.isArray(book.volumes)?book.volumes:[]
+        const nextVolumes=volumes.filter((_,index)=>!chosen.has(index)).map((volume,index)=>({...volume,number:index+1}))
+        await onUpdateBook(book.id,{...book,volumes:nextVolumes})
+        deleted=selectedRows.length
+      } else {
+        for(const row of selectedRows){
+          try{
+            if(manageTarget==='story'){
+              if(!onDeleteStory) throw new Error('Story delete operation is unavailable.')
+              await onDeleteStory(row.id)
+            } else if(manageTarget==='episode'){
+              if(!row.id) throw new Error('Missing episode database ID.')
+              if(!onDeleteEpisode) throw new Error('Episode delete operation is unavailable.')
+              await onDeleteEpisode(parentId,row.id)
+            } else if(manageTarget==='book'){
+              if(!onDeleteBook) throw new Error('Book delete operation is unavailable.')
+              await onDeleteBook(row.id)
+            } else if(manageTarget==='video-story'){
+              if(!onDeleteVideo) throw new Error('Video story delete operation is unavailable.')
+              await onDeleteVideo(row.id)
+            } else if(manageTarget==='video-episode'){
+              if(!onDeleteVideoEpisode) throw new Error('Video episode delete operation is unavailable.')
+              await onDeleteVideoEpisode(parentId,row.number)
+            }
+            deleted++
+          } catch(error){
+            failed++
+            console.error('Bulk delete item failed',row,error)
+          }
+        }
+      }
+      setBulkSelectedIds([])
+      resetList()
+      notify(deleted+' deleted.'+(failed?' '+failed+' failed.':''))
+    } catch(err) {
+      console.error('Bulk delete failed',err)
+      notify(err.message||'Bulk delete failed.','error')
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const toggleBulkRow = (row) => {
+    setBulkSelectedIds((current)=>current.some(id=>String(id)===String(row.id))
+      ? current.filter(id=>String(id)!==String(row.id))
+      : [...current,row.id])
+  }
+
+  const toggleBulkAll = () => {
+    const pageIds=targetPageRows.map(row=>String(row.id))
+    const allSelected=pageIds.length>0 && pageIds.every(id=>bulkSelectedIds.some(selectedId=>String(selectedId)===id))
+    setBulkSelectedIds((current)=>{
+      if(allSelected) return current.filter(id=>!pageIds.includes(String(id)))
+      return [...current,...targetPageRows.map(row=>row.id).filter(id=>!current.some(existing=>String(existing)===String(id)))]
+    })
   }
 
   const createSubmit=async(e)=>{
@@ -411,11 +681,11 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   }
 
   const renderForm=(editing=false, type=category)=>{
-    const episodeMode=(type==='audio'&&createAction==='add-episode')||(type==='videos'&&createAction==='add-video-episode')||(type==='audio'&&manageAction==='episode-edit')||(type==='videos'&&manageAction==='video-episode-edit')
+    const episodeMode=(type==='audio'&&createAction==='add-episode')||(type==='videos'&&createAction==='add-video-episode')||manageTarget==='episode'||manageTarget==='video-episode'
     const book=type==='books'
     return <form className="admin-form admin-v2-form" onSubmit={editing?save:createSubmit}>
       {episodeMode && <label>Parent Story<select value={parentId} onChange={e=>{setParentId(e.target.value);setPage(1)}}><option value="">Select Story</option>{(type==='audio'?stories:videoStories).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}
-      {book && (createAction==='add-volume'||manageAction==='volume-edit') && <label>Parent Book<select value={parentId} onChange={e=>setParentId(e.target.value)}><option value="">Select Book</option>{books.map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}
+      {book && (createAction==='add-volume'||manageTarget==='volume') && <label>Parent Book<select value={parentId} onChange={e=>setParentId(e.target.value)}><option value="">Select Book</option>{books.map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}
       {episodeMode && <input type="number" min="1" placeholder="Episode number" value={number} onChange={e=>setNumber(e.target.value)}/>}
       <input required placeholder={episodeMode?'Episode title':book?'Book title':type==='videos'?'Video story title':'Story title'} value={title} onChange={e=>setTitle(e.target.value)}/>
       {!episodeMode && <><textarea placeholder="Description (optional)" value={description} onChange={e=>setDescription(e.target.value)}/><label>Language<select value={language} onChange={e=>setLanguage(e.target.value)}>{LANGUAGES.map(x=><option key={x}>{x}</option>)}</select></label><label>Genre / Category<select value={genre[0]||''} onChange={e=>setGenre([e.target.value])}>{(type==='audio'?GENRES:type==='books'?BOOK_GENRES:VIDEO_GENRES).map(x=><option key={x}>{x}</option>)}</select></label><label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="draft">Draft</option></select></label></>}
@@ -432,14 +702,80 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     <section className="admin-section"><h2>{mode==='create'?'➕ Create Content':'🛠️ Manage Content'}</h2><p className="admin-v2-hint">{mode==='create'?'Create / add / import only. Editing stays in Manage.':'Edit existing content only; lists are paginated and details are opened one item at a time.'}</p><CategoryCards value={category} onChange={onCat}/></section>
     {mode==='create' ? <section className="admin-section"><ActionCards items={actionItems} value={createAction} onChange={x=>{setCreateAction(x);clearForm()}}/>
       {createAction==='telegram'?<TelegramImport category={category} stories={stories} books={books} videoStories={videoStories} onAddEpisode={onAddEpisode} onUpdateBook={onUpdateBook} onAddVideoEpisode={onAddVideoEpisode} toast={notify}/>:createAction==='other'?<div className="admin-v2-empty">Other existing creation options remain available through the existing workflows; no existing backend was replaced.</div>:renderForm(false,category)}</section>
-    : <section className="admin-section"><ActionCards items={manageItems} value={manageAction} onChange={x=>{setManageAction(x);resetList();setParentId('')}}/>
-      <div style={{display:'flex',justifyContent:'flex-end',marginTop:12}}>
-        <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13}}>Page size
-          <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}}><option value="25">25</option><option value="50">50</option><option value="100">100</option></select>
-        </label>
+    : <section className="admin-section">
+      <ActionCards items={manageItems} value={manageAction} onChange={setManageActionAndReset} className="admin-v2-manage-actions"/>
+      <div className="admin-v2-manage-subhead">
+        <div>
+          <strong>Choose what to manage</strong>
+          <small>{manageAction==='edit'?'Open an item and edit it.':manageAction==='delete'?'Choose one item to delete.':manageAction==='bulk-edit'?'Select multiple items and apply the same supported fields.':'Select multiple items for one confirmation and delete them together.'}</small>
+        </div>
+        <label>Page size<select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1);setBulkSelectedIds([])}}><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label>
       </div>
-      {manageAction==='episode-edit'||manageAction==='video-episode-edit'?<><label>Parent Story<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList()}}><option value="">Select Story</option>{(category==='audio'?stories:videoStories).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>{parentId&&<><input aria-label="Episode search" placeholder="Search Episode…" value={search} onChange={e=>onSearch(e.target.value)}/><div className="admin-v2-list">{episodePageRows.map(e=><button type="button" key={e.id||e.number} className={'admin-v2-list-row '+(String(selectedId)===String(e.id||e.number)?'active':'')} onClick={()=>{setSelectedId(e.id||e.number);setEdit(e);setTitle(e.title||'');setNumber(String(e.number));setSrc(e.src||'');setTelegramUrl(e.telegram_message_id?String(e.telegram_message_id):'');setAccessType(resolveAccessType(e))}}><span><strong>#{e.number} · {e.title}</strong><small>{resolveAccessType(e).join(', ')}</small></span><span>›</span></button>)}</div><div className="admin-v2-pagination"><button type="button" disabled={page<=1} onClick={()=>setPage(page-1)}>‹ Previous</button><span>{page} / {episodePages}</span><button type="button" disabled={page>=episodePages} onClick={()=>setPage(page+1)}>Next ›</button></div>{edit&&renderForm(true,category)}</>}</> : (manageAction==='volume-edit'?<><ListPicker rows={books} selectedId={parentId} onSelect={id=>{setParentId(id);setSearch('');setPage(1)}} search={search} onSearch={onSearch} page={page} totalPages={Math.max(1,Math.ceil(books.length/pageSize))} onPage={setPage} label="Books"/>{parentId&&<div className="admin-v2-list">{(books.find(x=>String(x.id)===String(parentId))?.volumes||[]).map((v,i)=><button type="button" className="admin-v2-list-row" key={i} onClick={()=>{setSelectedId(String(i));setEdit(v);setTitle(v.title||'');setFile(v.file||'');setFilePath(v.filePath||'')}}><span><strong>Volume {i+1} · {v.title}</strong></span><span>›</span></button>)}</div>}{edit&&renderForm(true,'books')}</>:
-      <><ListPicker rows={pageRows} selectedId={selectedId} onSelect={id=>selectDetail(id)} search={search} onSearch={onSearch} page={page} totalPages={pages} onPage={setPage} label={category==='audio'?(manageAction==='story-edit'?'Stories':'Stories'):category==='books'?'Books':'Video Stories'}/>{edit&&renderForm(true,category)}</>)}
+      <ActionCards items={manageTargetItems} value={manageTarget} onChange={setManageTargetAndReset} className="admin-v2-target-actions"/>
+
+      {(manageTarget==='episode'||manageTarget==='video-episode') && <label className="admin-v2-parent-field">
+        Parent Story<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList();setBulkSelectedIds([])}}><option value="">Select Story</option>{(category==='audio'?stories:videoStories).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
+      </label>}
+      {manageTarget==='volume' && <label className="admin-v2-parent-field">
+        Parent Book<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList();setBulkSelectedIds([])}}><option value="">Select Book</option>{books.map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
+      </label>}
+
+      {(manageTarget==='story'||manageTarget==='book'||manageTarget==='video-story'||parentId) && <div className="admin-v2-manage-toolbar">
+        <input aria-label={targetLabel+' search'} placeholder={'Search '+targetPlural+'…'} value={search} onChange={e=>onSearch(e.target.value)}/>
+        {(manageAction==='bulk-edit'||manageAction==='bulk-delete') && <button type="button" className="admin-v2-select-all" onClick={toggleBulkAll} disabled={bulkBusy||!targetPageRows.length}>{bulkSelectedIds.length && targetPageRows.every(row=>bulkSelectedIds.some(id=>String(id)===String(row.id))) ? 'Clear Page' : 'Select Page'}</button>}
+      </div>}
+
+      {!!targetRows.length && (manageAction==='bulk-edit'||manageAction==='bulk-delete') && <div className="admin-v2-selection-summary">
+        <strong>{bulkSelectedIds.length} selected</strong><span>on the current Manage selection</span>
+      </div>}
+
+      {!!targetRows.length && (manageAction==='bulk-edit'||manageAction==='bulk-delete')
+        ? <div className="admin-v2-list">{targetPageRows.map(row=><label key={row.id} className={'admin-v2-selection-row '+(bulkSelectedIds.some(id=>String(id)===String(row.id))?'selected':'')}>
+            <input type="checkbox" checked={bulkSelectedIds.some(id=>String(id)===String(row.id))} onChange={()=>toggleBulkRow(row)}/>
+            <span><strong>{manageTarget==='episode'||manageTarget==='video-episode' ? '#'+row.number+' · ' : manageTarget==='volume' ? 'Volume '+(Number(row.volumeIndex)+1)+' · ' : ''}{row.title||'Untitled'}</strong><small>{manageTarget==='episode'||manageTarget==='video-episode' ? resolveAccessType(row).join(', ') : manageTarget==='book' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : manageTarget==='video-story' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : (row.language||'')}</small></span>
+          </label>)}</div>
+        : targetRows.length && manageAction!=='bulk-edit' && manageAction!=='bulk-delete'
+          ? <div className="admin-v2-list">{targetPageRows.map(row=><button type="button" key={row.id} className={'admin-v2-list-row '+(String(selectedId)===String(row.id)?'active':'')} onClick={()=>selectManageRow(row)}>
+              <span><strong>{manageTarget==='episode'||manageTarget==='video-episode' ? '#'+row.number+' · ' : manageTarget==='volume' ? 'Volume '+(Number(row.volumeIndex)+1)+' · ' : ''}{row.title||'Untitled'}</strong><small>{manageTarget==='episode'||manageTarget==='video-episode' ? resolveAccessType(row).join(', ') : manageTarget==='book' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : manageTarget==='video-story' ? ((row.category||'')+' · '+resolveAccessType(row).join(', ')) : (row.language||'')}</small></span><span>›</span>
+            </button>)}</div>
+        : (manageTarget==='episode'||manageTarget==='video-episode'||manageTarget==='volume') && !parentId ? <div className="admin-v2-empty">Select the parent {manageTarget==='volume'?'book':'story'} first.</div>
+        : <div className="admin-v2-empty">No matching {targetPlural.toLowerCase()} found.</div>}
+
+      {targetRows.length>0 && <div className="admin-v2-pagination"><button type="button" disabled={page<=1} onClick={()=>setPage(page-1)}>‹ Previous</button><span>{page} / {targetPages}</span><button type="button" disabled={page>=targetPages} onClick={()=>setPage(page+1)}>Next ›</button></div>}
+
+      {manageAction==='edit' && edit && renderForm(true,manageTarget==='volume'?'books':category)}
+
+      {manageAction==='delete' && selectedTarget && <div className="admin-v2-danger-panel">
+        <div><strong>Delete {targetLabel}</strong><span>{selectedTarget.title||'Untitled'}{manageTarget==='episode'||manageTarget==='video-episode'?' · #'+selectedTarget.number:''}</span></div>
+        <button type="button" className="admin-v2-danger-btn" onClick={deleteSingle}>🗑️ Delete {targetLabel}</button>
+      </div>}
+
+      {(manageAction==='bulk-edit'||manageAction==='bulk-delete') && bulkSelectedIds.length>0 && <div className="admin-v2-bulk-panel">
+        {manageAction==='bulk-edit' ? <>
+          <div className="admin-v2-bulk-panel-head"><strong>🧩 Bulk Edit — {bulkSelectedIds.length} selected</strong><small>Only the checked fields will be changed.</small></div>
+          {manageTarget!=='volume' && <label className="admin-v2-bulk-check"><input type="checkbox" checked={bulkEditApplyTitlePrefix} onChange={e=>setBulkEditApplyTitlePrefix(e.target.checked)}/> Title prefix</label>}
+          {bulkEditApplyTitlePrefix && manageTarget!=='volume' && <input placeholder="Prefix to add before each current title" value={bulkEditTitlePrefix} onChange={e=>setBulkEditTitlePrefix(e.target.value)}/>}
+          {manageTarget!=='volume' && <label className="admin-v2-bulk-check"><input type="checkbox" checked={bulkEditApplyAccess} onChange={e=>setBulkEditApplyAccess(e.target.checked)}/> Access Types</label>}
+          {bulkEditApplyAccess && manageTarget!=='volume' && <Access value={bulkEditAccessType} onChange={setBulkEditAccessType}/>}
+          {(manageTarget==='story'||manageTarget==='book'||manageTarget==='video-story') && <label className="admin-v2-bulk-check"><input type="checkbox" checked={bulkEditApplyStatus} onChange={e=>setBulkEditApplyStatus(e.target.checked)}/> Status</label>}
+          {bulkEditApplyStatus && (manageTarget==='story'||manageTarget==='book'||manageTarget==='video-story') && <select value={bulkEditStatus} onChange={e=>setBulkEditStatus(e.target.value)}><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="draft">Draft</option></select>}
+          {(manageTarget==='story'||manageTarget==='book'||manageTarget==='video-story') && <label className="admin-v2-bulk-check"><input type="checkbox" checked={bulkEditApplyLanguage} onChange={e=>setBulkEditApplyLanguage(e.target.checked)}/> Language</label>}
+          {bulkEditApplyLanguage && (manageTarget==='story'||manageTarget==='book'||manageTarget==='video-story') && <select value={bulkEditLanguage} onChange={e=>setBulkEditLanguage(e.target.value)}>{LANGUAGES.map(x=><option key={x}>{x}</option>)}</select>}
+          {(manageTarget==='story'||manageTarget==='book'||manageTarget==='video-story') && <label className="admin-v2-bulk-check"><input type="checkbox" checked={bulkEditApplyCategory} onChange={e=>setBulkEditApplyCategory(e.target.checked)}/> {manageTarget==='story'?'Genre':'Category'}</label>}
+          {bulkEditApplyCategory && manageTarget==='story' && <select value={bulkEditCategory} onChange={e=>setBulkEditCategory(e.target.value)}>{GENRES.map(x=><option key={x}>{x}</option>)}</select>}
+          {bulkEditApplyCategory && manageTarget==='book' && <select value={bulkEditCategory} onChange={e=>setBulkEditCategory(e.target.value)}>{BOOK_GENRES.map(x=><option key={x}>{x}</option>)}</select>}
+          {bulkEditApplyCategory && manageTarget==='video-story' && <select value={bulkEditCategory} onChange={e=>setBulkEditCategory(e.target.value)}>{VIDEO_GENRES.map(x=><option key={x}>{x}</option>)}</select>}
+          {(manageTarget==='episode'||manageTarget==='video-episode') && <label className="admin-v2-bulk-check"><input type="checkbox" checked={bulkEditApplyAvailable} onChange={e=>setBulkEditApplyAvailable(e.target.checked)}/> Availability</label>}
+          {bulkEditApplyAvailable && (manageTarget==='episode'||manageTarget==='video-episode') && <select value={bulkEditAvailable?'true':'false'} onChange={e=>setBulkEditAvailable(e.target.value==='true')}><option value="true">Available</option><option value="false">Unavailable</option></select>}
+          <div className="admin-v2-bulk-actions"><button type="button" className="admin-submit" disabled={bulkBusy} onClick={runBulkEdit}>{bulkBusy?'⏳ Applying…':'✓ Apply Bulk Edit'}</button><button type="button" className="admin-cancel" disabled={bulkBusy} onClick={()=>setBulkSelectedIds([])}>Clear Selection</button></div>
+        </> : <>
+          <div className="admin-v2-bulk-panel-head"><strong>⚠️ Bulk Delete — {bulkSelectedIds.length} selected</strong><small>One confirmation; each item is deleted only after its own database operation succeeds.</small></div>
+          <button type="button" className="admin-v2-danger-btn" disabled={bulkBusy} onClick={runBulkDelete}>{bulkBusy?'⏳ Deleting…':'🗑️ Delete '+bulkSelectedIds.length+' Selected'}</button>
+        </>}
+      </div>}
+
+      <div className="admin-v2-progress" aria-live="polite">Manage target: {targetLabel} · {targetRows.length} total · {bulkSelectedIds.length} selected</div>
     </section>}
+    </div>
   </div>
 }
