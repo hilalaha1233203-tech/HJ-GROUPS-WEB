@@ -1,9 +1,21 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient, corsHeaders as supabaseCorsHeaders } from 'npm:@supabase/supabase-js@2'
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const secretKeys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}')
-const serviceKey = secretKeys.default || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+let secretKeys: Record<string, string> = {}
+try {
+  const rawSecretKeys = Deno.env.get('SUPABASE_SECRET_KEYS') || ''
+  if (rawSecretKeys.trim()) {
+    const parsed = JSON.parse(rawSecretKeys)
+    if (parsed && typeof parsed === 'object') secretKeys = parsed
+  }
+} catch {
+  // A malformed optional secret map must never prevent the monitor function from booting.
+}
+const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || secretKeys.default || ''
+if (!supabaseUrl || !serviceKey) {
+  throw new Error('Security monitor backend credentials are not configured.')
+}
 const db = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
 const repo = 'hilalaha1233203-tech/HJ-GROUPS-WEB'
 const productionBase = 'https://hj-groups-website.getvoroa.com'
