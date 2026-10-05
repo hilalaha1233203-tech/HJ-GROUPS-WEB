@@ -1808,6 +1808,7 @@ export function App() {
 
       const accessType = episode.accessType || 'free'
       let effectiveEpisodeNumber = Number(episode.number)
+      const telegramNumberRetryCount = Number(episode.__telegramNumberRetryCount) || 0
 
       if (Number.isFinite(messageId) && Number.isInteger(effectiveEpisodeNumber) && effectiveEpisodeNumber > 0) {
         const numberConflict = await supabase
@@ -1925,6 +1926,19 @@ export function App() {
           }
 
           result = await supabase.from('episodes').insert(hybridRow)
+
+          if (
+            result.error &&
+            telegramNumberRetryCount < 3 &&
+            /duplicate key value violates unique constraint|23505/i.test(String(result.error.message || '')) &&
+            /episodes_story_number_unique|story_id.*number|episodes.*number/i.test(String(result.error.message || ''))
+          ) {
+            return addEpisodeToStory(storyId, {
+              ...episode,
+              number: effectiveEpisodeNumber,
+              __telegramNumberRetryCount: telegramNumberRetryCount + 1,
+            })
+          }
         }
 
         if (isDuplicate && telegramImportKey) {
