@@ -2607,8 +2607,15 @@ export function App() {
   const updateVideoEpisode = async (videoId, episodeNumber, updates, episodeId = null) => {
     const supabaseId = getSupabaseVideoId(videoId)
     if (supabaseId !== null) {
-      const numericEpisodeId = Number(episodeId)
-      let query = supabase.from('video_episodes').update({
+      let numericEpisodeId = Number(episodeId)
+      if (!Number.isInteger(numericEpisodeId) || numericEpisodeId <= 0) {
+        const lookup = await supabase.from('video_episodes').select('id').eq('video_story_id', supabaseId).eq('number', Number(episodeNumber)).order('id', { ascending: true }).limit(1).maybeSingle()
+        if (lookup.error) throw lookup.error
+        if (!lookup.data?.id) throw new Error('Video episode database ID could not be resolved safely.')
+        numericEpisodeId = Number(lookup.data.id)
+      }
+
+      const { error } = await supabase.from('video_episodes').update({
         number: Number(updates.number || episodeNumber),
         title: updates.title,
         file_url: updates.src || null,
@@ -2616,13 +2623,7 @@ export function App() {
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
         access_type: serializeAccessType(updates.accessType),
         available: updates.available !== false,
-      }).eq('video_story_id', supabaseId)
-
-      query = Number.isInteger(numericEpisodeId) && numericEpisodeId > 0
-        ? query.eq('id', numericEpisodeId)
-        : query.eq('number', Number(episodeNumber))
-
-      const { error } = await query
+      }).eq('video_story_id', supabaseId).eq('id', numericEpisodeId)
       if (error) throw error
       await refreshTelegramContent()
       return
@@ -2633,7 +2634,9 @@ export function App() {
         ? {
           ...video,
           episodes: (video.episodes || []).map((episode) =>
-            episode.number === episodeNumber ? { ...episode, ...updates } : episode
+            Number.isInteger(Number(episodeId)) && Number(episodeId) > 0
+              ? Number(episode.id) === Number(episodeId) ? { ...episode, ...updates } : episode
+              : episode.number === episodeNumber ? { ...episode, ...updates } : episode
           ),
         }
         : video
@@ -2643,22 +2646,30 @@ export function App() {
   const deleteVideoEpisode = async (videoId, episodeNumber, episodeId = null) => {
     const supabaseId = getSupabaseVideoId(videoId)
     if (supabaseId !== null) {
-      const numericEpisodeId = Number(episodeId)
-      const existing = Number.isInteger(numericEpisodeId) && numericEpisodeId > 0
-        ? await supabase.from('video_episodes').select('id,video_story_id').eq('id', numericEpisodeId).eq('video_story_id', supabaseId).maybeSingle()
-        : await supabase.from('video_episodes').select('id,video_story_id').eq('video_story_id', supabaseId).eq('number', Number(episodeNumber)).limit(1).maybeSingle()
+      let numericEpisodeId = Number(episodeId)
+      if (!Number.isInteger(numericEpisodeId) || numericEpisodeId <= 0) {
+        const lookup = await supabase.from('video_episodes').select('id').eq('video_story_id', supabaseId).eq('number', Number(episodeNumber)).order('id', { ascending: true }).limit(1).maybeSingle()
+        if (lookup.error) throw lookup.error
+        if (!lookup.data?.id) throw new Error('Video episode was not found in the database; nothing was deleted.')
+        numericEpisodeId = Number(lookup.data.id)
+      }
 
+      const existing = await supabase.from('video_episodes').select('id,video_story_id').eq('id', numericEpisodeId).eq('video_story_id', supabaseId).maybeSingle()
       if (existing.error) throw existing.error
       if (!existing.data) throw new Error('Video episode was not found in the database; nothing was deleted.')
 
-      let deletion = supabase.from('video_episodes').delete().eq('video_story_id', supabaseId)
-      deletion = Number.isInteger(numericEpisodeId) && numericEpisodeId > 0
-        ? deletion.eq('id', numericEpisodeId)
-        : deletion.eq('number', Number(episodeNumber))
-      const { error } = await deletion
-      if (error) throw error
+      const deletion = await supabase.from('video_episodes').delete().eq('id', numericEpisodeId).eq('video_story_id', supabaseId).select('id')
+      if (deletion.error) throw deletion.error
+      if (!Array.isArray(deletion.data) || deletion.data.length !== 1 || Number(deletion.data[0]?.id) !== numericEpisodeId) {
+        throw new Error('Video episode delete did not affect the expected database row.')
+      }
+
+      const verify = await supabase.from('video_episodes').select('id').eq('id', numericEpisodeId).maybeSingle()
+      if (verify.error) throw verify.error
+      if (verify.data) throw new Error('Video episode delete could not be verified; the database row still exists.')
+
       await refreshTelegramContent()
-      return
+      return { deletedId: numericEpisodeId }
     }
 
     persistVideos(adminVideos.map((video) =>
@@ -2670,6 +2681,7 @@ export function App() {
           )) }
         : video
     ))
+    return { deletedId: Number(episodeId) || Number(episodeNumber) }
   }
 
   const deleteAdminVideo = async (videoId) => {
