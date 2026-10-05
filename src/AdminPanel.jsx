@@ -477,7 +477,7 @@ function AdminPanel({
     } finally {
       setSecurityLoading(false)
     }
-  }, [])
+  }, [manualSecurityRunning])
 
   const runManualSecurityCheck = async () => {
     if (manualSecurityRunning) return
