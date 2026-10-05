@@ -169,7 +169,25 @@ export async function fetchTelegramContent() {
   }
 }
 
+const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1'])
+const LOCAL_CONTENT_POLL_MS = 30_000
+
 export function subscribeToTelegramContent(onChange) {
+  // Local development frequently runs behind restrictive firewalls/proxies
+  // that block WebSockets. Keep production Realtime unchanged, but use a
+  // lightweight polling fallback locally so the app stays live without a
+  // noisy browser WebSocket failure.
+  const hostname = typeof window !== 'undefined' ? String(window.location.hostname || '') : ''
+  if (LOCAL_DEV_HOSTS.has(hostname)) {
+    const timer = window.setInterval(() => {
+      Promise.resolve(onChange?.()).catch(() => {})
+    }, LOCAL_CONTENT_POLL_MS)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }
+
   const channel = supabase
     .channel('hj-groups-content')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, onChange)
