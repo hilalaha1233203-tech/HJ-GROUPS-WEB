@@ -294,7 +294,7 @@ function TelegramImport({ category, stories, books, videoStories, onAddEpisode, 
 export default function AdminContentV2({mode, stories, books, videoStories, adminStoryIds, adminBookIds, adminVideoIds, onAddStory, onUpdateStory, onAddEpisode, onUpdateEpisode, onDeleteStory, onDeleteEpisode, onAddBook, onUpdateBook, onDeleteBook, onAddVideo, onUpdateVideo, onAddVideoEpisode, onUpdateVideoEpisode, onDeleteVideo, onDeleteVideoEpisode, toast}) {
   const [category,setCategory]=useState('audio')
   const [createAction,setCreateAction]=useState('new-story')
-  const [manageAction,setManageAction]=useState('story-edit')
+  const [manageAction,setManageAction]=useState('edit')
   const [search,setSearch]=useState('')
   const [page,setPage]=useState(1)
   const [pageSize,setPageSize]=useState(50)
@@ -357,6 +357,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     setCreateAction(c==='audio'?'new-story':c==='books'?'new-book':'new-video')
     setManageAction('edit')
     setManageTarget(c==='audio'?'story':c==='books'?'book':'video-story')
+    resetBulkEditor()
   }
   const onSearch=(v)=>{setSearch(v);setPage(1);setSelectedId('');setEdit(null);setBulkSelectedIds([])}
 
@@ -397,32 +398,33 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
       return adminVideoIds.includes(x.id)
     })
   },[category,search,stories,books,videoStories,adminStoryIds,adminBookIds,adminVideoIds])
-  const pages=Math.max(1,Math.ceil(sourceRows.length/pageSize))
-  const pageRows=sourceRows.slice((page-1)*pageSize,page*pageSize)
-
-  const episodeRows=useMemo(()=>{
+  const audioEpisodeRows=useMemo(()=>{
     const story=stories.find(x=>String(x.id)===String(parentId)); const rows=story?.episodes||[]; const q=search.trim().toLowerCase()
     return rows.filter(e=>!q||String(e.title||'').toLowerCase().includes(q)||String(e.number).includes(q))
   },[stories,parentId,search])
-  const episodePages=Math.max(1,Math.ceil(episodeRows.length/pageSize))
-  const episodePageRows=episodeRows.slice((page-1)*pageSize,page*pageSize)
+
+  const videoEpisodeRows=useMemo(()=>{
+    const story=videoStories.find(x=>String(x.id)===String(parentId)); const rows=story?.episodes||[]; const q=search.trim().toLowerCase()
+    return rows.filter(e=>!q||String(e.title||'').toLowerCase().includes(q)||String(e.number).includes(q))
+  },[videoStories,parentId,search])
 
   const targetRows = useMemo(()=>{
     if(manageTarget==='story') return sourceRows
     if(manageTarget==='book') return sourceRows
     if(manageTarget==='video-story') return sourceRows
-    if(manageTarget==='episode' || manageTarget==='video-episode') return episodeRows.map((row)=>({ ...row, id: row.id || row.number }))
+    if(manageTarget==='episode') return audioEpisodeRows.map((row)=>({ ...row, id: row.id || row.number }))
+    if(manageTarget==='video-episode') return videoEpisodeRows.map((row)=>({ ...row, id: row.id || row.number }))
     if(manageTarget==='volume'){
       const book=books.find(x=>String(x.id)===String(parentId))
       return (book?.volumes||[]).map((volume,index)=>({ ...volume, id:String(index), volumeIndex:index }))
     }
     return []
-  },[manageTarget,sourceRows,episodeRows,books,parentId])
+  },[manageTarget,sourceRows,audioEpisodeRows,videoEpisodeRows,books,parentId])
 
   const targetPages=Math.max(1,Math.ceil(targetRows.length/pageSize))
   const targetPageRows=targetRows.slice((page-1)*pageSize,page*pageSize)
   const targetLabel = manageTarget==='story' ? 'Story' : manageTarget==='episode' ? 'Episode' : manageTarget==='book' ? 'Book' : manageTarget==='volume' ? 'Volume' : manageTarget==='video-story' ? 'Video Story' : 'Video Episode'
-  const targetPlural = targetLabel+'s'
+  const targetPlural = manageTarget==='story' ? 'Stories' : manageTarget==='episode' ? 'Episodes' : manageTarget==='book' ? 'Books' : manageTarget==='volume' ? 'Volumes' : manageTarget==='video-story' ? 'Video Stories' : 'Video Episodes'
   const selectedTarget = targetRows.find(row => String(row.id)===String(selectedId))
 
   const selectDetail=(id, rows=sourceRows)=>{
