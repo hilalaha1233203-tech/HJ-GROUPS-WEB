@@ -73,6 +73,13 @@ test('Telegram number-conflict retries cannot be misclassified as a message dupl
   assert.match(app, /return addEpisodeToStory\(storyId, \{/)
 })
  
+test('Successful Telegram number-conflict retry is not reported as a duplicate', () => {
+  const app = read('src/App.jsx')
+  assert.match(app, /let recoveredFromNumberConflict = false/)
+  assert.match(app, /recoveredFromNumberConflict = !result\.error/)
+  assert.match(app, /isDuplicate && telegramImportKey && !recoveredFromNumberConflict/)
+})
+
 test('Telegram import is protected by database identity and a unique import key', () => {
   const app = read('src/App.jsx')
   assert.match(app, /eq\('story_id', supabaseId\)\n\s*\.eq\('telegram_message_id', messageId\)/)
