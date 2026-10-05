@@ -120,12 +120,16 @@ test('Manage V2 passes video episode IDs to update/delete callbacks', () => {
   assert.match(v2, /onDeleteVideoEpisode\(parentId,row\.number,row\.id\)/)
 })
 
-test('Video episode App CRUD accepts an optional primary-key ID for precise Manage mutations', () => {
+test('Video episode App CRUD uses verifiable primary-key mutations', () => {
   const app = read('src/App.jsx')
   assert.match(app, /const updateVideoEpisode = async \(videoId, episodeNumber, updates, episodeId = null\)/)
-  assert.match(app, /query\.eq\('id', numericEpisodeId\)/)
+  assert.match(app, /numericEpisodeId = Number\(lookup\.data\.id\)/)
+  assert.match(app, /\.eq\('video_story_id', supabaseId\)\.eq\('id', numericEpisodeId\)/)
   assert.match(app, /const deleteVideoEpisode = async \(videoId, episodeNumber, episodeId = null\)/)
-  assert.match(app, /deletion\.eq\('id', numericEpisodeId\)/)
+  assert.match(app, /deletion = await supabase\.from\('video_episodes'\)\.delete\(\)\.eq\('id', numericEpisodeId\)/)
+  assert.match(app, /deletion\.data\.length !== 1/)
+  assert.match(app, /Video episode delete did not affect the expected database row/)
+  assert.match(app, /Video episode delete could not be verified/)
 })
 
 test('Manage V2 keeps UI selection keys separate from database IDs', () => {
@@ -138,6 +142,16 @@ test('Manage V2 keeps UI selection keys separate from database IDs', () => {
   assert.match(v2, /onUpdateStory\(selectedTarget\.id,/)
   assert.match(v2, /onUpdateBook\(selectedTarget\.id,/)
   assert.doesNotMatch(v2, /id: row\.id \|\| row\.number/)
+})
+
+test('Manage V2 bulk delete resolves selections using stable Manage keys', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  const start = v2.indexOf('  const runBulkDelete = async')
+  const end = v2.indexOf('\n  const toggleBulkRow', start)
+  const block = v2.slice(start, end)
+  assert.match(block, /bulkSelectedIds\.some\(id=>String\(id\)===String\(row\.manageKey\)\)/)
+  assert.match(block, /Video episode database ID is missing; deletion is unsafe/)
+  assert.match(v2, /key=\{row\.manageKey\}/)
 })
 
 test('Manage V2 mobile layout has dedicated responsive styles for bulk controls', () => {
