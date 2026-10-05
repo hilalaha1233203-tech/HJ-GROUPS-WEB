@@ -16,6 +16,23 @@ const ensureAppDefaultExport = () => ({
 
 export default defineConfig({
   plugins: [ensureAppDefaultExport(), react()],
+  resolve: {
+    // Keep React and ReactDOM on one root-installed copy. This prevents Vite
+    // from mixing optimized chunks when node_modules has stale/duplicate copies.
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    // Rebuild the dev dependency graph so a previously cached react-dom/client
+    // chunk cannot be paired with a different react-dom root bundle.
+    force: true,
+    include: [
+      'react',
+      'react-dom',
+      'react-dom/client',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+    ],
+  },
   server: {
     proxy: {
       '/api': {
