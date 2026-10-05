@@ -1,5 +1,4 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient, corsHeaders as supabaseCorsHeaders } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
 let secretKeys: Record<string, string> = {}
@@ -45,7 +44,7 @@ const corsHeaders = (req: Request) => {
   const origin = req.headers.get('origin') || ''
   const trustedOrigin = allowedOrigins.has(origin) ? origin : 'https://hj-groups-website.getvoroa.com'
   return {
-    ...supabaseCorsHeaders,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-hj-monitor-key',
     'Access-Control-Allow-Origin': trustedOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',
