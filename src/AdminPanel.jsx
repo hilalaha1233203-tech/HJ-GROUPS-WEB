@@ -2700,12 +2700,17 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
             onUpdateStory={onUpdateStory}
             onAddEpisode={onAddEpisode}
             onUpdateEpisode={onUpdateEpisode}
+            onDeleteStory={onDeleteStory}
+            onDeleteEpisode={onDeleteEpisode}
             onAddBook={onAddBook}
             onUpdateBook={onUpdateBook}
+            onDeleteBook={onDeleteBook}
             onAddVideo={onAddVideo}
             onUpdateVideo={onUpdateVideo}
             onAddVideoEpisode={onAddVideoEpisode}
             onUpdateVideoEpisode={onUpdateVideoEpisode}
+            onDeleteVideo={onDeleteVideo}
+            onDeleteVideoEpisode={onDeleteVideoEpisode}
             toast={showToast}
           />
         )}
