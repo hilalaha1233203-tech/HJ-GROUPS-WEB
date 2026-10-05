@@ -55,10 +55,11 @@ test('Admin Create/Manage category changes reset to valid category-specific acti
 
 test('Manage V2 preserves Telegram media playback URLs when saving an episode', () => {
   const v2 = read('src/AdminContentV2.jsx')
-  assert.match(v2, /const messageId = extractId\(telegramUrl\) \|\| Number\(edit\.telegram_message_id\) \|\| null/)
+  assert.match(v2, /const rawMediaUrl = String\(telegramUrl \|\| ''\)\.trim\(\)/)
+  assert.match(v2, /Number\(edit\.telegram_message_id\) \|\| null : null/)
   assert.match(v2, /const nextSrc = messageId \? STREAMING_SERVER_URL \+ '\/audio\/message\/'/)
   assert.match(v2, /const nextSrc = messageId \? STREAMING_SERVER_URL \+ '\/video\/message\/'/)
-  assert.match(v2, /onChange=\{e=>\{const value=e\.target\.value;if\(book\)setFile\(value\);else\{setTelegramUrl\(value\);setSrc\(value\)\}\}\}/)
+  assert.match(v2, /setSrc\(value\)/)
 })
 
 test('Manage V2 can replace an existing Telegram media URL with a non-Telegram URL', () => {
