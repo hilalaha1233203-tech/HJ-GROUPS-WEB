@@ -95,18 +95,33 @@ test('Manage V2 resets category target so an old action cannot execute against t
   assert.match(onCat, /resetBulkEditor\(\)/)
 })
 
-test('Bulk edit keeps episode edits limited to shared safe episode fields', () => {
+test('Bulk edit preserves existing episode media while changing only selected common fields', () => {
   const v2 = read('src/AdminContentV2.jsx')
   const start = v2.indexOf('  const runBulkEdit = async')
   const end = v2.indexOf('\n  const runBulkDelete = async', start)
   const block = v2.slice(start, end)
   assert.match(block, /manageTarget==='episode'/)
   assert.match(block, /manageTarget==='video-episode'/)
-  assert.match(block, /patch.title=/)
-  assert.match(block, /patch.accessType=/)
-  assert.match(block, /patch.available=/)
-  assert.doesNotMatch(block, /patch\.src=/)
-  assert.doesNotMatch(block, /patch\.telegram_message_id=/)
+  assert.match(block, /src:String\(row\.src\|\|'\x27'\)/)
+  assert.match(block, /filePath:String\(row\.filePath\|\|'\x27'\)/)
+  assert.match(block, /row\.telegram_message_id/)
+  assert.match(block, /patch\.title=/)
+  assert.match(block, /patch\.accessType=/)
+  assert.match(block, /patch\.available=/)
+  assert.match(block, /Episode database ID is missing; bulk edit is unsafe/)
+  assert.match(block, /Video episode database ID is missing; bulk edit is unsafe/)
+})
+
+test('Manage V2 keeps UI selection keys separate from database IDs', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(v2, /manageKey:'story:'/)
+  assert.match(v2, /manageKey: row\.id != null \? 'episode-id:'/)
+  assert.match(v2, /manageKey: row\.id != null \? 'video-episode-id:'/)
+  assert.match(v2, /manageKey:'volume:'/)
+  assert.match(v2, /selectedTarget = targetRows\.find\(row => String\(row\.manageKey\)===String\(selectedId\)\)/)
+  assert.match(v2, /onUpdateStory\(selectedTarget\.id,/)
+  assert.match(v2, /onUpdateBook\(selectedTarget\.id,/)
+  assert.doesNotMatch(v2, /id: row\.id \|\| row\.number/)
 })
 
 test('Manage V2 mobile layout has dedicated responsive styles for bulk controls', () => {
@@ -133,6 +148,15 @@ test('Manage V2 can replace an existing Telegram media URL with a non-Telegram U
   assert.match(v2, /const rawMediaUrl = String\(telegramUrl \|\| ''\)\.trim\(\)/)
   assert.match(v2, /!rawMediaUrl \? Number\(edit\.telegram_message_id\) \|\| null : null/)
   assert.match(v2, /const nextSrc = messageId \? STREAMING_SERVER_URL/)
+})
+
+test('Story Manage edits and bulk edits persist access types without dropping metadata', () => {
+  const app = read('src/App.jsx')
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(app, /access_type: serializeAccessType\(updates\.accessType\)/)
+  assert.match(v2, /accessType:bulkEditApplyAccess \? bulkEditAccessType : resolveAccessType\(row\)/)
+  assert.match(v2, /cover:String\(row\.cover\|\|'\x27'\)/)
+  assert.match(v2, /description:String\(row\.description\|\|'\x27'\)/)
 })
 
 test('Audio episode edits keep number and legacy episode_number synchronized', () => {
