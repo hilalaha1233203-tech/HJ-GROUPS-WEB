@@ -2420,7 +2420,12 @@ export function App() {
   const deleteAdminBook = async (bookId) => {
     const supabaseId = getSupabaseBookId(bookId)
     if (supabaseId !== null) {
-      const { error } = await supabase.from('books').delete().eq('id', supabaseId)
+      const { data, error } = await supabase.from('books').delete().eq('id', supabaseId).select('id')
+      if (error) throw error
+      if (!Array.isArray(data) || data.length !== 1 || Number(data[0]?.id) !== supabaseId) throw new Error('Book delete did not affect the expected database row.')
+      const verify = await supabase.from('books').select('id').eq('id', supabaseId).maybeSingle()
+      if (verify.error) throw verify.error
+      if (verify.data) throw new Error('Book delete could not be verified; the database row still exists.')
       if (error) throw error
       await refreshTelegramContent()
       return
