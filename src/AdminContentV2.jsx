@@ -455,7 +455,18 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
       setFilePath(row.filePath||'')
       return
     }
-    selectDetail(row.id,targetRows)
+    setEdit(row)
+    setTitle(row.title||'')
+    setDescription(row.description||'')
+    setCover(row.cover||'')
+    setLanguage(row.language||'Tamil')
+    setGenre(normalizeGenreSelection(row.genre,['Fantasy']))
+    setStatus(normalizeContentStatus(row.status))
+    setAccessType(resolveAccessType(row))
+    setAuthor(row.author||'')
+    setBookType(row.type||'pdf')
+    setFile(row.file||'')
+    setFilePath(row.filePath||'')
   }
 
   const save = async (e)=>{
@@ -642,7 +653,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
 
   const runBulkDelete = async () => {
     if(bulkBusy) return
-    const selectedRows=targetRows.filter(row=>bulkSelectedIds.some(id=>String(id)===String(row.id)))
+    const selectedRows=targetRows.filter(row=>bulkSelectedIds.some(id=>String(id)===String(row.manageKey)))
     if(!selectedRows.length) return notify('Select at least one '+targetLabel.toLowerCase()+'.','error')
     if(!window.confirm('Delete '+selectedRows.length+' selected '+targetPlural.toLowerCase()+'? This cannot be undone.')) return
 
@@ -775,7 +786,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
 
       {(manageTarget==='story'||manageTarget==='book'||manageTarget==='video-story'||parentId) && <div className="admin-v2-manage-toolbar">
         <input aria-label={targetLabel+' search'} placeholder={'Search '+targetPlural+'…'} value={search} onChange={e=>onSearch(e.target.value)}/>
-        {(manageAction==='bulk-edit'||manageAction==='bulk-delete') && <button type="button" className="admin-v2-select-all" onClick={toggleBulkAll} disabled={bulkBusy||!targetPageRows.length}>{bulkSelectedIds.length && targetPageRows.every(row=>bulkSelectedIds.some(id=>String(id)===String(row.id))) ? 'Clear Page' : 'Select Page'}</button>}
+        {(manageAction==='bulk-edit'||manageAction==='bulk-delete') && <button type="button" className="admin-v2-select-all" onClick={toggleBulkAll} disabled={bulkBusy||!targetPageRows.length}>{bulkSelectedIds.length && targetPageRows.every(row=>bulkSelectedIds.some(id=>String(id)===String(row.manageKey))) ? 'Clear Page' : 'Select Page'}</button>}
       </div>}
 
       {!!targetRows.length && (manageAction==='bulk-edit'||manageAction==='bulk-delete') && <div className="admin-v2-selection-summary">
