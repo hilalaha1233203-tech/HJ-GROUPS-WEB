@@ -13,10 +13,18 @@ try {
   // A malformed optional secret map must never prevent the monitor function from booting.
 }
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || secretKeys.default || ''
-if (!supabaseUrl || !serviceKey) {
-  throw new Error('Security monitor backend credentials are not configured.')
+let dbClient: ReturnType<typeof createClient> | null = null
+
+function getDb() {
+  if (dbClient) return dbClient
+  if (!supabaseUrl || !serviceKey) {
+    throw new Error('Security monitor backend credentials are not configured.')
+  }
+  dbClient = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  return dbClient
 }
-const db = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
 const repo = 'hilalaha1233203-tech/HJ-GROUPS-WEB'
 const productionBase = 'https://hj-groups-website.getvoroa.com'
 const allowedOrigins = new Set(['https://hj-groups-website.getvoroa.com', 'https://hj-groups-web.vercel.app'])
@@ -26,7 +34,7 @@ let monitorKeyPromise: Promise<string> | null = null
 async function getMonitorKey() {
   if (monitorKeyPromise) return monitorKeyPromise
   monitorKeyPromise = (async () => {
-    const { data, error } = await db.rpc('get_security_monitor_key')
+    const { data, error } = await getDb().rpc('get_security_monitor_key')
     if (error || !data) throw new Error('monitor key unavailable')
     return String(data)
   })()
@@ -93,7 +101,7 @@ async function authorize(req: Request) {
   const auth = req.headers.get('authorization') || ''
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
   if (!token) return null
-  const { data, error } = await db.auth.getUser(token)
+  const { data, error } = await getDb().auth.getUser(token)
   if (error || !data?.user || data.user.app_metadata?.role !== 'admin') return null
   return { kind: 'admin', userId: data.user.id }
 }
@@ -169,7 +177,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
       status: index < completedChecks ? 'completed' : index === completedChecks && currentCheck ? 'running' : 'pending',
       completedAt: index < completedChecks ? new Date().toISOString() : null,
     }))
-    const { error } = await db.from('security_scans').update({
+    const { error } = await getDb().from('security_scans').update({
       summary: {
         progress_percent: percent,
         completed_checks: completedChecks,
@@ -182,7 +190,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
     if (error) throw error
   }
 
-  const { data: initialScan, error: initialScanError } = await db.from('security_scans').insert({
+  const { data: initialScan, error: initialScanError } = await getDb().from('security_scans').insert({
     started_at: started,
     status: 'running',
     summary: {
@@ -407,7 +415,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
 
   let snapshot: any = null
   try {
-    const { data, error } = await db.rpc('security_monitor_snapshot')
+    const { data, error } = await getDb().rpc('security_monitor_snapshot')
     if (error) throw error
     snapshot = data
   } catch (e) {
@@ -476,7 +484,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
     },
   }
 
-  const { data: scanRow, error: scanError } = await db.from('security_scans').update(scan).eq('id', scanId).select('id').single()
+  const { data: scanRow, error: scanError } = await getDb().from('security_scans').update(scan).eq('id', scanId).select('id').single()
   if (scanError || !scanRow) throw (scanError || new Error('Security scan row was not found.'))
 
   for (const f of findings) {
@@ -495,7 +503,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
       ? 'new'
       : (existing?.status || 'new')
 
-    await db.from('security_findings').upsert({
+    await getDb().from('security_findings').upsert({
       fingerprint,
       first_detected_at: existing?.first_detected_at || new Date().toISOString(),
       last_detected_at: new Date().toISOString(),
@@ -560,7 +568,7 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle()
       if (running?.id) {
-        await db.from('security_scans').update({
+        await getDb().from('security_scans').update({
           status: 'failed',
           finished_at: new Date().toISOString(),
           summary: {
