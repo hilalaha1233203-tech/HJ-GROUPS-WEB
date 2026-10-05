@@ -178,6 +178,17 @@ test('admin export builds the required sheets and maps actual first-party analyt
   assert.ok(SECURITY_NOTE.includes('passwords'))
 })
 
+test('admin export strips XML 1.0 control characters from user data', () => {
+  const model = fixture()
+  model.users[0].user_metadata.full_name = 'One\\u0001User\\u000b'
+  const workbook = buildAdminExportWorkbook(buildAdminExportModel(model))
+  const entries = zipEntries(workbook)
+  const allXml = [...entries.values()].join('\\n')
+  assert.equal(allXml.includes('OneUser'), true)
+  assert.equal(allXml.includes('\\u0001'), false)
+  assert.equal(allXml.includes('\\u000b'), false)
+})
+
 test('admin export workbook is a valid XLSX zip and contains no credential fields', () => {
   const workbook = buildAdminExportWorkbook(buildAdminExportModel(fixture()))
   assert.equal(workbook.subarray(0, 2).toString('ascii'), 'PK')
