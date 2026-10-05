@@ -64,6 +64,7 @@ function normalizeStories(storyRows, episodeRows) {
     cover: story.cover_url || fileUrlFromId(story.cover_file_id, 'image'),
     coverPath: story.cover_path || '',
     description: story.description || '',
+    accessType: story.access_type,
     status: normalizeContentStatus(story.status),
     episodes: (episodesByStory.get(story.id) || []).sort((a, b) => a.number - b.number),
   }))
