@@ -130,8 +130,14 @@ function TelegramImport({ category, stories, books, videoStories, onAddEpisode, 
     try {
       if (category === 'books') {
         const existing = new Set(
-          books
-            .flatMap((book) => Number(book.telegram_message_id) > 0 ? [Number(book.telegram_message_id)] : [])
+          books.flatMap((book) => {
+            const ids = Number(book.telegram_message_id) > 0 ? [Number(book.telegram_message_id)] : []
+            for (const volume of Array.isArray(book.volumes) ? book.volumes : []) {
+              const match = String(volume?.filePath || '').match(/^tg-document:(\d+)$/)
+              if (match) ids.push(Number(match[1]))
+            }
+            return ids
+          })
         )
         let target = books.find((book) => String(book.id) === String(parentId))
         if (!target) throw new Error('Target book was not found.')
