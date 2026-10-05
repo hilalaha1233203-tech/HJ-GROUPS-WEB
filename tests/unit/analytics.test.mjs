@@ -92,7 +92,8 @@ test('analytics session linking is wired to authenticated profiles', () => {
   const panel = fs.readFileSync('src/AdminPanel.jsx', 'utf8')
 
   assert.match(analytics, /linkAnalyticsSessionToUser/)
-  assert.match(analytics, /supabase\.rpc\('link_analytics_session'/)
+  assert.match(analytics, /fetch\('\/api\/analytics\/link-session'/)
+  assert.doesNotMatch(analytics, /supabase\.rpc\('link_analytics_session'/)
   assert.match(app, /linkAnalyticsSessionToUser\(\)/)
   assert.match(panel, /Known Account/)
   assert.match(panel, /Anonymous visitor/)
@@ -116,4 +117,15 @@ test('admin/test telemetry is excluded from future client analytics writes', () 
 test('story analytics uses a stable story-view dedupe key', () => {
   const app = fs.readFileSync('src/App.jsx', 'utf8')
   assert.match(app, /story-view:\$\{storyAnalyticsId\}/)
+})
+
+
+test('analytics session links are routed through the authenticated backend endpoint', () => {
+  const server = fs.readFileSync('server/analyticsSession.mjs', 'utf8')
+  const root = fs.readFileSync('server.mjs', 'utf8')
+  assert.match(server, /SUPABASE_SERVICE_ROLE_KEY/)
+  assert.match(server, /auth\.getUser\(accessToken\)/)
+  assert.match(server, /analytics_session_links/)
+  assert.match(server, /session_id/)
+  assert.match(root, /\/api\/analytics\/link-session/)
 })
