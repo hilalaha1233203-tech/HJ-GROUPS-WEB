@@ -163,6 +163,29 @@ test('Manage V2 bulk delete resolves selections using stable Manage keys', () =>
   assert.match(v2, /key=\{row\.manageKey\}/)
 })
 
+test('Manage V2 avoids duplicate parent selectors inside edit forms', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(v2, /episodeMode && !\(editing && mode==='manage'\)/)
+  assert.match(v2, /book && !\(\(editing && mode==='manage'\'\) && manageTarget==='volume'\)/)
+})
+
+test('Manage V2 limits parent selectors to admin-authorized Stories, Videos and Books', () => {
+  const v2 = read('src/AdminContentV2.jsx')
+  assert.match(v2, /stories\.filter\(x=>adminStoryIds\.includes\(x\.id\)\)/)
+  assert.match(v2, /videoStories\.filter\(x=>adminVideoIds\.includes\(x\.id\)\)/)
+  assert.match(v2, /books\.filter\(x=>adminBookIds\.includes\(x\.id\)\)/)
+})
+
+test('Top-level story, book and video deletes verify the exact deleted database row', () => {
+  const app = read('src/App.jsx')
+  assert.match(app, /Story delete did not affect the expected database row/)
+  assert.match(app, /Story delete could not be verified/)
+  assert.match(app, /Book delete did not affect the expected database row/)
+  assert.match(app, /Book delete could not be verified/)
+  assert.match(app, /Video story delete did not affect the expected database row/)
+  assert.match(app, /Video story delete could not be verified/)
+})
+
 test('Manage V2 mobile layout has dedicated responsive styles for bulk controls', () => {
   const css = read('src/App.css')
   assert.match(css, /\.admin-v2-manage-actions \{ grid-template-columns:repeat\(4/)
