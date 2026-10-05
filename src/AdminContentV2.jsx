@@ -755,7 +755,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
         Parent Story<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList();setBulkSelectedIds([])}}><option value="">Select Story</option>{(category==='audio' ? stories.filter(x=>adminStoryIds.includes(x.id)) : videoStories.filter(x=>adminVideoIds.includes(x.id))).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
       </label>}
       {manageTarget==='volume' && <label className="admin-v2-parent-field">
-        Parent Book<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList();setBulkSelectedIds([])}}><option value="">Select Book</option>{books.map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
+        Parent Book<select value={parentId} onChange={e=>{setParentId(e.target.value);resetList();setBulkSelectedIds([])}}><option value="">Select Book</option>{books.filter(x=>adminBookIds.includes(x.id)).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
       </label>}
 
       {(manageTarget==='story'||manageTarget==='book'||manageTarget==='video-story'||parentId) && <div className="admin-v2-manage-toolbar">
