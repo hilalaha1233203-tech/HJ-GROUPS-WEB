@@ -366,13 +366,21 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     e.preventDefault()
     try {
       if(category==='audio' && manageAction==='story-edit') await onUpdateStory(selectedId,{title:title.trim(),genre:serializeGenreSelection(genre),language,cover:cover.trim(),description:description.trim(),status})
-      else if(category==='audio' && manageAction==='episode-edit') await onUpdateEpisode(parentId,Number(edit.number),{number:Number(number),title:title.trim(),type:'audio',src:src.trim(),available:true,accessType,telegram_message_id:extractId(telegramUrl)||edit.telegram_message_id},edit.id)
+      else if(category==='audio' && manageAction==='episode-edit') {
+        const messageId = extractId(telegramUrl) || Number(edit.telegram_message_id) || null
+        const nextSrc = messageId ? STREAMING_SERVER_URL + '/audio/message/' + encodeURIComponent(messageId) : src.trim()
+        await onUpdateEpisode(parentId,Number(edit.number),{number:Number(number),title:title.trim(),type:'audio',src:nextSrc,available:true,accessType,telegram_message_id:messageId || undefined},edit.id)
+      }
       else if(category==='books' && manageAction==='book-edit') await onUpdateBook(selectedId,{...edit,title:title.trim(),author:author.trim(),description:description.trim(),type:bookType,language,cover:cover.trim(),file:file.trim(),filePath,accessType,status})
       else if(category==='books' && manageAction==='volume-edit') {
         const b=books.find(x=>String(x.id)===String(parentId)); const vols=Array.isArray(b?.volumes)?b.volumes:[]; const idx=vols.findIndex((_,i)=>String(i)===String(selectedId)); if(idx<0) throw new Error('Volume not found.')
         const next=vols.map((v,i)=>i===idx?{...v,title:title.trim(),file:file.trim(),filePath,type:b.type||bookType}:v); await onUpdateBook(b.id,{...b,volumes:next})
       } else if(category==='videos' && manageAction==='video-story-edit') await onUpdateVideo(selectedId,{title:title.trim(),category:genre[0]||'Action',language,cover:cover.trim(),status,accessType})
-      else if(category==='videos' && manageAction==='video-episode-edit') await onUpdateVideoEpisode(parentId,Number(edit.number),{number:Number(number),title:title.trim(),type:'video',src:src.trim(),available:true,accessType,telegram_message_id:extractId(telegramUrl)||edit.telegram_message_id},edit.id)
+      else if(category==='videos' && manageAction==='video-episode-edit') {
+        const messageId = extractId(telegramUrl) || Number(edit.telegram_message_id) || null
+        const nextSrc = messageId ? STREAMING_SERVER_URL + '/video/message/' + encodeURIComponent(messageId) : src.trim()
+        await onUpdateVideoEpisode(parentId,Number(edit.number),{number:Number(number),title:title.trim(),type:'video',src:nextSrc,available:true,accessType,telegram_message_id:messageId || undefined},edit.id)
+      }
       notify('Saved successfully.')
       const current=selectedId; setSelectedId(''); setEdit(null)
       setTimeout(()=>setSelectedId(current),0)
@@ -393,7 +401,12 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   }
 
   function clearForm(){setTitle('');setDescription('');setCover('');setFile('');setFilePath('');setAuthor('');setNumber('');setSrc('');setTelegramUrl('');setEdit(null);setSelectedId('')}
-  function extractId(v){const m=String(v||'').match(/(\\d+)(?:\/?$)/);return m?Number(m[1]):null}
+  function extractId(v){
+    const raw=String(v||'').trim()
+    if(/^\d+$/.test(raw)) return Number(raw)
+    const m=raw.match(/\/(?:audio|video|document)\/message\/(\d+)(?:\/?$)|(?:t\.me\/)(?:c\/)?[^/]+\/(\d+)(?:\/?$)/i)
+    return m ? Number(m[1] || m[2]) : null
+  }
 
   const renderForm=(editing=false, type=category)=>{
     const episodeMode=(type==='audio'&&createAction==='add-episode')||(type==='videos'&&createAction==='add-video-episode')||(type==='audio'&&manageAction==='episode-edit')||(type==='videos'&&manageAction==='video-episode-edit')
@@ -406,7 +419,7 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
       {!episodeMode && <><textarea placeholder="Description (optional)" value={description} onChange={e=>setDescription(e.target.value)}/><label>Language<select value={language} onChange={e=>setLanguage(e.target.value)}>{LANGUAGES.map(x=><option key={x}>{x}</option>)}</select></label><label>Genre / Category<select value={genre[0]||''} onChange={e=>setGenre([e.target.value])}>{(type==='audio'?GENRES:type==='books'?BOOK_GENRES:VIDEO_GENRES).map(x=><option key={x}>{x}</option>)}</select></label><label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="draft">Draft</option></select></label></>}
       {book && <><input placeholder="Author (optional)" value={author} onChange={e=>setAuthor(e.target.value)}/><select value={bookType} onChange={e=>setBookType(e.target.value)}><option value="pdf">PDF</option><option value="epub">EPUB</option></select></>}
       {!episodeMode && <FileUploadField label={cover?'✓ Cover uploaded — replace':'Choose Cover Image'} kind="image" bucket="story-covers" folder={book?'books':type==='videos'?'video-stories':'stories'} value={cover} accept="image/*" onUploaded={u=>setCover(u)} onUploadingChange={setCoverUploading}/>}
-      {(book || episodeMode) && <input placeholder={book?'File URL / Telegram document URL':'Audio/Video URL or Telegram message URL'} value={book?file:(telegramUrl||src)} onChange={e=>book?setFile(e.target.value):(setTelegramUrl(e.target.value),setSrc(''))}/>}
+      {(book || episodeMode) && <input placeholder={book?'File URL / Telegram document URL':'Audio/Video URL or Telegram message URL'} value={book?file:(telegramUrl||src)} onChange={e=>{const value=e.target.value;if(book)setFile(value);else{setTelegramUrl(value);setSrc(value)}}}/>}
       <Access value={accessType} onChange={setAccessType}/>
       <button className="admin-submit" disabled={coverUploading}>{editing?'✓ Save':'＋ Create'}</button>
       {editing && <button type="button" className="admin-cancel" onClick={()=>{setEdit(null);setSelectedId('')}}>Cancel</button>}
