@@ -2258,7 +2258,6 @@ export function App() {
       const verify = await supabase.from('stories').select('id').eq('id', supabaseId).maybeSingle()
       if (verify.error) throw verify.error
       if (verify.data) throw new Error('Story delete could not be verified; the database row still exists.')
-      if (error) throw error
       await refreshTelegramContent()
       return
     }
@@ -2426,7 +2425,6 @@ export function App() {
       const verify = await supabase.from('books').select('id').eq('id', supabaseId).maybeSingle()
       if (verify.error) throw verify.error
       if (verify.data) throw new Error('Book delete could not be verified; the database row still exists.')
-      if (error) throw error
       await refreshTelegramContent()
       return
     }
@@ -2704,7 +2702,6 @@ export function App() {
       const verify = await supabase.from('video_stories').select('id').eq('id', supabaseId).maybeSingle()
       if (verify.error) throw verify.error
       if (verify.data) throw new Error('Video story delete could not be verified; the database row still exists.')
-      if (error) throw error
       await refreshTelegramContent()
       return
     }
