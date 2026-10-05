@@ -551,45 +551,69 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
         for(const row of selectedRows){
           try{
             if(manageTarget==='story'){
-              const patch={}
-              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
-              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
-              if(bulkEditApplyStatus) patch.status=bulkEditStatus
-              if(bulkEditApplyLanguage) patch.language=bulkEditLanguage
-              if(bulkEditApplyCategory) patch.genre=serializeGenreSelection([bulkEditCategory])
+              if(!row.id) throw new Error('Story database ID is missing.')
+              const patch={
+                title:bulkEditApplyTitlePrefix ? bulkEditTitlePrefix.trim()+String(row.title||'') : String(row.title||''),
+                genre:bulkEditApplyCategory ? serializeGenreSelection([bulkEditCategory]) : serializeGenreSelection(normalizeGenreSelection(row.genre,['Fantasy'])),
+                language:bulkEditApplyLanguage ? bulkEditLanguage : String(row.language||'Tamil'),
+                cover:String(row.cover||''),
+                coverPath:String(row.coverPath||''),
+                description:String(row.description||''),
+                status:bulkEditApplyStatus ? bulkEditStatus : normalizeContentStatus(row.status),
+                accessType:bulkEditApplyAccess ? bulkEditAccessType : resolveAccessType(row),
+              }
               await onUpdateStory(row.id,patch)
             } else if(manageTarget==='episode'){
-              const patch={}
-              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
-              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
-              if(bulkEditApplyAvailable) patch.available=bulkEditAvailable
-              if(!Object.keys(patch).length) throw new Error('No episode fields selected.')
+              if(!row.id) throw new Error('Episode database ID is missing; bulk edit is unsafe.')
+              const patch={
+                number:Number(row.number),
+                title:bulkEditApplyTitlePrefix ? bulkEditTitlePrefix.trim()+String(row.title||'') : String(row.title||''),
+                type:String(row.type||'audio'),
+                src:String(row.src||''),
+                filePath:String(row.filePath||''),
+                available:bulkEditApplyAvailable ? bulkEditAvailable : row.available !== false,
+                accessType:bulkEditApplyAccess ? bulkEditAccessType : resolveAccessType(row),
+                language:String(row.language||'Tamil'),
+                ...(row.telegram_message_id ? {telegram_message_id:Number(row.telegram_message_id)} : {}),
+              }
               await onUpdateEpisode(parentId,Number(row.number),patch,row.id)
             } else if(manageTarget==='book'){
+              if(!row.id) throw new Error('Book database ID is missing.')
               const patch={...row}
-              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
-              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
-              if(bulkEditApplyStatus) patch.status=bulkEditStatus
-              if(bulkEditApplyLanguage) patch.language=bulkEditLanguage
-              if(bulkEditApplyCategory) patch.category=bulkEditCategory
+              patch.title=bulkEditApplyTitlePrefix ? bulkEditTitlePrefix.trim()+String(row.title||'') : String(row.title||'')
+              patch.accessType=bulkEditApplyAccess ? bulkEditAccessType : resolveAccessType(row)
+              patch.status=bulkEditApplyStatus ? bulkEditStatus : normalizeContentStatus(row.status)
+              patch.language=bulkEditApplyLanguage ? bulkEditLanguage : String(row.language||'Tamil')
+              patch.category=bulkEditApplyCategory ? bulkEditCategory : String(row.category||'Other')
+              delete patch.manageKey
               await onUpdateBook(row.id,patch)
             } else if(manageTarget==='video-story'){
-              const patch={}
-              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
-              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
-              if(bulkEditApplyStatus) patch.status=bulkEditStatus
-              if(bulkEditApplyLanguage) patch.language=bulkEditLanguage
-              if(bulkEditApplyCategory) patch.category=bulkEditCategory
+              if(!row.id) throw new Error('Video story database ID is missing.')
+              const patch={
+                title:bulkEditApplyTitlePrefix ? bulkEditTitlePrefix.trim()+String(row.title||'') : String(row.title||''),
+                category:bulkEditApplyCategory ? bulkEditCategory : String(row.category||'Action'),
+                language:bulkEditApplyLanguage ? bulkEditLanguage : String(row.language||'Tamil'),
+                cover:String(row.cover||''),
+                coverPath:String(row.coverPath||''),
+                status:bulkEditApplyStatus ? bulkEditStatus : normalizeContentStatus(row.status),
+                accessType:bulkEditApplyAccess ? bulkEditAccessType : resolveAccessType(row),
+                ...(row.telegram_message_id ? {telegram_message_id:Number(row.telegram_message_id)} : {}),
+              }
               await onUpdateVideo(row.id,patch)
             } else if(manageTarget==='video-episode'){
-              const patch={}
-              if(bulkEditApplyTitlePrefix) patch.title=bulkEditTitlePrefix.trim()+String(row.title||'')
-              if(bulkEditApplyAccess) patch.accessType=bulkEditAccessType
-              if(bulkEditApplyAvailable) patch.available=bulkEditAvailable
-              if(!Object.keys(patch).length) throw new Error('No video episode fields selected.')
+              if(!row.id) throw new Error('Video episode database ID is missing; bulk edit is unsafe.')
+              const patch={
+                number:Number(row.number),
+                title:bulkEditApplyTitlePrefix ? bulkEditTitlePrefix.trim()+String(row.title||'') : String(row.title||''),
+                type:String(row.type||'video'),
+                src:String(row.src||''),
+                filePath:String(row.filePath||''),
+                available:bulkEditApplyAvailable ? bulkEditAvailable : row.available !== false,
+                accessType:bulkEditApplyAccess ? bulkEditAccessType : resolveAccessType(row),
+                ...(row.telegram_message_id ? {telegram_message_id:Number(row.telegram_message_id)} : {}),
+              }
               await onUpdateVideoEpisode(parentId,Number(row.number),patch,row.id)
             }
-            updated++
           } catch(error){
             failed++
             console.error('Bulk edit item failed',row,error)
