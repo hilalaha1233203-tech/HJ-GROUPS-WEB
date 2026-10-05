@@ -4,7 +4,7 @@ import FileUploadField from './components/FileUploadField'
 import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentStatus } from './lib/contentStatus.js'
 import { normalizeGenreSelection, serializeGenreSelection } from './lib/genreSelection.js'
-import { STREAMING_SERVER_URL } from './lib/streamingUrl'
+import { fetchTelegramMessages } from './lib/streamingUrl'
 import { supabase } from './supabase'
 
 const GENRES = ['Fantasy','Action','Adventure','Romance','Mystery','Thriller','Sci-Fi','Horror','Comedy','Drama','Historical','Mythology','Crime','Supernatural','System','Isekai','Cultivation']
@@ -62,7 +62,7 @@ function TelegramImport({ category, stories, books, videoStories, onAddEpisode, 
 
       const params = new URLSearchParams({ type: sourceType, limit: '100' })
       if (append && nextOffsetId) params.set('offset_id', String(nextOffsetId))
-      const res = await fetch(STREAMING_SERVER_URL + '/telegram/messages?' + params.toString(), {
+      const res = await fetchTelegramMessages(params.toString(), {
         headers: { Authorization: 'Bearer ' + session.access_token },
         cache: 'no-store',
       })
