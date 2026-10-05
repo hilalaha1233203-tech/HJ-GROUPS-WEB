@@ -120,6 +120,15 @@ test('Manage V2 passes video episode IDs to update/delete callbacks', () => {
   assert.match(v2, /onDeleteVideoEpisode\(parentId,row\.number,row\.id\)/)
 })
 
+test('Story deletion refreshes Manage data after a successful database delete', () => {
+  const app = read('src/App.jsx')
+  const start = app.indexOf('const deleteAdminStory = async')
+  const end = app.indexOf('\n  const persistBooks', start)
+  const block = app.slice(start, end)
+  assert.match(block, /from\('stories'\)\.delete\(\)\.eq\('id', supabaseId\)/)
+  assert.match(block, /await refreshTelegramContent\(\)/)
+})
+
 test('Video episode App CRUD uses verifiable primary-key mutations', () => {
   const app = read('src/App.jsx')
   assert.match(app, /const updateVideoEpisode = async \(videoId, episodeNumber, updates, episodeId = null\)/)
