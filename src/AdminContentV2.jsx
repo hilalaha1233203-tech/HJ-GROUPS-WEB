@@ -522,7 +522,8 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
         await onDeleteVideo(selectedTarget.id)
       } else if(manageTarget==='video-episode') {
         if(!onDeleteVideoEpisode) throw new Error('Video episode delete operation is unavailable.')
-        await onDeleteVideoEpisode(parentId, selectedTarget.number)
+        if(!selectedTarget.id) throw new Error('Video episode database ID is missing; deletion is unsafe.')
+        await onDeleteVideoEpisode(parentId, selectedTarget.number, selectedTarget.id)
       }
       notify(targetLabel+' deleted successfully.')
       resetList()
@@ -675,7 +676,8 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
               await onDeleteVideo(row.id)
             } else if(manageTarget==='video-episode'){
               if(!onDeleteVideoEpisode) throw new Error('Video episode delete operation is unavailable.')
-              await onDeleteVideoEpisode(parentId,row.number)
+              if(!row.id) throw new Error('Video episode database ID is missing; deletion is unsafe.')
+              await onDeleteVideoEpisode(parentId,row.number,row.id)
             }
             deleted++
           } catch(error){
