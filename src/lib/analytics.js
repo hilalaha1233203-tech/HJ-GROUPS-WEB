@@ -90,16 +90,28 @@ export async function linkAnalyticsSessionToUser() {
     const { data: { session } = {} } = await supabase.auth.getSession()
     if (!session?.user?.id) return false
 
-    const { data, error } = await supabase.rpc('link_analytics_session', {
-      p_session_id: sessionId,
+    const response = await fetch('/api/analytics/link-session', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + session.access_token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ session_id: sessionId }),
+      cache: 'no-store',
     })
 
-    if (error) {
-      console.warn('[HJ GROUPS] Analytics session link failed safely:', error.message)
+    if (!response.ok) {
+      let payload = null
+      try { payload = await response.json() } catch {}
+      console.warn(
+        '[HJ GROUPS] Analytics session link failed safely:',
+        String(payload?.error || 'HTTP ' + response.status)
+      )
       return false
     }
 
-    return data === true
+    const payload = await response.json().catch(() => null)
+    return payload?.linked === true
   } catch (error) {
     console.warn('[HJ GROUPS] Analytics session link failed safely:', error)
     return false
