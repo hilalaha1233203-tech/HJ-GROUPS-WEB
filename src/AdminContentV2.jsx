@@ -461,18 +461,27 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
   const save = async (e)=>{
     e.preventDefault()
     try {
-      if(category==='audio' && manageTarget==='story') await onUpdateStory(selectedId,{title:title.trim(),genre:serializeGenreSelection(genre),language,cover:cover.trim(),description:description.trim(),status})
+      if(category==='audio' && manageTarget==='story') {
+        if(!selectedTarget?.id) throw new Error('Story database ID is missing.')
+        await onUpdateStory(selectedTarget.id,{title:title.trim(),genre:serializeGenreSelection(genre),language,cover:cover.trim(),description:description.trim(),status,accessType})
+      }
       else if(category==='audio' && manageTarget==='episode') {
         const rawMediaUrl = String(telegramUrl || '').trim()
         const messageId = extractId(rawMediaUrl) || (!rawMediaUrl ? Number(edit.telegram_message_id) || null : null)
         const nextSrc = messageId ? STREAMING_SERVER_URL + '/audio/message/' + encodeURIComponent(messageId) : src.trim()
         await onUpdateEpisode(parentId,Number(edit.number),{number:Number(number),title:title.trim(),type:'audio',src:nextSrc,available:true,accessType,telegram_message_id:messageId || undefined},edit.id)
       }
-      else if(category==='books' && manageTarget==='book') await onUpdateBook(selectedId,{...edit,title:title.trim(),author:author.trim(),description:description.trim(),type:bookType,language,cover:cover.trim(),file:file.trim(),filePath,accessType,status})
+      else if(category==='books' && manageTarget==='book') {
+        if(!selectedTarget?.id) throw new Error('Book database ID is missing.')
+        await onUpdateBook(selectedTarget.id,{...edit,title:title.trim(),author:author.trim(),description:description.trim(),type:bookType,language,cover:cover.trim(),file:file.trim(),filePath,accessType,status})
+      }
       else if(category==='books' && manageTarget==='volume') {
-        const b=books.find(x=>String(x.id)===String(parentId)); const vols=Array.isArray(b?.volumes)?b.volumes:[]; const idx=vols.findIndex((_,i)=>String(i)===String(selectedId)); if(idx<0) throw new Error('Volume not found.')
+        const b=books.find(x=>String(x.id)===String(parentId)); const vols=Array.isArray(b?.volumes)?b.volumes:[]; const idx=Number(selectedTarget?.volumeIndex); if(!Number.isInteger(idx)||!vols[idx]) throw new Error('Volume not found.')
         const next=vols.map((v,i)=>i===idx?{...v,title:title.trim(),file:file.trim(),filePath,type:b.type||bookType}:v); await onUpdateBook(b.id,{...b,volumes:next})
-      } else if(category==='videos' && manageTarget==='video-story') await onUpdateVideo(selectedId,{title:title.trim(),category:genre[0]||'Action',language,cover:cover.trim(),status,accessType})
+      } else if(category==='videos' && manageTarget==='video-story') {
+        if(!selectedTarget?.id) throw new Error('Video story database ID is missing.')
+        await onUpdateVideo(selectedTarget.id,{title:title.trim(),category:genre[0]||'Action',language,cover:cover.trim(),status,accessType})
+      }
       else if(category==='videos' && manageTarget==='video-episode') {
         const rawMediaUrl = String(telegramUrl || '').trim()
         const messageId = extractId(rawMediaUrl) || (!rawMediaUrl ? Number(edit.telegram_message_id) || null : null)
