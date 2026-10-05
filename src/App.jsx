@@ -2604,10 +2604,11 @@ export function App() {
   }
 
 
-  const updateVideoEpisode = async (videoId, episodeNumber, updates) => {
+  const updateVideoEpisode = async (videoId, episodeNumber, updates, episodeId = null) => {
     const supabaseId = getSupabaseVideoId(videoId)
     if (supabaseId !== null) {
-      const { error } = await supabase.from('video_episodes').update({
+      const numericEpisodeId = Number(episodeId)
+      let query = supabase.from('video_episodes').update({
         number: Number(updates.number || episodeNumber),
         title: updates.title,
         file_url: updates.src || null,
@@ -2615,7 +2616,13 @@ export function App() {
         telegram_message_id: updates.telegram_message_id ? Number(updates.telegram_message_id) : null,
         access_type: serializeAccessType(updates.accessType),
         available: updates.available !== false,
-      }).eq('video_story_id', supabaseId).eq('number', Number(episodeNumber))
+      }).eq('video_story_id', supabaseId)
+
+      query = Number.isInteger(numericEpisodeId) && numericEpisodeId > 0
+        ? query.eq('id', numericEpisodeId)
+        : query.eq('number', Number(episodeNumber))
+
+      const { error } = await query
       if (error) throw error
       await refreshTelegramContent()
       return
@@ -2633,11 +2640,22 @@ export function App() {
     ))
   }
 
-  const deleteVideoEpisode = async (videoId, episodeNumber) => {
+  const deleteVideoEpisode = async (videoId, episodeNumber, episodeId = null) => {
     const supabaseId = getSupabaseVideoId(videoId)
     if (supabaseId !== null) {
-      const { error } = await supabase.from('video_episodes').delete()
-        .eq('video_story_id', supabaseId).eq('number', Number(episodeNumber))
+      const numericEpisodeId = Number(episodeId)
+      const existing = Number.isInteger(numericEpisodeId) && numericEpisodeId > 0
+        ? await supabase.from('video_episodes').select('id,video_story_id').eq('id', numericEpisodeId).eq('video_story_id', supabaseId).maybeSingle()
+        : await supabase.from('video_episodes').select('id,video_story_id').eq('video_story_id', supabaseId).eq('number', Number(episodeNumber)).limit(1).maybeSingle()
+
+      if (existing.error) throw existing.error
+      if (!existing.data) throw new Error('Video episode was not found in the database; nothing was deleted.')
+
+      let deletion = supabase.from('video_episodes').delete().eq('video_story_id', supabaseId)
+      deletion = Number.isInteger(numericEpisodeId) && numericEpisodeId > 0
+        ? deletion.eq('id', numericEpisodeId)
+        : deletion.eq('number', Number(episodeNumber))
+      const { error } = await deletion
       if (error) throw error
       await refreshTelegramContent()
       return
@@ -2645,7 +2663,11 @@ export function App() {
 
     persistVideos(adminVideos.map((video) =>
       video.id === videoId
-        ? { ...video, episodes: (video.episodes || []).filter((episode) => episode.number !== episodeNumber) }
+        ? { ...video, episodes: (video.episodes || []).filter((episode) => (
+            Number.isInteger(Number(episodeId)) && Number(episodeId) > 0
+              ? Number(episode.id) !== Number(episodeId)
+              : episode.number !== episodeNumber
+          )) }
         : video
     ))
   }
