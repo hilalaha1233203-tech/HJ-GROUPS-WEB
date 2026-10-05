@@ -1,5 +1,5 @@
 import { hasGenre } from './lib/genreSelection.js'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import ePub from 'epubjs'
 
@@ -1654,11 +1654,10 @@ export function App() {
     episodes: (story.episodes || []).filter((episode) => !episode.isTelegramDuplicate),
   }))
 
-  const stories = [
-    
+  const stories = useMemo(() => ([
     ...adminStories,
     ...publicTelegramStories,
-  ]
+  ]), [adminStories, publicTelegramStories])
 
   const latestEpisodes = stories
     .flatMap((story) => (story.episodes || []).map((episode) => ({ story, episode })))
