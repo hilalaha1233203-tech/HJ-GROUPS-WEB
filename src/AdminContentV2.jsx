@@ -38,23 +38,6 @@ function ActionCards({ items, value, onChange, className = '' }) {
   )}</div>
 }
 
-function ListPicker({ rows, selectedId, onSelect, search, onSearch, page, totalPages, onPage, label }) {
-  return <div className="admin-v2-picker">
-    <input aria-label={label+' search'} placeholder={'Search '+label+'…'} value={search} onChange={e=>onSearch(e.target.value)} />
-    <div className="admin-v2-list">
-      {rows.map(row => <button type="button" key={row.id} className={'admin-v2-list-row '+(String(selectedId)===String(row.manageKey)?'active':'')} onClick={()=>onSelect(row.id)}>
-        <span><strong>{row.title || row.name || 'Untitled'}</strong><small>{row.category || row.language || ''}</small></span><span>›</span>
-      </button>)}
-      {!rows.length && <div className="admin-v2-empty">No matching {label.toLowerCase()} found.</div>}
-    </div>
-    {totalPages > 1 && <div className="admin-v2-pagination">
-      <button type="button" disabled={page<=1} onClick={()=>onPage(page-1)}>‹ Previous</button>
-      <span>{page} / {totalPages}</span>
-      <button type="button" disabled={page>=totalPages} onClick={()=>onPage(page+1)}>Next ›</button>
-    </div>}
-  </div>
-}
-
 function TelegramImport({ category, stories, books, videoStories, onAddEpisode, onUpdateBook, onAddVideoEpisode, toast }) {
   const [source, setSource] = useState('')
   const [parentId, setParentId] = useState('')
