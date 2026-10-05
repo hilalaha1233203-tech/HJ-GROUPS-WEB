@@ -87,6 +87,9 @@ export async function linkAnalyticsSessionToUser() {
   if (!sessionId) return false
 
   try {
+    const { data: { session } = {} } = await supabase.auth.getSession()
+    if (!session?.user?.id) return false
+
     const { data, error } = await supabase.rpc('link_analytics_session', {
       p_session_id: sessionId,
     })
