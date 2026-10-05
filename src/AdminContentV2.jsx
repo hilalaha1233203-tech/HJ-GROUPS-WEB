@@ -367,7 +367,8 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
     try {
       if(category==='audio' && manageAction==='story-edit') await onUpdateStory(selectedId,{title:title.trim(),genre:serializeGenreSelection(genre),language,cover:cover.trim(),description:description.trim(),status})
       else if(category==='audio' && manageAction==='episode-edit') {
-        const messageId = extractId(telegramUrl) || Number(edit.telegram_message_id) || null
+        const rawMediaUrl = String(telegramUrl || '').trim()
+        const messageId = extractId(rawMediaUrl) || (!rawMediaUrl ? Number(edit.telegram_message_id) || null : null)
         const nextSrc = messageId ? STREAMING_SERVER_URL + '/audio/message/' + encodeURIComponent(messageId) : src.trim()
         await onUpdateEpisode(parentId,Number(edit.number),{number:Number(number),title:title.trim(),type:'audio',src:nextSrc,available:true,accessType,telegram_message_id:messageId || undefined},edit.id)
       }
@@ -377,7 +378,8 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
         const next=vols.map((v,i)=>i===idx?{...v,title:title.trim(),file:file.trim(),filePath,type:b.type||bookType}:v); await onUpdateBook(b.id,{...b,volumes:next})
       } else if(category==='videos' && manageAction==='video-story-edit') await onUpdateVideo(selectedId,{title:title.trim(),category:genre[0]||'Action',language,cover:cover.trim(),status,accessType})
       else if(category==='videos' && manageAction==='video-episode-edit') {
-        const messageId = extractId(telegramUrl) || Number(edit.telegram_message_id) || null
+        const rawMediaUrl = String(telegramUrl || '').trim()
+        const messageId = extractId(rawMediaUrl) || (!rawMediaUrl ? Number(edit.telegram_message_id) || null : null)
         const nextSrc = messageId ? STREAMING_SERVER_URL + '/video/message/' + encodeURIComponent(messageId) : src.trim()
         await onUpdateVideoEpisode(parentId,Number(edit.number),{number:Number(number),title:title.trim(),type:'video',src:nextSrc,available:true,accessType,telegram_message_id:messageId || undefined},edit.id)
       }
