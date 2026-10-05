@@ -319,7 +319,14 @@ export default function AdminContentV2({mode, stories, books, videoStories, admi
 
   const notify = (m,t='success') => toast?.(m,t)
   const resetList=()=>{setPage(1);setSelectedId('');setEdit(null)}
-  const onCat=(c)=>{setCategory(c);resetList();setParentId('');setSearch('')}
+  const onCat=(c)=>{
+    setCategory(c)
+    resetList()
+    setParentId('')
+    setSearch('')
+    setCreateAction(c==='audio'?'new-story':c==='books'?'new-book':'new-video')
+    setManageAction(c==='audio'?'story-edit':c==='books'?'book-edit':'video-story-edit')
+  }
   const onSearch=(v)=>{setSearch(v);setPage(1);setSelectedId('');setEdit(null)}
 
   const actionItems = category==='audio' ? [['new-story','🆕 New Story'],['add-episode','➕ Add Episode'],['telegram','📲 Bulk Telegram Import'],['other','⚙️ Other Existing Audio Creation Options']]
