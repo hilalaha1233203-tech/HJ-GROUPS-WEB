@@ -23,6 +23,7 @@ const makeAdminEntityId = () => Date.now() * 1000 + Math.floor(Math.random() * 1
 // The streaming service is deployed separately. Use its stable Vercel project URL
 // instead of pinning the website to an immutable deployment URL.
 import { STREAMING_SERVER_URL } from './lib/streamingUrl'
+import { buildTelegramMediaTitle, getFreshEpisodeImportState, sortTelegramMessagesOldestFirst } from './lib/telegramImport.js'
 
 
 const ADMIN_SETTINGS_KEY = 'hj_admin_settings_v1'
@@ -1339,66 +1340,64 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
 
   const handleBulkImport = async () => {
     if (bulkImportRunningRef.current) {
-      showToast('Telegram import is already running. Please wait for it to finish.', 'error')
-      return
-    }
-    if (!bulkStoryId) {
-      showToast('Select a story first', 'error')
-      return
-    }
-    if (bulkSelectedIds.length === 0) {
-      showToast('Select at least one Telegram message', 'error')
+      showToast('Telegram import is already running.', 'error')
       return
     }
 
-    const story = stories.find((s) => String(s.id) === String(bulkStoryId))
+    const story = stories.find((item) => String(item.id) === String(bulkStoryId))
     if (!story) {
-      showToast('Story not found', 'error')
+      showToast('Select a story first.', 'error')
       return
     }
 
-    const selectedMsgs = bulkSelectedIds
-      .map((id) => bulkMessages.find((message) => String(message.messageId) === String(id)))
-      .filter(Boolean)
+    const selectedMsgs = sortTelegramMessagesOldestFirst(
+      bulkSelectedIds
+        .map((id) => bulkMessages.find((message) => String(message.messageId) === String(id)))
+        .filter(Boolean)
+    )
+
+    if (!selectedMsgs.length) {
+      showToast('Select at least one Telegram message.', 'error')
+      return
+    }
+
+    const validSelected = selectedMsgs.filter((msg) => Number.isInteger(Number(msg.messageId)) && Number(msg.messageId) > 0)
+    const invalidCount = selectedMsgs.length - validSelected.length
 
     bulkImportRunningRef.current = true
     setBulkImporting(true)
     setBulkImportProgress({
       status: 'running',
       processed: 0,
-      total: selectedMsgs.length,
+      total: validSelected.length,
       imported: 0,
-      skipped: selectedMsgs.length !== bulkSelectedIds.length ? bulkSelectedIds.length - selectedMsgs.length : 0,
+      skipped: invalidCount,
       duplicates: 0,
       failed: 0,
-      currentItem: selectedMsgs.length ? String(selectedMsgs[0].fileName || selectedMsgs[0].caption || `Telegram message ${selectedMsgs[0].messageId}`) : '',
+      currentItem: validSelected.length ? String(validSelected[0].fileName || validSelected[0].caption || 'Telegram message ' + validSelected[0].messageId).trim() : '',
       error: '',
     })
 
     let processedCount = 0
     let importedCount = 0
-    let skippedCount = selectedMsgs.length !== bulkSelectedIds.length ? bulkSelectedIds.length - selectedMsgs.length : 0
+    let skippedCount = invalidCount
     let duplicateCount = 0
     let failedCount = 0
 
     try {
-      let maxEpisodeNumber = (story.episodes || []).reduce(
-        (max, episode) => Math.max(max, Number(episode.number) || 0),
-        0
-      )
+      const fresh = await getFreshEpisodeImportState(story.id, validSelected.map((msg) => Number(msg.messageId)))
+      let maxEpisodeNumber = Number(fresh.maxNumber) || 0
+      const existingMessageIds = new Set(fresh.existingMessageIds)
 
-      for (const [index, msg] of selectedMsgs.entries()) {
+      for (const [index, msg] of validSelected.entries()) {
         const messageId = Number(msg.messageId)
-        const label = String(
-          bulkTitleOverrides[msg.messageId] ??
-          msg.caption ??
-          msg.fileName ??
-          `Telegram message ${msg.messageId}`
-        ).trim()
+        const overrideTitle = String(bulkTitleOverrides[msg.messageId] ?? '').trim()
+        const label = overrideTitle || buildTelegramMediaTitle(msg, maxEpisodeNumber + 1, 'Episode')
+        const existing = existingMessageIds.has(messageId)
 
         setBulkImportProgress((prev) => ({
           ...prev,
-          currentItem: label || `Telegram message ${msg.messageId}`,
+          currentItem: label || 'Telegram message ' + messageId,
           processed: processedCount,
           imported: importedCount,
           skipped: skippedCount,
@@ -1406,30 +1405,25 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
           failed: failedCount,
         }))
 
-        if (!Number.isFinite(messageId)) {
-          skippedCount++
+        if (existing) {
+          duplicateCount++
           processedCount++
           setBulkImportProgress((prev) => ({
             ...prev,
             processed: processedCount,
-            skipped: skippedCount,
-            currentItem: index + 1 < selectedMsgs.length
-              ? String(selectedMsgs[index + 1].fileName || selectedMsgs[index + 1].caption || `Telegram message ${selectedMsgs[index + 1].messageId}`)
-              : '',
+            duplicates: duplicateCount,
           }))
           continue
         }
 
         const overrideNumber = Number(bulkNumberOverrides[msg.messageId])
-        const finalNumber = Number.isFinite(overrideNumber) && overrideNumber > 0
+        const finalNumber = Number.isInteger(overrideNumber) && overrideNumber > 0
           ? overrideNumber
           : maxEpisodeNumber + 1
 
-        const finalTitle = label || 'Untitled Episode'
-
         const episode = {
           number: finalNumber,
-          title: finalTitle,
+          title: label || 'Episode ' + finalNumber,
           type: 'audio',
           src: '',
           telegram_message_id: messageId,
@@ -1444,6 +1438,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
           } else {
             importedCount++
             maxEpisodeNumber = Math.max(maxEpisodeNumber, finalNumber)
+            existingMessageIds.add(messageId)
           }
         } catch (error) {
           failedCount++
@@ -1458,13 +1453,13 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
         setBulkImportProgress({
           status: 'running',
           processed: processedCount,
-          total: selectedMsgs.length,
+          total: validSelected.length,
           imported: importedCount,
           skipped: skippedCount,
           duplicates: duplicateCount,
           failed: failedCount,
-          currentItem: index + 1 < selectedMsgs.length
-            ? String(selectedMsgs[index + 1].fileName || selectedMsgs[index + 1].caption || `Telegram message ${selectedMsgs[index + 1].messageId}`).trim()
+          currentItem: index + 1 < validSelected.length
+            ? buildTelegramMediaTitle(validSelected[index + 1], maxEpisodeNumber + 1, 'Episode')
             : '',
           error: '',
         })
@@ -1475,43 +1470,36 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
       setBulkImportProgress({
         status: finalStatus,
         processed: processedCount,
-        total: selectedMsgs.length,
+        total: validSelected.length,
         imported: importedCount,
         skipped: skippedCount,
         duplicates: duplicateCount,
         failed: failedCount,
         currentItem: '',
         error: failedCount > 0
-          ? `${failedCount} Telegram item(s) failed to import. Check the error details and retry the failed item(s).`
+          ? failedCount + ' Telegram item(s) failed to import. Check the error details and retry the failed item(s).'
           : '',
       })
 
       if (failedCount > 0) {
-        showToast(
-          `${importedCount} imported, ${duplicateCount} duplicates, ${skippedCount} skipped, ${failedCount} failed.`,
-          'error'
-        )
-      } else if (duplicateCount > 0 || skippedCount > 0) {
-        showToast(
-          `${importedCount} episodes imported. ${duplicateCount} duplicates skipped and ${skippedCount} invalid selections skipped.`
-        )
+        showToast(importedCount + ' imported, ' + duplicateCount + ' duplicates, ' + skippedCount + ' skipped, ' + failedCount + ' failed.', 'error')
       } else {
-        showToast(`${importedCount} episodes imported successfully`)
+        showToast(importedCount + ' imported, ' + duplicateCount + ' duplicates skipped, ' + skippedCount + ' invalid selections skipped.')
       }
     } catch (error) {
       console.error('Error during bulk Telegram import:', error)
       setBulkImportProgress({
         status: 'failed',
         processed: processedCount,
-        total: selectedMsgs.length,
+        total: validSelected.length,
         imported: importedCount,
         skipped: skippedCount,
         duplicates: duplicateCount,
-        failed: failedCount + 1,
+        failed: failedCount,
         currentItem: '',
         error: String(error?.message || 'Telegram import failed.'),
       })
-      showToast(`Telegram import failed: ${error?.message || error}`, 'error')
+      showToast('Telegram import failed: ' + (error?.message || error), 'error')
     } finally {
       bulkImportRunningRef.current = false
       setBulkImporting(false)
