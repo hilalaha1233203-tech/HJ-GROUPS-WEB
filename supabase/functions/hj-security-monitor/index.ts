@@ -1,39 +1,16 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createSupabaseContext } from 'npm:@supabase/server@1'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-let secretKeys: Record<string, string> = {}
-try {
-  const rawSecretKeys = Deno.env.get('SUPABASE_SECRET_KEYS') || ''
-  if (rawSecretKeys.trim()) {
-    const parsed = JSON.parse(rawSecretKeys)
-    if (parsed && typeof parsed === 'object') secretKeys = parsed
-  }
-} catch {
-  // A malformed optional secret map must never prevent the monitor function from booting.
-}
-const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || secretKeys.default || ''
-let dbClient: ReturnType<typeof createClient> | null = null
-
-function getDb() {
-  if (dbClient) return dbClient
-  if (!supabaseUrl || !serviceKey) {
-    throw new Error('Security monitor backend credentials are not configured.')
-  }
-  dbClient = createClient(supabaseUrl, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
-  return dbClient
-}
 const repo = 'hilalaha1233203-tech/HJ-GROUPS-WEB'
 const productionBase = 'https://hj-groups-website.getvoroa.com'
 const allowedOrigins = new Set(['https://hj-groups-website.getvoroa.com', 'https://hj-groups-web.vercel.app'])
 const rateBuckets = new Map<string, { startedAt: number; count: number }>()
 let monitorKeyPromise: Promise<string> | null = null
 
-async function getMonitorKey() {
+async function getMonitorKey(db: any) {
   if (monitorKeyPromise) return monitorKeyPromise
   monitorKeyPromise = (async () => {
-    const { data, error } = await getDb().rpc('get_security_monitor_key')
+    const { data, error } = await db.rpc('get_security_monitor_key')
     if (error || !data) throw new Error('monitor key unavailable')
     return String(data)
   })()
@@ -90,17 +67,17 @@ function rateLimit(key: string, limit = 4, windowMs = 60_000) {
   return bucket.count <= limit
 }
 
-async function authorize(req: Request) {
+async function authorize(req: Request, db: any) {
   const suppliedKey = req.headers.get('x-hj-monitor-key') || ''
   if (suppliedKey) {
-    const expected = await getMonitorKey()
+    const expected = await getMonitorKey(db)
     if (suppliedKey === expected) return { kind: 'internal', userId: null }
   }
 
   const auth = req.headers.get('authorization') || ''
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
   if (!token) return null
-  const { data, error } = await getDb().auth.getUser(token)
+  const { data, error } = await db.auth.getUser(token)
   if (error || !data?.user || data.user.app_metadata?.role !== 'admin') return null
   return { kind: 'admin', userId: data.user.id }
 }
@@ -153,7 +130,7 @@ async function osv(packages: Array<{ name: string; version: string }>) {
   }
 }
 
-async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
+async function runScan(db: any, trigger: 'manual' | 'scheduled' = 'manual') {
   const started = new Date().toISOString()
   const findings: any[] = []
   const phases = [
@@ -176,7 +153,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
       status: index < completedChecks ? 'completed' : index === completedChecks && currentCheck ? 'running' : 'pending',
       completedAt: index < completedChecks ? new Date().toISOString() : null,
     }))
-    const { error } = await getDb().from('security_scans').update({
+    const { error } = await db.from('security_scans').update({
       summary: {
         progress_percent: percent,
         completed_checks: completedChecks,
@@ -189,7 +166,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
     if (error) throw error
   }
 
-  const { data: initialScan, error: initialScanError } = await getDb().from('security_scans').insert({
+  const { data: initialScan, error: initialScanError } = await db.from('security_scans').insert({
     started_at: started,
     status: 'running',
     summary: {
@@ -414,7 +391,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
 
   let snapshot: any = null
   try {
-    const { data, error } = await getDb().rpc('security_monitor_snapshot')
+    const { data, error } = await db.rpc('security_monitor_snapshot')
     if (error) throw error
     snapshot = data
   } catch (e) {
@@ -483,7 +460,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
     },
   }
 
-  const { data: scanRow, error: scanError } = await getDb().from('security_scans').update(scan).eq('id', scanId).select('id').single()
+  const { data: scanRow, error: scanError } = await db.from('security_scans').update(scan).eq('id', scanId).select('id').single()
   if (scanError || !scanRow) throw (scanError || new Error('Security scan row was not found.'))
 
   for (const f of findings) {
@@ -502,7 +479,7 @@ async function runScan(trigger: 'manual' | 'scheduled' = 'manual') {
       ? 'new'
       : (existing?.status || 'new')
 
-    await getDb().from('security_findings').upsert({
+    await db.from('security_findings').upsert({
       fingerprint,
       first_detected_at: existing?.first_detected_at || new Date().toISOString(),
       last_detected_at: new Date().toISOString(),
@@ -531,8 +508,15 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: cors })
 
+  let db: any = null
   try {
-    const caller = await authorize(req)
+    const { data: context, error: contextError } = await createSupabaseContext(req, { auth: 'none' })
+    if (contextError || !context?.supabaseAdmin) {
+      return Response.json({ ok: false, error: 'Security monitor backend context is unavailable.' }, { status: 500, headers: cors })
+    }
+    db = context.supabaseAdmin
+
+    const caller = await authorize(req, db)
     if (!caller) return Response.json({ ok: false, error: 'Forbidden' }, { status: 403, headers: cors })
 
     const key = caller.kind === 'internal' ? 'internal' : 'admin:' + caller.userId
@@ -555,10 +539,11 @@ Deno.serve(async (req) => {
       return Response.json({ ok: false, error: 'A security scan is already running.', scanId: running.id }, { status: 409, headers: cors })
     }
 
-    const result = await runScan(trigger)
+    const result = await runScan(db, trigger)
     return Response.json({ ok: true, ...result }, { headers: cors })
   } catch (e) {
     try {
+      if (!db) throw new Error('Security monitor database context unavailable.')
       const { data: running } = await db
         .from('security_scans')
         .select('id,summary')
@@ -567,7 +552,7 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle()
       if (running?.id) {
-        await getDb().from('security_scans').update({
+        await db.from('security_scans').update({
           status: 'failed',
           finished_at: new Date().toISOString(),
           summary: {
