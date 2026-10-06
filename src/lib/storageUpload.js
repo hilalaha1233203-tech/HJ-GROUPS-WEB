@@ -24,7 +24,7 @@ export function makeSafeFileName(
 
 export function optimizeImageUrl(url, { width = 800, quality = 75 } = {}) {
   const raw = String(url || '').trim()
-  if (!raw || !/^https:\/\/[^/]*\\.supabase\\.co\/storage\\/v1\/object\/(?:public|authenticated)\//i.test(raw)) {
+  if (!raw || !/^https:\/\/[^/]*\.supabase\.co\/storage\/v1\/object\/(?:public|authenticated)\//i.test(raw)) {
     return raw
   }
 
