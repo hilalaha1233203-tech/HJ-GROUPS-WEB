@@ -4,6 +4,7 @@ import { supabase } from '../supabase'
 // instead of pinning the website to an immutable deployment URL.
 import { STREAMING_SERVER_URL } from './streamingUrl'
 import { normalizeContentStatus } from './contentStatus.js'
+import { optimizeImageUrl } from './storageUpload.js'
 
 export function fileUrlFromId(fileId, mediaType = 'audio') {
   if (!fileId) return ''
@@ -61,7 +62,7 @@ function normalizeStories(storyRows, episodeRows) {
     title: story.title,
     genre: story.genre,
     language: story.language || 'Tamil',
-    cover: story.cover_url || fileUrlFromId(story.cover_file_id, 'image'),
+    cover: optimizeImageUrl(story.cover_url || fileUrlFromId(story.cover_file_id, 'image')),
     coverPath: story.cover_path || '',
     description: story.description || '',
     accessType: story.access_type,
@@ -79,7 +80,7 @@ function normalizeBooks(bookRows) {
     type: book.type,
     category: book.category,
     language: book.language || 'Tamil',
-    cover: book.cover_url || fileUrlFromId(book.cover_file_id, 'image'),
+    cover: optimizeImageUrl(book.cover_url || fileUrlFromId(book.cover_file_id, 'image')),
     coverPath: book.cover_path || '',
     file: book.file_url || (book.telegram_message_id && STREAMING_SERVER_URL
       ? `${STREAMING_SERVER_URL}/document/message/${encodeURIComponent(book.telegram_message_id)}`
@@ -127,7 +128,7 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
     title: video.title,
     category: video.category,
     language: video.language || 'Tamil',
-    cover: video.cover_url || fileUrlFromId(video.cover_file_id, 'image'),
+    cover: optimizeImageUrl(video.cover_url || fileUrlFromId(video.cover_file_id, 'image')),
     coverPath: video.cover_path || '',
     telegram_message_id: video.telegram_message_id || null,
     accessType: video.access_type,

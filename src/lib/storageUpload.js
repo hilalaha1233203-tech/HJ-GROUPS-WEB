@@ -22,6 +22,23 @@ export function makeSafeFileName(
     )
 }
 
+export function optimizeImageUrl(url, { width = 800, quality = 75 } = {}) {
+  const raw = String(url || '').trim()
+  if (!raw || !/^https:\/\/[^/]*\.supabase\.co\/storage\/v1\/object\/(?:public|authenticated)\//i.test(raw)) {
+    return raw
+  }
+
+  const params = new URLSearchParams({
+    url: raw,
+    w: String(width),
+    fit: 'inside',
+    output: 'webp',
+    q: String(quality),
+    maxage: '1y',
+  })
+  return 'https://wsrv.nl/?' + params.toString()
+}
+
 export async function uploadFileToBucket(
   bucket,
   folder,
@@ -73,9 +90,12 @@ export async function uploadFileToBucket(
         path
       )
 
+  const isImage = String(file.type || '').startsWith('image/') || /\\.(?:jpe?g|png|webp|gif|jfif)$/i.test(String(file.name || ''))
+
   return {
     url:
-      data.publicUrl,
+      isImage ? optimizeImageUrl(data.publicUrl) : data.publicUrl,
+    originalUrl: data.publicUrl,
     path,
   }
 }
