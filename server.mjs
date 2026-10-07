@@ -65,6 +65,7 @@ async function readJson(req) {
 }
 
 const TRUSTED_WEB_ORIGINS = new Set([
+  'https://hj-groups-web.pages.dev',
   'https://hj-groups-website.getvoroa.com',
   'https://hj-groups-web.vercel.app',
   'http://localhost:5173',
