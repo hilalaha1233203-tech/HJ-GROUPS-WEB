@@ -4159,7 +4159,7 @@ export function App() {
       }
       const created = typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
-        : String(Date.now()) + '-' + Math.random().toString(36).slice(2)
+        : 'anon-' + window.location.origin + '-' + window.navigator.userAgent
       window.localStorage.setItem(key, created)
       anonymousListenerIdRef.current = created
       return created
