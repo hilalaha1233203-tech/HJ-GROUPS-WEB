@@ -42,7 +42,7 @@ test('mobile admin overlay uses dynamic viewport units and safe-area padding', (
 
 test('security monitor exposes Supabase-client-compatible CORS headers and real progress state', () => {
   const fn = read('supabase/functions/hj-security-monitor/index.ts')
-  assert.match(fn, /corsHeaders as supabaseCorsHeaders/)
+  assert.match(fn, /const corsHeaders = \(req: Request\) =>/)
   assert.match(fn, /Access-Control-Allow-Origin/)
   assert.match(fn, /Access-Control-Allow-Methods/)
   assert.match(fn, /persistProgress/)
