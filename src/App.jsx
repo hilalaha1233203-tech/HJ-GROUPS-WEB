@@ -8054,7 +8054,6 @@ export function App() {
             }
             onPlay={handleMediaPlay}
             onPause={handleMediaPause}
-            onPause={handleMediaPause}
             onTimeUpdate={
               handleTimeUpdate
             }
@@ -8080,6 +8079,7 @@ export function App() {
             onLoadedMetadata={
               handleLoadedMetadata
             }
+            onPause={handleMediaPause}
             onTimeUpdate={
               handleTimeUpdate
             }
