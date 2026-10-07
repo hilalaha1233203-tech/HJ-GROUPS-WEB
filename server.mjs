@@ -310,7 +310,7 @@ async function handlePublicSettings(req, res) {
       'Content-Type': 'application/json; charset=utf-8',
     })
   } catch (error) {
-    console.warn('[public-settings] load failed:', String(error?.message || error).slice(0, 300))
+    console.warn('[public-settings] Public settings unavailable; load failed:', String(error?.message || error).slice(0, 300))
     return send(res, 200, JSON.stringify({
       ok: true,
       website: defaults.website,
