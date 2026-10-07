@@ -4194,7 +4194,7 @@ export function App() {
     }
   }
 
-  const startMediaListener = async () => {
+  const startMediaListener = async (durationSeconds = 0) => {
     const episode = currentEpisode
     if (!episode?.telegram_message_id || !STREAMING_SERVER_URL) return
 
@@ -4208,6 +4208,11 @@ export function App() {
       const url = new URL(STREAMING_SERVER_URL + '/listener/start')
       url.searchParams.set('kind', kind)
       url.searchParams.set('messageId', String(messageId))
+      const numericDurationSeconds = Number(durationSeconds)
+      if (Number.isFinite(numericDurationSeconds) && numericDurationSeconds > 0) {
+        const durationMs = Math.round(Math.min(numericDurationSeconds, 24 * 60 * 60) * 1000)
+        if (durationMs > 0) url.searchParams.set('durationMs', String(durationMs))
+      }
 
       let ticket = ''
       try {
@@ -4630,7 +4635,9 @@ export function App() {
       access_type: episode.accessType ?? episode.access_type ?? null,
       metadata: { episode_number: episode.number ?? episode.episode_number ?? null },
     }, `play:${playbackSession}`)
-    void startMediaListener()
+    const media = getMediaElement()
+    const mediaDuration = Number(media?.duration)
+    void startMediaListener(Number.isFinite(mediaDuration) && mediaDuration > 0 ? mediaDuration : 0)
   }
 
   const handleMediaPause = () => {
