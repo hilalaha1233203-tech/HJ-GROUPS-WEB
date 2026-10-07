@@ -28,5 +28,9 @@
       "type": "durable-object",
       "storage": "sqlite"
     }
+  },
+  "vars": {
+    "VITE_SUPABASE_URL": "https://yajkfglagnyvenddyvok.supabase.co",
+    "HJ_PUBLIC_BASE_URL": "https://hj-groups-web.pages.dev"
   }
 }
