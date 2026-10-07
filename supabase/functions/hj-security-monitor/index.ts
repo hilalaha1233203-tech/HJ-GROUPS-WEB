@@ -2,8 +2,8 @@ import { createSupabaseContext } from 'npm:@supabase/server@1'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
 const repo = 'hilalaha1233203-tech/HJ-GROUPS-WEB'
-const productionBase = 'https://hj-groups-website.getvoroa.com'
-const allowedOrigins = new Set(['https://hj-groups-website.getvoroa.com', 'https://hj-groups-web.vercel.app'])
+const productionBase = 'https://hj-groups-web.pages.dev'
+const allowedOrigins = new Set(['https://hj-groups-web.pages.dev', 'https://hj-groups-website.getvoroa.com', 'https://hj-groups-web.vercel.app'])
 const rateBuckets = new Map<string, { startedAt: number; count: number }>()
 let monitorKeyPromise: Promise<string> | null = null
 
