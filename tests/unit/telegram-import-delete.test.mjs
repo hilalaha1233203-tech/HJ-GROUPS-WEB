@@ -107,7 +107,7 @@ test('Bulk edit preserves existing episode media while changing only selected co
   assert.match(block, /row\.telegram_message_id/)
   assert.match(block, /patch\.title=/)
   assert.match(block, /patch\.accessType=/)
-  assert.match(block, /patch\.available=/)
+  assert.match(block, /available:/)
   assert.match(block, /Episode database ID is missing; bulk edit is unsafe/)
   assert.match(block, /Video episode database ID is missing; bulk edit is unsafe/)
 })
