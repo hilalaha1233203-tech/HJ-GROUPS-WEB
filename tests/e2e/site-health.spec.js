@@ -262,7 +262,7 @@ test('public tabs and modals open without crashing', async ({ page }) => {
 
     const merged = mergeHealth(reports)
     console.log(JSON.stringify({
-      baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com',
+      baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-web.pages.dev',
       scanned: labels,
       ...merged,
     }, null, 2))
@@ -379,7 +379,7 @@ test.describe('HJ GROUPS TTS health', () => {
 
     test.setTimeout(90_000)
 
-    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com'
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-web.pages.dev'
 
     const healthResponse = await request.get(baseURL + '/health')
     expect(healthResponse.status()).toBe(200)
@@ -468,7 +468,7 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     const preflight = await request.fetch(streamingURL + '/telegram/messages', {
       method: 'OPTIONS',
       headers: {
-        Origin: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com',
+        Origin: process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-web.pages.dev',
         'Access-Control-Request-Method': 'GET',
         'Access-Control-Request-Headers': 'authorization',
       },
@@ -483,7 +483,7 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
     expect(
       preflight.headers()['access-control-allow-origin'],
       'streaming server must allow the website origin'
-    ).toBe(process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-website.getvoroa.com')
+    ).toBe(process.env.PLAYWRIGHT_BASE_URL || 'https://hj-groups-web.pages.dev')
   })
 
   test('public preview audio episode accepts browser range playback without 416 or 5xx', async ({ page }) => {
