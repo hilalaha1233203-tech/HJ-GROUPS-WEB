@@ -9,7 +9,7 @@ Set these in the Cloudflare Worker Container environment/secrets:
 - `CASHFREE_CLIENT_ID`
 - `CASHFREE_CLIENT_SECRET`
 - `CASHFREE_ENVIRONMENT` = `sandbox` for testing or `production` for live payments
-- `HJ_PUBLIC_BASE_URL` = `https://hj-groups-website.getvoroa.com`
+- `HJ_PUBLIC_BASE_URL` = `https://hj-groups-web.pages.dev`
 - `SUPABASE_SERVICE_ROLE_KEY` (already required by the server)
 
 Never prefix Cashfree secrets with `VITE_`, never commit them, and never put them in browser/localStorage settings.
