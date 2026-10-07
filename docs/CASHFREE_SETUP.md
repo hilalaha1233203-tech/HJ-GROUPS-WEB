@@ -4,7 +4,7 @@ The website uses Cashfree hosted web checkout with the existing server (`server.
 
 ## Server-only environment variables
 
-Set these in the Voroa web service environment:
+Set these in the Cloudflare Worker Container environment/secrets:
 
 - `CASHFREE_CLIENT_ID`
 - `CASHFREE_CLIENT_SECRET`
