@@ -52,7 +52,7 @@ function safeTargetUrl(value) {
   try {
     const url = new URL(raw)
     if (url.protocol !== 'https:') return '/'
-    const allowed = new Set(['hj-groups-web.pages.dev', 'hj-groups-website.getvoroa.com', 'hj-groups-web.vercel.app'])
+    const allowed = new Set(['hj-groups-web.pages.dev'])
     return allowed.has(url.hostname.toLowerCase()) ? url.toString().slice(0, 500) : '/'
   } catch { return '/' }
 }
