@@ -793,6 +793,9 @@ export function App() {
 
   const audioRef = useRef(null)
   const videoRef = useRef(null)
+  const mediaListenerSessionRef = useRef(null)
+  const mediaListenerHeartbeatRef = useRef(null)
+  const anonymousListenerIdRef = useRef(null)
 
   /* =======================================================
      READER
@@ -4144,6 +4147,123 @@ export function App() {
         ? videoRef.current
         : audioRef.current
 
+  const getMediaListenerIdentity = () => {
+    if (typeof window === 'undefined') return ''
+    if (anonymousListenerIdRef.current) return anonymousListenerIdRef.current
+    try {
+      const key = 'hj_media_listener_id_v1'
+      const existing = window.localStorage.getItem(key)
+      if (existing) {
+        anonymousListenerIdRef.current = existing
+        return existing
+      }
+      const created = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Date.now()) + '-' + Math.random().toString(36).slice(2)
+      window.localStorage.setItem(key, created)
+      anonymousListenerIdRef.current = created
+      return created
+    } catch {
+      return anonymousListenerIdRef.current || ''
+    }
+  }
+
+  const stopMediaListener = async () => {
+    if (mediaListenerHeartbeatRef.current) {
+      window.clearInterval(mediaListenerHeartbeatRef.current)
+      mediaListenerHeartbeatRef.current = null
+    }
+
+    const session = mediaListenerSessionRef.current
+    mediaListenerSessionRef.current = null
+    if (!session?.sessionId || !session?.kind || !session?.messageId) return
+
+    try {
+      const url = new URL(STREAMING_SERVER_URL + '/listener/end')
+      url.searchParams.set('kind', session.kind)
+      url.searchParams.set('messageId', String(session.messageId))
+      url.searchParams.set('sessionId', session.sessionId)
+      if (session.ticket) url.searchParams.set('ticket', session.ticket)
+      else {
+        const listenerId = getMediaListenerIdentity()
+        if (listenerId) url.searchParams.set('listenerId', listenerId)
+      }
+      await fetch(url.toString(), { method: 'POST', cache: 'no-store' })
+    } catch (error) {
+      console.warn('Media listener end failed:', error)
+    }
+  }
+
+  const startMediaListener = async () => {
+    const episode = currentEpisode
+    if (!episode?.telegram_message_id || !STREAMING_SERVER_URL) return
+
+    const kind = episode.type === 'video' ? 'video' : 'audio'
+    const messageId = Number(episode.telegram_message_id)
+    if (!Number.isSafeInteger(messageId) || messageId <= 0) return
+
+    await stopMediaListener()
+
+    try {
+      const url = new URL(STREAMING_SERVER_URL + '/listener/start')
+      url.searchParams.set('kind', kind)
+      url.searchParams.set('messageId', String(messageId))
+
+      let ticket = ''
+      try {
+        const mediaUrl = new URL(String(currentMediaSrc || ''))
+        ticket = String(mediaUrl.searchParams.get('ticket') || '')
+      } catch {}
+
+      if (ticket) url.searchParams.set('ticket', ticket)
+      else {
+        const listenerId = getMediaListenerIdentity()
+        if (listenerId) url.searchParams.set('listenerId', listenerId)
+      }
+
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        cache: 'no-store',
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || !payload?.sessionId) {
+        console.warn('Media listener start failed:', payload?.error || response.status)
+        return
+      }
+
+      mediaListenerSessionRef.current = {
+        sessionId: String(payload.sessionId),
+        kind,
+        messageId,
+        ticket,
+      }
+
+      mediaListenerHeartbeatRef.current = window.setInterval(() => {
+        const session = mediaListenerSessionRef.current
+        if (!session?.sessionId) return
+
+        const heartbeatUrl = new URL(STREAMING_SERVER_URL + '/listener/heartbeat')
+        heartbeatUrl.searchParams.set('kind', session.kind)
+        heartbeatUrl.searchParams.set('messageId', String(session.messageId))
+        heartbeatUrl.searchParams.set('sessionId', session.sessionId)
+        if (session.ticket) heartbeatUrl.searchParams.set('ticket', session.ticket)
+        else {
+          const listenerId = getMediaListenerIdentity()
+          if (listenerId) heartbeatUrl.searchParams.set('listenerId', listenerId)
+        }
+
+        void fetch(heartbeatUrl.toString(), {
+          method: 'POST',
+          cache: 'no-store',
+        }).catch((error) => {
+          console.warn('Media listener heartbeat failed:', error)
+        })
+      }, 20_000)
+    } catch (error) {
+      console.warn('Media listener start failed:', error)
+    }
+  }
+
   const playMedia =
     async () => {
       const media =
@@ -4510,6 +4630,11 @@ export function App() {
       access_type: episode.accessType ?? episode.access_type ?? null,
       metadata: { episode_number: episode.number ?? episode.episode_number ?? null },
     }, `play:${playbackSession}`)
+    void startMediaListener()
+  }
+
+  const handleMediaPause = () => {
+    void stopMediaListener()
   }
 
   const handleLoadedMetadata =
@@ -4531,6 +4656,7 @@ export function App() {
 
   const handleEnded =
     () => {
+      void stopMediaListener()
       const analyticsMedia = analyticsCurrentMediaRef.current
       const episode = analyticsMedia?.episode || currentEpisode
       const story = analyticsMedia?.story || currentStory
@@ -7927,6 +8053,8 @@ export function App() {
               handleLoadedMetadata
             }
             onPlay={handleMediaPlay}
+            onPause={handleMediaPause}
+            onPause={handleMediaPause}
             onTimeUpdate={
               handleTimeUpdate
             }
