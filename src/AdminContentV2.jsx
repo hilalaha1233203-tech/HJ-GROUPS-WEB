@@ -4,7 +4,7 @@ import FileUploadField from './components/FileUploadField'
 import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentStatus } from './lib/contentStatus.js'
 import { normalizeGenreSelection, serializeGenreSelection } from './lib/genreSelection.js'
-import { fetchTelegramMessages } from './lib/streamingUrl'
+import { fetchTelegramMessages, STREAMING_SERVER_URL } from './lib/streamingUrl'
 import { supabase } from './supabase'
 
 const GENRES = ['Fantasy','Action','Adventure','Romance','Mystery','Thriller','Sci-Fi','Horror','Comedy','Drama','Historical','Mythology','Crime','Supernatural','System','Isekai','Cultivation']
