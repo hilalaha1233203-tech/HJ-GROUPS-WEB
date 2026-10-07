@@ -459,7 +459,7 @@ test.describe('HJ GROUPS Telegram streaming health', () => {
 
   test('streaming server health and CORS preflight', async ({ request }) => {
     const streamingURL = String(
-      process.env.PLAYWRIGHT_STREAMING_URL || 'https://hj-telegram-streaming.onrender.com'
+      process.env.PLAYWRIGHT_STREAMING_URL || 'https://hj-telegram-streaming.hilalaha1233203.workers.dev'
     ).trim().replace(/\/+$/, '')
 
     const health = await request.get(streamingURL + '/health')
