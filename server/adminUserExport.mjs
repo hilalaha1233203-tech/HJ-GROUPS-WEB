@@ -1047,7 +1047,7 @@ export async function handleAdminUserExport(req, res) {
       fetchAllRows(adminClient, 'episodes', 'id,story_id,episode_number,title,number'),
       fetchAllRows(adminClient, 'books', 'id,title,created_at'),
       fetchAllRows(adminClient, 'video_stories', 'id,title,created_at'),
-      fetchAllRows(adminClient, 'video_episodes', 'id,video_story_id,story_id,episode_number,title,number'),
+      fetchAllRows(adminClient, 'video_episodes', 'id,video_story_id,episode_number,title,number'),
     ])
 
     const model = buildAdminExportModel({
