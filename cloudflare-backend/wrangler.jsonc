@@ -8,6 +8,7 @@
       "class_name": "HJWebBackend",
       "scheduling_policy": "default",
       "image": "./Dockerfile",
+      "image_build_context": "../",
       "max_instances": 2,
       "instance_type": "basic",
       "observability": {
