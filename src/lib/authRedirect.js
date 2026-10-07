@@ -1,4 +1,4 @@
-const PRODUCTION_SITE_URL = 'https://hj-groups-website.getvoroa.com/'
+const PRODUCTION_SITE_URL = 'https://hj-groups-web.pages.dev/'
 const LOCAL_AUTH_ORIGIN_PATTERN = /^https?:\/\/(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0)(?::\d+)?$/i
 
 function appendAuthPath(base, path = '/') {
