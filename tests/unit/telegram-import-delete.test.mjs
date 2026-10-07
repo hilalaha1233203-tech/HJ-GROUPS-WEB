@@ -48,9 +48,9 @@ test('Admin Create/Manage category changes reset to valid category-specific acti
   assert.match(categoryBlock, /new-book/)
   assert.match(categoryBlock, /new-video/)
   assert.match(categoryBlock, /setManageAction\(/)
-  assert.match(categoryBlock, /story-edit/)
-  assert.match(categoryBlock, /book-edit/)
-  assert.match(categoryBlock, /video-story-edit/)
+  assert.match(categoryBlock, /setManageAction\('edit'\)/)
+  assert.match(categoryBlock, /setManageTarget\(c==='audio'\?'story':c==='books'\?'book':'video-story'\)/)
+  assert.match(categoryBlock, /setCreateAction\(c==='audio'\?'new-story':c==='books'\?'new-book':'new-video'\)/)
 })
 
 test('Manage V2 exposes Edit, Delete, Bulk Edit and Bulk Delete for every category', () => {
@@ -75,7 +75,7 @@ test('Manage V2 wires direct safe-delete callbacks and bulk operations', () => {
   assert.match(v2, /const runBulkEdit = async/)
   assert.match(v2, /const runBulkDelete = async/)
   assert.match(v2, /await onDeleteEpisode\(parentId, selectedTarget\.id\)/)
-  assert.match(v2, /await onDeleteVideoEpisode\(parentId, selectedTarget\.number\)/)
+  assert.match(v2, /await onDeleteVideoEpisode\(parentId, selectedTarget\.number, selectedTarget\.id\)/)
   assert.match(v2, /Only the checked fields will be changed\./)
   assert.match(v2, /Title prefix/)
   assert.match(v2, /Access Types/)
@@ -102,8 +102,8 @@ test('Bulk edit preserves existing episode media while changing only selected co
   const block = v2.slice(start, end)
   assert.match(block, /manageTarget==='episode'/)
   assert.match(block, /manageTarget==='video-episode'/)
-  assert.match(block, /src:String\(row\.src\|\|'\x27'\)/)
-  assert.match(block, /filePath:String\(row\.filePath\|\|'\x27'\)/)
+  assert.match(block, /src:String\(row\.src\|\|''\)/)
+  assert.match(block, /filePath:String\(row\.filePath\|\|''\)/)
   assert.match(block, /row\.telegram_message_id/)
   assert.match(block, /patch\.title=/)
   assert.match(block, /patch\.accessType=/)
@@ -166,7 +166,7 @@ test('Manage V2 bulk delete resolves selections using stable Manage keys', () =>
 test('Manage V2 avoids duplicate parent selectors inside edit forms', () => {
   const v2 = read('src/AdminContentV2.jsx')
   assert.match(v2, /episodeMode && !\(editing && mode==='manage'\)/)
-  assert.match(v2, /book && !\(\(editing && mode==='manage'\'\) && manageTarget==='volume'\)/)
+  assert.match(v2, /book && !\(\(editing && mode==='manage'\) && manageTarget==='volume'\)/)
 })
 
 test('Manage V2 limits parent selectors to admin-authorized Stories, Videos and Books', () => {
@@ -217,8 +217,8 @@ test('Story Manage edits and bulk edits persist access types without dropping me
   const v2 = read('src/AdminContentV2.jsx')
   assert.match(app, /access_type: serializeAccessType\(updates\.accessType\)/)
   assert.match(v2, /accessType:bulkEditApplyAccess \? bulkEditAccessType : resolveAccessType\(row\)/)
-  assert.match(v2, /cover:String\(row\.cover\|\|'\x27'\)/)
-  assert.match(v2, /description:String\(row\.description\|\|'\x27'\)/)
+  assert.match(v2, /cover:String\(row\.cover\|\|''\)/)
+  assert.match(v2, /description:String\(row\.description\|\|''\)/)
 })
 
 test('Audio episode edits keep number and legacy episode_number synchronized', () => {
