@@ -295,7 +295,7 @@ async function runScan(db: any, trigger: 'manual' | 'scheduled' = 'manual') {
     }
   }
 
-  const envSecretNames = [
+  const SUPABASE_SECRET_KEYS = [
     'SUPABASE_SERVICE_ROLE_KEY',
     'CASHFREE_CLIENT_SECRET',
     'WEB_PUSH_VAPID_PRIVATE_KEY',
@@ -307,7 +307,7 @@ async function runScan(db: any, trigger: 'manual' | 'scheduled' = 'manual') {
     'HJ_GITHUB_ACTIONS_TOKEN',
   ]
   const combinedSource = [...sourceMap.values()].join('\n')
-  for (const name of envSecretNames) {
+  for (const name of SUPABASE_SECRET_KEYS) {
     if (new RegExp('VITE_' + name + '\\b').test(combinedSource)) {
       findings.push(finding(
         'critical', 'security', 'environment-secrets', name,
