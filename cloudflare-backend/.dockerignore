@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.github
+playwright-report
+test-results
+tests
+public
+supabase
+README*
+*.log
+.env
+.env.*
