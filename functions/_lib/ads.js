@@ -93,18 +93,6 @@ async function activeUnlock(userId, type, id, row) {
   return Array.isArray(ranged) ? ranged[0] || null : null;
 }
 
-async function purchased(userId, type, row) {
-  const candidates = type === 'audio'
-    ? [row.story_id, row.id]
-    : [row.video_story_id, row.id];
-  const ids = [...new Set(candidates.map(Number).filter((id)=>Number.isInteger(id)&&id>0))];
-  if (!ids.length) return false;
-  const rows = await supabaseJson('/rest/v1/purchases', {
-    params: { select:'story_id,expires_at', user_id:'eq.'+userId, story_id:'in.('+ids.join(',')+')', limit:'1000' },
-  });
-  const now = Date.now();
-  return (rows || []).some((p)=>Number.isFinite(Date.parse(p.expires_at || '')) ? Date.parse(p.expires_at) > now : !p.expires_at);
-}
 export async function handleAds(request) {
   const path = new URL(request.url).pathname;
   if (!path.startsWith('/api/ads/')) return null;
