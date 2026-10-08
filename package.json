@@ -19,7 +19,9 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-pdf": "^10.5.0",
-    "@mmmike/web-push": "1.3.0"
+    "@mmmike/web-push": "1.3.0",
+    "ws": "8.21.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
