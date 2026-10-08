@@ -1,21 +1,21 @@
 # HJ GROUPS — Migration Status / Review Patch
 
 Date: 2026-10-08
-Code verification checkpoint: `c14bca0d1f3a8517a3132cfec7975235c6e93715`
+Code verification checkpoint: `a291d482dea21d4b890019f15422fccd2faf4f9e`
 Status-document commit: this file's current commit
 
 ## Scope of this review
 
-Phase 1 (audit) and Phase 2 (HJ Web container removal) were treated as already executed and were **not redone**.
+Phase 1 audit was re-checked only. The Phase 2 reality check found that the expected containerless implementation was **not actually present on main**, so Phase 2 was implemented now on a dedicated branch and PR. Main was not modified.
 
-This review only:
+This review/implementation:
 - re-checked the current repository/control-plane state;
-- corrected documentation where previous status was stale or contradictory;
-- added the specifically requested public-catalog cache path;
-- added a Pages Functions routes manifest;
-- added a CI secret-access scan;
+- migrated the required HJ Web server routes to Pages Functions using Web APIs;
+- removed the container/Docker production-path artifacts from the migration branch;
+- preserved Episode Analytics with no code/migration changes;
+- retained the requested public-catalog 5-minute cache;
+- added Pages Functions route and production-path guards;
 - did not modify the streaming repository;
-- did not modify Episode Analytics;
 - did not migrate, compress, upload, delete, or remap the 950-episode catalog.
 
 Production content changes in this review: NO.
@@ -324,6 +324,165 @@ Final completed `verify` run:
 
 This verifies the repository/build does not emit those server-only environment access patterns. It cannot mathematically prove that an unknown secret value was never hard-coded; no secret value was available to compare.
 
+## 11A. PHASE 2 REAL-STATE RECONCILE + IMPLEMENTATION — 2026-10-08
+
+### VERIFIED — Phase 2 missing-state evidence
+
+GitHub repository:
+- main base SHA at start of this work: `c51248efbf86b10f65bdaf98ecf83e22b731ba20`
+- no existing Phase 2 implementation branch/PR was found before this work.
+- open PR created: **#9**
+- PR URL: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/9
+- PR base: `main`
+- verified code commit: `a291d482dea21d4b890019f15422fccd2faf4f9e`
+- previous status-document commit: `e9fc1d94498fa5fa76d84153bcad5695571d0b58`
+- PR state: OPEN, not merged, mergeable: true.
+
+Live Cloudflare Pages evidence before cutover:
+- project: `hj-groups-web`
+- production branch: `main`
+- latest production deployment before this PR: **7624f08c-1894-4792-b5f0-6b51590ba8e9**
+- production commit: `95e0d181e2c34ef3a17b6e31d168af101a52d275`
+- production still had `HJ_WEB_BACKEND_URL`
+- therefore production was still on the old container-proxy path.
+
+### VERIFIED — Phase 2 production-path implementation on branch
+
+Changed production-path files include:
+- `functions/[[path]].js` — container proxy replaced by the Pages Functions router.
+- `functions/_lib/runtime.js` — Web API runtime helpers, Supabase REST/Auth, HMAC/Web Crypto, CORS/security response helpers.
+- `functions/_lib/publicSettings.js`
+- `functions/_lib/analytics.js`
+- `functions/_lib/vip.js`
+- `functions/_lib/ads.js`
+- `functions/_lib/shortener.js`
+- `functions/_lib/payment.js`
+- `functions/_lib/tts.js`
+- `functions/_lib/webPush.js`
+- `functions/_lib/playwright.js`
+- `functions/_lib/adminExport.js`
+- `scripts/test-pages-routes.mjs`
+- `.github/workflows/quality-check.yml`
+
+Removed from the migration branch production path:
+- `Dockerfile`
+- `cloudflare-backend/.dockerignore`
+- `cloudflare-backend/package.json`
+- `cloudflare-backend/src/index.js`
+- `cloudflare-backend/wrangler.jsonc`
+- `.github/workflows/deploy-cloudflare-web-backend.yml`
+
+### VERIFIED — route classification / migration outcome
+
+A — migrated to Pages Functions:
+- public settings;
+- analytics session link;
+- admin analytics;
+- admin user export XLSX;
+- admin Playwright workflow trigger;
+- VIP self/admin;
+- rewarded Ads;
+- shortener/unlock;
+- Cashfree create-order/status/webhook/health;
+- Web Push config/status/subscribe/preferences/unsubscribe;
+- security/CORS headers and health.
+
+E — external API calls, preserved as Fetch/Web APIs:
+- Supabase REST/Auth;
+- Cashfree API;
+- AroLinks/Earn4Link APIs;
+- Sarvam TTS;
+- GitHub Actions workflow-dispatch API.
+
+B — not migrated as a fake implementation:
+- **Edge TTS** remains an explicit `503 EDGE_TTS_NOT_MIGRATED` because the old implementation depends on Node WebSocket/runtime behavior. No false-success fallback was introduced.
+- **Web Push admin delivery** remains explicit `503 WEB_PUSH_SEND_NOT_MIGRATED`; subscription/config management is migrated, but delivery sender was not claimed VERIFIED without a Worker-safe implementation.
+
+D — legacy Node server compatibility code is not part of the new production Pages runtime and is not used by `functions/[[path]].js`. It remains in the repository only where needed for rollback/tests until final cutover.
+
+F — no architecture redesign was introduced; the existing API responsibilities were moved behind the Pages Functions boundary.
+
+### VERIFIED — local Pages runtime verification
+
+GitHub Actions Quality Check run:
+- run number **1043**
+- run id **37790428213**
+- commit tested: `e6a8a83449fb84a9c74598110b3e64cb4c3dbaf1`
+- conclusion: **SUCCESS**
+
+Verified in that run:
+- dependency audit: PASS, 0 high/critical production vulnerabilities;
+- lint: PASS after migration cleanup, with the existing two React Hook warnings in `src/App.jsx`;
+- production build: PASS;
+- existing tests: **132 passed / 0 failed**;
+- Pages Function syntax/routes manifest: PASS;
+- production-path container guard: PASS;
+- local `wrangler pages dev` smoke: PASS;
+- frontend server-secret identifier scan: PASS;
+- Auth/settings/metadata sanity: PASS;
+- appearance/security-monitoring sanity: PASS;
+- final source sanity: PASS.
+
+Final PR-head GitHub Actions Quality Check: **run 1048 / run id 37795624866 — SUCCESS**. Lint, build, existing tests, Pages route checks, container guard, local Pages smoke, secret scan, and source sanity all passed on `a291d482...`.
+
+### VERIFIED — Cloudflare Pages Preview deployment history
+
+A preview for the same migration code path was successfully deployed:
+- deployment id: **8d69fba2-b0cb-4d29-9983-1ac16fca1c78**
+- preview URL: https://8d69fba2.hj-groups-web.pages.dev
+
+### VERIFIED — latest final-head Preview deployment
+
+Latest final PR head `a291d482dea21d4b890019f15422fccd2faf4f9e` deployment:
+- deployment id: **f580bb08-cbc1-43e7-a358-6fcce015ea88**
+- preview URL: https://f580bb08.hj-groups-web.pages.dev
+- preview alias: https://phase2-containerless-pages-m.hj-groups-web.pages.dev
+- build stage: SUCCESS
+- deploy stage: SUCCESS
+- Functions enabled.
+- no production promotion was performed.
+- build stage: SUCCESS
+- deploy stage: SUCCESS
+- Functions: enabled
+- production branch remains `main`.
+
+Cloudflare deployment logs confirmed:
+- `npm clean-install` succeeded;
+- `npm run build` succeeded;
+- Vite built successfully;
+- Functions directory uploaded;
+- `_routes.json` uploaded/validated.
+
+### NOT VERIFIED — browser/live HTTP smoke from this environment
+
+Attempted live HTTP fetches to the preview returned a connector-level:
+`403 Forbidden: requests to <preview-host> are not allowed`
+This response came from the tool security layer, not from the HJ application.
+
+Therefore these real user-facing checks remain **NOT VERIFIED — needs user action**:
+- browser health endpoint;
+- public settings;
+- public catalog/cache behavior;
+- login/signup/recovery;
+- admin login;
+- settings;
+- Ads unlock;
+- shortener unlock;
+- VIP/Premium;
+- ticket issue/playback;
+- TTS;
+- Cashfree sandbox create-order;
+- CORS/headers from a real browser;
+- Episode Analytics regression.
+
+### IMPORTANT CUTOVER STATE
+
+The live Pages project still contains the legacy `HJ_WEB_BACKEND_URL` environment variable in its **production and preview deployment configuration**.
+
+The new branch runtime does **not** use that variable, and the branch source/container guard is clean. However, the variable has intentionally NOT been removed from live production configuration yet, so the old backend remains available for rollback exactly as requested.
+
+Do NOT merge/promote PR #9 until the preview has been manually accepted.
+
 ## 12. HJ-Telegram-Streaming Phase 3 — Cloudflare containerless streaming runtime
 
 ### VERIFIED — repository implementation and CI
@@ -515,10 +674,10 @@ Therefore production control-plane deployment is VERIFIED, but live user-facing 
 ## 13. Remaining issues / blockers
 
 P0:
-1. HJ Web Phase-2 source/deployment drift remains unresolved: current HJ Web main still contains the container backend and current Pages production still uses `HJ_WEB_BACKEND_URL`. This was not redone in Phase 3.
+1. HJ Web Phase-2 implementation is now present in open PR #9, but `main` and live Pages production still use the legacy container path until preview acceptance and merge.
 2. Live user-facing streaming E2E against `hj-telegram-streaming.hilalaha1233203.workers.dev` is NOT VERIFIED.
 3. The live HJ Web Supabase database still lacks the authoritative `episode_chunks` table, so >20 MB real chunked playback remains Phase 4 work.
-4. GitHub Actions does not currently have `CLOUDFLARE_API_TOKEN` configured, so the repository deploy workflow's final deploy step intentionally skips. Production Worker deployment was nevertheless completed and verified directly through the Cloudflare control plane.
+4. GitHub Actions does not currently have `CLOUDFLARE_API_TOKEN` configured, so repository auto-deploy remains unavailable. Cloudflare Pages Preview was deployed directly through the Cloudflare control plane for PR #9; production was not promoted.
 
 P1:
 5. HJ Web production endpoint E2E and remaining live authenticated flows still need verification.
@@ -550,7 +709,7 @@ Canonical migration status:
 
 ## 15. Qualification
 
-Overall status: **PARTIALLY VERIFIED — PHASE 3 WORK COMPLETED, LIVE MEDIA E2E / PHASE 4 DATA STILL BLOCKED**
+Overall status: **PARTIALLY VERIFIED — PHASE 2 IMPLEMENTED IN PR #9 + PHASE 3 WORK COMPLETED; USER PREVIEW ACCEPTANCE / PRODUCTION CUTOVER / LIVE MEDIA E2E / PHASE 4 DATA STILL BLOCKED**
 
 VERIFIED:
 - Phase 3 Worker source implementation;
@@ -571,9 +730,12 @@ VERIFIED:
 - removal of the old production `MEDIA_LISTENER` binding.
 
 NOT VERIFIED:
+- browser/live HTTP smoke tests against final PR-head HJ Web Preview;
+
+
+- final HJ Web production containerless cutover / removal of live `HJ_WEB_BACKEND_URL`;
 - live authenticated media stream/seek against the production Worker;
 - real >20 MB chunked playback until Phase 4 creates/populates `episode_chunks`;
-- final HJ Web containerless cutover (separate Phase 2 issue);
 - full cross-repo production E2E after the HJ Web cutover.
 
 Do not mark the overall HJ migration complete until the Phase 4 authoritative chunk mapping and the remaining live production E2E gates are cleared.

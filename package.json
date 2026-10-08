@@ -8,10 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node --env-file-if-exists=.env --env-file-if-exists=.env.local server.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "test:pages": "node scripts/test-pages-routes.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
