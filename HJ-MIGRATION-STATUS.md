@@ -324,80 +324,256 @@ Final completed `verify` run:
 
 This verifies the repository/build does not emit those server-only environment access patterns. It cannot mathematically prove that an unknown secret value was never hard-coded; no secret value was available to compare.
 
-## 12. Streaming repo — NO IMPLEMENTATION IN THIS REVIEW
+## 12. HJ-Telegram-Streaming Phase 3 — Cloudflare containerless streaming runtime
 
-### VERIFIED — no streaming implementation performed here
+### VERIFIED — repository implementation and CI
 
-No HJ-Telegram-Streaming source was modified for this review.
+Phase 1/2 were not redone. This phase implements only the requested HJ-Telegram-Streaming runtime work.
 
-The following remain planned for later phases only:
+Current HJ-Telegram-Streaming main implementation commit:
+- `1d13576d981d136a1d96703fa36cbc148bd96ba4`
 
-Phase 3:
-- listener/Durable Object removal/replacement decision
-- R2 temporary-cache lifecycle design
-- lazy verified media mapping boundary
-- Bot API source verification
+Changed:
+- `cloudflare-worker/src/index.js`
+- `cloudflare-worker/src/pure.js`
+- `cloudflare-worker/wrangler.jsonc`
+- `cloudflare-worker/package.json`
+- `cloudflare-worker/vitest.config.js`
+- `cloudflare-worker/tests/streaming.test.js`
+- `cloudflare-worker/README.md`
+- `cloudflare-worker/.env.example`
+- `.github/workflows/verify.yml`
+- `.github/workflows/deploy-cloudflare-worker.yml`
+- `.github/workflows/quality-check.yml`
+- `tests/cors.test.js`
+- `server.js` only for preserving the Cloudflare Pages origin in rollback/legacy CORS tests.
 
-Phase 4:
-- <=19 MB chunked-media playback/reassembly
-- Range/seek regression
-- R2 HIT/MISS regression
-- protected-ticket regression
-- production streaming cutover
+No HJ GROUPS Web frontend code was changed for listener compatibility; the existing `/listener/start`, `/listener/heartbeat`, and `/listener/end` calls remain compatible.
 
-These are NOT marked implemented/complete here.
+### VERIFIED — final runtime architecture
+
+Final Worker routes:
+- `/audio/message/:messageId`
+- `/video/message/:messageId`
+- `/document/message/:messageId`
+- `/media-ticket/:type/message/:messageId`
+
+Flow:
+`Browser -> Worker -> access/ticket check -> R2 lookup -> HIT: R2 stream | MISS: Telegram Bot API -> temporary R2 object -> validated final R2 object -> R2 stream`
+
+The Worker implementation:
+- uses Web Crypto API only for HMAC/SHA-256;
+- has no `node:` imports, `Buffer`, `fs`, `child_process`, or `@cloudflare/containers` in the target Worker source;
+- uses the existing `MEDIA_CACHE` binding only;
+- creates no new R2 bucket;
+- does not implement Durable Objects, heartbeats, leases, or alarms;
+- keeps listener endpoints as stateless `200 {"ok":true}` compatibility endpoints.
+
+### VERIFIED — deterministic cache identity and safe writes
+
+Whole-media keys include:
+- media kind;
+- `file_unique_id` when available, otherwise verified chat/message/kind identity;
+- source size;
+- version hash derived from content identity, Telegram `file_id`, MIME type, and DB update version.
+
+Chunk keys include:
+- content/episode id;
+- chunk index;
+- `file_unique_id`;
+- chunk size;
+- version hash.
+
+Every R2 HIT checks:
+- completion marker;
+- object size;
+- MIME type;
+- media/chunk identity;
+- version;
+- R2 ETag;
+- expected SHA-256 for chunk rows.
+
+A mismatch is treated as a cache MISS, stale object is deleted, and a safe rewrite occurs.
+
+Cache writes use a temporary `.tmp-<uuid>` key. The Worker validates the temporary object, promotes it to the deterministic final key, validates the final object, and only then serves it.
+
+Concurrent identical MISS requests are intentionally idempotent. They may duplicate Telegram/R2 work, but a partial/unvalidated object is never served.
+
+### VERIFIED — Range / HEAD / OPTIONS / seek behavior in integration tests
+
+Worker test suite:
+- **10 tests passed, 0 failed**
+- real Cloudflare Workers test runtime with R2 binding
+- latest successful integration execution was part of GitHub Actions deploy run **31** / run id **37781514620**
+- the latest full verification run **179** / run id **37781514567** also completed successfully.
+
+Covered and passed:
+- first-request MISS;
+- second-request HIT;
+- Range / seek;
+- `206`;
+- exact `Content-Length`;
+- `Content-Range`;
+- `416` with `bytes */SIZE`;
+- `HEAD`;
+- `OPTIONS` / CORS;
+- all three final media routes;
+- missing media;
+- oversized source without chunks;
+- protected ticket creation and playback;
+- expired ticket;
+- wrong user;
+- wrong user-agent;
+- unauthorized protected media;
+- corrupted cache object -> safe rewrite;
+- deleted cache -> recreation;
+- chunked full playback;
+- chunk range inside one chunk;
+- chunk range across boundary;
+- seek into last chunk;
+- only required chunk fetch for a ranged request;
+- corrupted chunk cache repair;
+- missing Telegram chunk source;
+- malformed chunk metadata.
+
+The same latest verify run also passed:
+- Worker dry-run;
+- Worker containerless source guard;
+- root legacy streaming tests.
+
+### VERIFIED — chunked playback design, with live production dependency explicitly NOT VERIFIED
+
+The Worker implements the Phase 4 schema contract:
+`episode_chunks(episode_id, idx, telegram_file_id, file_unique_id, size, sha256)`
+
+Rules enforced by Worker code:
+- contiguous `idx = 0..n-1`;
+- each chunk `<=19 MB`;
+- authoritative `telegram_file_id`;
+- authoritative `file_unique_id`;
+- positive verified size;
+- 64-character SHA-256;
+- logical Content-Length is the sum of chunk sizes;
+- requested byte range maps only to intersecting chunks;
+- each chunk is cached independently in R2;
+- chunk SHA-256 is attached to R2 upload metadata/checksum verification where supported.
+
+Oversized source without chunk metadata:
+- explicit HTTP `413`;
+- JSON `{"error":"TELEGRAM_FILE_TOO_LARGE","hint":"needs_split"}`;
+- Worker does not pretend it cached the source.
+
+**Production chunk data status: NOT VERIFIED.**
+The live HJ Web Supabase database currently has no `episode_chunks` table/schema available to the Worker. Therefore real >20 MB chunked playback is intentionally blocked until Phase 4 creates/populates the authoritative chunk mapping.
+
+### VERIFIED — R2 lifecycle cleanup
+
+Existing bucket:
+- `hj-groups-media`
+
+No additional bucket was created.
+
+Live Cloudflare lifecycle configuration was updated with exactly:
+- rule id: `streaming-cache-2d`
+- prefix: `streaming-cache/`
+- delete after: **172800 seconds = 2 days**
+
+Live GET verification confirmed the rule.
+
+Existing unrelated lifecycle rules were preserved and not modified.
+
+Deleted cache object = normal MISS; the next play recreates the object from Telegram.
+
+### VERIFIED — production Worker control-plane cutover
+
+The production Worker `hj-telegram-streaming` was uploaded directly through the Cloudflare Worker Script Upload API after preserving existing secrets and the existing `MEDIA_CACHE -> hj-groups-media` binding.
+
+Deployment evidence:
+- deployment id: `bc5e771d1024474aa298605194cdc401`
+- entry point: `index.js`
+- modules enabled;
+- `compatibility_flags: []` after cutover;
+- `MEDIA_CACHE` binding remains `hj-groups-media`;
+- old `MEDIA_LISTENER` Durable Object binding is absent after cutover;
+- Cloudflare exports reconciliation reports `MediaListener` as deleted.
+
+Important distinction:
+- the `MediaListener` deleted export is only the Cloudflare control-plane tombstone required to retire the previously provisioned namespace;
+- there is no Durable Object implementation/binding in the new runtime.
+
+### NOT VERIFIED — live HTTP/media end-to-end
+
+A live authenticated media play against the new Worker has **not** been marked VERIFIED.
+
+Reason:
+- no production media/file_id was fabricated or forced for testing;
+- live `episode_chunks` mapping is not yet available;
+- a real browser-level authenticated stream/seek test against production was not completed in this phase.
+
+Therefore production control-plane deployment is VERIFIED, but live user-facing media E2E remains NOT VERIFIED.
 
 ## 13. Remaining issues / blockers
 
 P0:
-1. Current HJ Web main still contains the container backend and Node proxy path, contrary to the expected Phase-2 end state. This is a source/deployment drift verification failure, not a Phase-2 reimplementation.
-2. Current Pages production deployment is still commit `95e0d181e2c34ef3a17b6e31d168af101a52d275` and still has `HJ_WEB_BACKEND_URL`.
-3. Production endpoint E2E is not currently passing; the previous completed run had 13 failures / 2 passes.
+1. HJ Web Phase-2 source/deployment drift remains unresolved: current HJ Web main still contains the container backend and current Pages production still uses `HJ_WEB_BACKEND_URL`. This was not redone in Phase 3.
+2. Live user-facing streaming E2E against `hj-telegram-streaming.hilalaha1233203.workers.dev` is NOT VERIFIED.
+3. The live HJ Web Supabase database still lacks the authoritative `episode_chunks` table, so >20 MB real chunked playback remains Phase 4 work.
+4. GitHub Actions does not currently have `CLOUDFLARE_API_TOKEN` configured, so the repository deploy workflow's final deploy step intentionally skips. Production Worker deployment was nevertheless completed and verified directly through the Cloudflare control plane.
 
 P1:
-4. The completed `c14b...` verify run passed the explicit Pages Function syntax/routes-manifest check; the newest documentation commit triggered another CI cycle, which is not needed to change the already-verified code result.
-5. Supabase Preview CI remains failing in the latest run and needs migration-history reconciliation.
-6. Live CORS/security-header/API verification is not complete.
-7. Live public-catalog cache HIT/MISS behavior is not verified.
-8. TTS, Cashfree, shortener, Ads, VIP and secure-ticket real production flows still need authenticated/real-environment regression.
-9. Web Push is still tied to legacy Node scheduling and needs later scheduled/event-driven migration.
-10. Legacy hosting references remain and should be cleaned after verified cutover only.
-11. `HJ-GROUPS-OF-FILES` Voroa quota state is not independently verified.
+5. HJ Web production endpoint E2E and remaining live authenticated flows still need verification.
+6. Supabase Preview migration-history reconciliation remains pending.
+7. HJ GROUPS OF FILES `telegram_media_index` still covers only a small subset (24 rows) compared with 950 HJ Web episodes; no bulk mapping was fabricated.
+8. Legacy Node/hosting compatibility code remains in the repositories and should be removed only after verified final cutover, not during this Phase 3 surgical migration.
+9. No Episode Analytics code/migration was changed in Phase 3.
 
-## 14. Files changed in this review
+## 14. Files changed for Phase 3
 
-HJ-GROUPS-WEB:
-- `functions/api/public-catalog.js` — added 5-minute public catalogue edge cache.
-- `src/lib/telegramContent.js` — use cached public catalogue with direct-Supabase fallback.
-- `public/_routes.json` — function routing limited to dynamic API/health routes.
-- `.github/workflows/quality-check.yml` — secret-access scan + Pages Function/routes checks.
-- `HJ-MIGRATION-STATUS.md` — fully reconciled current review status.
+HJ-Telegram-Streaming:
+- `cloudflare-worker/src/index.js`
+- `cloudflare-worker/src/pure.js`
+- `cloudflare-worker/wrangler.jsonc`
+- `cloudflare-worker/package.json`
+- `cloudflare-worker/vitest.config.js`
+- `cloudflare-worker/tests/streaming.test.js`
+- `cloudflare-worker/README.md`
+- `cloudflare-worker/.env.example`
+- `.github/workflows/verify.yml`
+- `.github/workflows/deploy-cloudflare-worker.yml`
+- `.github/workflows/quality-check.yml`
+- `tests/cors.test.js`
+- `server.js` (Cloudflare production-origin compatibility only)
 
-No HJ-Telegram-Streaming file was changed in this review.
-
-No Episode Analytics file/migration/function was changed.
+Canonical migration status:
+- HJ Web `HJ-MIGRATION-STATUS.md` updated with this Phase 3 evidence.
+- No HJ GROUPS Web Episode Analytics files/migrations were changed.
 
 ## 15. Qualification
 
-Overall status: **PARTIALLY VERIFIED — NOT PRODUCTION READY**
+Overall status: **PARTIALLY VERIFIED — PHASE 3 WORK COMPLETED, LIVE MEDIA E2E / PHASE 4 DATA STILL BLOCKED**
 
-Verified:
-- official Telegram size limits checked;
-- authoritative file_id acquisition method documented;
-- 950 vs 24 DB mapping facts verified live;
-- listener legacy request estimate calculated from official Cloudflare limits;
-- HJ Web build/lint/unit/smoke/source checks completed successfully in CI;
-- 132/132 unit tests passed;
-- frontend secret-access scan passed;
-- public catalog cache patch implemented.
+VERIFIED:
+- Phase 3 Worker source implementation;
+- deterministic R2 keys;
+- R2 HIT validation;
+- safe temporary-write/promotion flow;
+- Range/206/416/HEAD/OPTIONS/seek behavior in real Worker integration tests;
+- ticket expiry/user/user-agent checks in real Worker integration tests;
+- oversized-without-chunks safe error;
+- chunked playback logic against test fixtures;
+- listener compatibility without state/DOs;
+- structured observability logs;
+- containerless source guard;
+- Worker dry-run;
+- 10/10 Worker integration tests;
+- production Cloudflare Worker control-plane deployment;
+- R2 `streaming-cache/` 2-day lifecycle rule;
+- removal of the old production `MEDIA_LISTENER` binding.
 
 NOT VERIFIED:
-- Phase-2 containerless state against current main/control-plane;
-- latest Pages Function/routes-manifest CI completion;
-- production endpoint E2E;
-- live public-catalog cache HIT/MISS;
-- live authenticated API flows;
-- Voroa quota state;
-- all later streaming Phases 3/4.
+- live authenticated media stream/seek against the production Worker;
+- real >20 MB chunked playback until Phase 4 creates/populates `episode_chunks`;
+- final HJ Web containerless cutover (separate Phase 2 issue);
+- full cross-repo production E2E after the HJ Web cutover.
 
-Do not mark this migration complete until the current source/deployment drift, production endpoint E2E, and remaining runtime verification gates are cleared.
+Do not mark the overall HJ migration complete until the Phase 4 authoritative chunk mapping and the remaining live production E2E gates are cleared.
