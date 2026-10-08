@@ -1,13 +1,9 @@
 import {
   envString,
   jsonResponse,
-  sha256Hex,
-  supabaseJson,
   headersForCors,
 } from './runtime.js';
 
-const DEFAULT_TAMIL_VOICE='ta-IN-PallaviNeural';
-const DEFAULT_ENGLISH_VOICE='en-IN-NeerjaNeural';
 const SARVAM_ENDPOINT='https://api.sarvam.ai/text-to-speech/stream';
 const MAX_CHARS=6000;
 
@@ -72,19 +68,19 @@ async function handleTtsRequest(request,provider){
   }
 
   const tamil=isTamilText(text);
-  let order=provider==='sarvam'?['sarvam']:tamil?['sarvam']:['sarvam'];
-  if(!envString('SARVAM_API_KEY')) order=[];
-  const errors=[];
-  for(const name of order){
-    try{
-      const audio=await sarvamAudio({text,languageCode:body?.language_code,speaker:body?.speaker,pace:body?.pace??body?.rate,temperature:body?.temperature});
-      const headers=headersForCors(request);
-      headers.set('Content-Type','audio/mpeg');
-      headers.set('Content-Length',String(audio.byteLength));
-      headers.set('Cache-Control','private, max-age=3600');
-      headers.set('X-TTS-Provider','sarvam');
-      return new Response(audio,{status:200,headers});
-    }catch(error){errors.push('sarvam: '+String(error?.message||'failed').slice(0,200));}
+  if(!envString('SARVAM_API_KEY')) {
+    return jsonResponse(request,503,{error:'Text-to-speech service unavailable',code:'SARVAM_TTS_NOT_CONFIGURED'});
+  }
+  try{
+    const audio=await sarvamAudio({text,languageCode:body?.language_code,speaker:body?.speaker,pace:body?.pace??body?.rate,temperature:body?.temperature});
+    const headers=headersForCors(request);
+    headers.set('Content-Type','audio/mpeg');
+    headers.set('Content-Length',String(audio.byteLength));
+    headers.set('Cache-Control','private, max-age=3600');
+    headers.set('X-TTS-Provider','sarvam');
+    return new Response(audio,{status:200,headers});
+  }catch(error){
+    return jsonResponse(request,503,{error:'Text-to-speech service unavailable',detail:String(error?.message||'Sarvam TTS failed').slice(0,300)});
   }
   return jsonResponse(request,503,{error:'Text-to-speech service unavailable',detail:errors.join(' | ').slice(0,600)});
 }
