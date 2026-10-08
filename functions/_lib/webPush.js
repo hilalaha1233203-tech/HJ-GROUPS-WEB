@@ -126,27 +126,6 @@ export async function handleWebPushUnsubscribe(request){
   return jsonResponse(request,200,{ok:true});
 }
 
-async function subscriptionsForTarget(targetType, storyId) {
-  if (targetType === 'story_library') {
-    const rows = await supabaseJson('/rest/v1/user_story_library', { params: { select:'user_id', story_id:'eq.'+storyId, limit:MAX_TARGETS } });
-    return [...new Set((rows||[]).map((row)=>row.user_id))];
-  }
-  if (targetType === 'story_followers') {
-    const rows = await supabaseJson('/rest/v1/user_activity', { params: { select:'user_id', story_id:'eq.'+storyId, event_type:'in.(story_view,episode_play)', user_id:'not.is.null', limit:MAX_TARGETS } });
-    return [...new Set((rows||[]).map((row)=>row.user_id))];
-  }
-  if (targetType === 'inactive_30d') {
-    const subscriptions = await supabaseJson('/rest/v1/web_push_subscriptions',{params:{select:'user_id',active:'eq.true',limit:MAX_TARGETS}});
-    const subscribed=[...new Set((subscriptions||[]).map((row)=>String(row.user_id)))];
-    const cutoff=new Date(Date.now()-30*86400000).toISOString();
-    const recent=await supabaseJson('/rest/v1/user_activity',{params:{select:'user_id',created_at:'gte.'+cutoff,user_id:'not.is.null',limit:10000}});
-    const active=new Set((recent||[]).map((row)=>String(row.user_id)));
-    return subscribed.filter((id)=>!active.has(id));
-  }
-  const rows=await supabaseJson('/rest/v1/web_push_subscriptions',{params:{select:'user_id',active:'eq.true',limit:MAX_TARGETS}});
-  return [...new Set((rows||[]).map((row)=>row.user_id))];
-}
-
 export async function handleAdminNotificationSend(request){
   if(new URL(request.url).pathname!=='/api/admin/notifications/send') return null;
   const user=await authenticateUser(request);
