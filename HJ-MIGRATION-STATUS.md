@@ -430,13 +430,16 @@ A preview for the same migration code path was successfully deployed:
 - deployment id: **8d69fba2-b0cb-4d29-9983-1ac16fca1c78**
 - preview URL: https://8d69fba2.hj-groups-web.pages.dev
 
-### NOT VERIFIED — latest final-head Preview deployment
+### VERIFIED — latest final-head Preview deployment
 
 Latest final PR head `a291d482dea21d4b890019f15422fccd2faf4f9e` deployment:
 - deployment id: **f580bb08-cbc1-43e7-a358-6fcce015ea88**
 - preview URL: https://f580bb08.hj-groups-web.pages.dev
-- status at last control-plane check: **BUILD ACTIVE**
-- no final user-facing HTTP/browser verification was possible from this environment because preview-host requests are blocked by the tool security layer.
+- preview alias: https://phase2-containerless-pages-m.hj-groups-web.pages.dev
+- build stage: SUCCESS
+- deploy stage: SUCCESS
+- Functions enabled.
+- no production promotion was performed.
 - build stage: SUCCESS
 - deploy stage: SUCCESS
 - Functions: enabled
@@ -727,7 +730,7 @@ VERIFIED:
 
 NOT VERIFIED:
 - browser/live HTTP smoke tests against final PR-head HJ Web Preview;
-- final-head Preview deployment completion confirmation from the control plane;
+
 
 - final HJ Web production containerless cutover / removal of live `HJ_WEB_BACKEND_URL`;
 - live authenticated media stream/seek against the production Worker;
