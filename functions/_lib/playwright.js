@@ -28,7 +28,7 @@ function rateLimit(userId) {
 
 function getWorkflowPayload(body) {
   const mode = ['smoke','security','full'].includes(body?.mode) ? body.mode : 'smoke';
-  const ref = String(body?.ref || 'main').trim().replace(/[^A-Za-z0-9._\/-]/g,'').slice(0,120) || 'main';
+  const ref = String(body?.ref || 'main').trim().replace(/[^A-Za-z0-9._/-]/g,'').slice(0,120) || 'main';
   return { ref, mode };
 }
 
@@ -46,7 +46,7 @@ export async function handleAdminPlaywright(request) {
   const workflow=String(envString('HJ_PLAYWRIGHT_WORKFLOW') || 'playwright.yml').trim();
   if(!token) return jsonResponse(request,503,{error:'Playwright GitHub Actions integration is not configured.'});
 
-  let body={}; try{body=await readJsonBody(request);}catch{return jsonResponse(request,400,{error:'Invalid JSON request'});}
+  let body; try{body=await readJsonBody(request);}catch{return jsonResponse(request,400,{error:'Invalid JSON request'});}
   const {ref,mode}=getWorkflowPayload(body);
 
   const response=await fetch(
