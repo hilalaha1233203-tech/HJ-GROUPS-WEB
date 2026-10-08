@@ -1,4 +1,4 @@
-import { headersForCors, jsonResponse, setRuntimeEnv } from './_lib/runtime.js';
+import { jsonResponse, setRuntimeEnv } from './_lib/runtime.js';
 import { handlePublicSettings } from './_lib/publicSettings.js';
 import { handleAnalyticsLinkSession, handleAdminAnalytics } from './_lib/analytics.js';
 import { handleVipAdmin, handleVipSelf } from './_lib/vip.js';
@@ -58,7 +58,7 @@ export async function onRequest(context) {
   setRuntimeEnv(context.env || {});
   try {
     return addSecurityHeaders(await route(context.request));
-  } catch(error) {
+  } catch {
     return addSecurityHeaders(jsonResponse(context.request,500,{error:'Internal server error'}));
   }
 }
