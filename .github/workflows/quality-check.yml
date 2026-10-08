@@ -108,7 +108,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -RInE 'HJ_WEB_BACKEND_URL|@cloudflare/containers|node:|process\.env\.|Buffer\.(from|alloc|concat)|child_process|from ["']node:' functions src
+          ! grep -RInE "HJ_WEB_BACKEND_URL|@cloudflare/containers|node:|process\\.env\\.|Buffer\\.(from|alloc|concat)|child_process" functions src
           test ! -e Dockerfile
           test ! -e cloudflare-backend/package.json
           test ! -e cloudflare-backend/wrangler.jsonc
