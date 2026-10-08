@@ -2,7 +2,6 @@ import {
   authenticateUser,
   envString,
   hmacHex,
-  isAdminUser,
   isAdsEnabled,
   jsonResponse,
   randomToken,
@@ -12,7 +11,6 @@ import {
   validPositiveId,
 } from './runtime.js';
 import { resolveAdUnlockPlan, validateAdUnlockRules } from '../../src/lib/adUnlockRules.js';
-import { hasActiveVipGrant } from './vip.js';
 
 const INTENT_TTL_MS = 10 * 60_000;
 
