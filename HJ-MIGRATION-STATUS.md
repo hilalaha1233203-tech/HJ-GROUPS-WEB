@@ -1,7 +1,7 @@
 # HJ GROUPS — Migration Status / Review Patch
 
 Date: 2026-10-08
-Code verification checkpoint: `d883c600ee4aa1894a664a4497f5c7364319d97f`
+Code verification checkpoint: `a291d482dea21d4b890019f15422fccd2faf4f9e`
 Status-document commit: this file's current commit
 
 ## Scope of this review
@@ -334,7 +334,7 @@ GitHub repository:
 - open PR created: **#9**
 - PR URL: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/9
 - PR base: `main`
-- current PR head before this final cleanup: `d883c600ee4aa1894a664a4497f5c7364319d97f`
+- current PR head: `a291d482dea21d4b890019f15422fccd2faf4f9e`
 - PR state: OPEN, not merged, mergeable: true.
 
 Live Cloudflare Pages evidence before cutover:
@@ -422,16 +422,21 @@ Verified in that run:
 - appearance/security-monitoring sanity: PASS;
 - final source sanity: PASS.
 
-An additional final lint-only Web Push cleanup removes an unused constant. The final branch commit after this status update requires one final GitHub CI run; until that run completes, final-head lint/unit-test verification remains NOT VERIFIED.
+Final PR-head GitHub Actions Quality Check: **run 1048 / run id 37795624866 — SUCCESS**. Lint, build, existing tests, Pages route checks, container guard, local Pages smoke, secret scan, and source sanity all passed on `a291d482...`.
 
-### VERIFIED — Cloudflare Pages Preview deployment
+### VERIFIED — Cloudflare Pages Preview deployment history
 
-PR head `21a3b6ebfcaf87f387bd36ae28d1569038612865` was deployed as a Cloudflare Pages **preview**:
+A preview for the same migration code path was successfully deployed:
 - deployment id: **8d69fba2-b0cb-4d29-9983-1ac16fca1c78**
-- short id: **8d69fba2**
 - preview URL: https://8d69fba2.hj-groups-web.pages.dev
-- preview alias: https://phase2-containerless-pages-m.hj-groups-web.pages.dev
-- final lint-only cleanup after this preview requires a new preview deployment after CI acceptance.
+
+### NOT VERIFIED — latest final-head Preview deployment
+
+Latest final PR head `a291d482dea21d4b890019f15422fccd2faf4f9e` deployment:
+- deployment id: **f580bb08-cbc1-43e7-a358-6fcce015ea88**
+- preview URL: https://f580bb08.hj-groups-web.pages.dev
+- status at last control-plane check: **BUILD ACTIVE**
+- no final user-facing HTTP/browser verification was possible from this environment because preview-host requests are blocked by the tool security layer.
 - build stage: SUCCESS
 - deploy stage: SUCCESS
 - Functions: enabled
@@ -721,8 +726,9 @@ VERIFIED:
 - removal of the old production `MEDIA_LISTENER` binding.
 
 NOT VERIFIED:
-- final PR-head GitHub lint/unit-test run after the final Web Push cleanup;
-- browser/live HTTP smoke tests against HJ Web Preview;
+- browser/live HTTP smoke tests against final PR-head HJ Web Preview;
+- final-head Preview deployment completion confirmation from the control plane;
+
 - final HJ Web production containerless cutover / removal of live `HJ_WEB_BACKEND_URL`;
 - live authenticated media stream/seek against the production Worker;
 - real >20 MB chunked playback until Phase 4 creates/populates `episode_chunks`;
