@@ -281,8 +281,8 @@ export function isAdsEnabled(content) {
 }
 
 export async function getContentRecord(contentType, contentId) {
-  let table = '';
-  let select = '';
+  let table;
+  let select;
   if (contentType === 'audio') {
     table = 'episodes';
     select = 'id,episode_number,number,story_id,access_type,available,type,title,telegram_message_id';
