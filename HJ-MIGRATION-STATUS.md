@@ -1,767 +1,402 @@
-# HJ GROUPS — Migration Status / Read-Only Audit
+# HJ GROUPS — Migration Status / Review Patch
 
-Audit date: 2026-10-08
-Audit scope: HJ-GROUPS-WEB, HJ-Telegram-Streaming, HJ-GROUPS-OF-FILES
-Audit mode: READ-ONLY
-Production behavior changed in this phase: NO
-Migration performed in this phase: NO
-950-episode bulk migration/compression performed: NO
-Telegram originals deleted: NO
-Telegram session regenerated: NO
-Episode Analytics changed: NO
+Date: 2026-10-08
+Current HJ-GROUPS-WEB main HEAD at this checkpoint: `c14bca0d1f3a8517a3132cfec7975235c6e93715`
 
-## Audit snapshot
+## Scope of this review
 
-Repository main branches audited:
-- HJ-GROUPS-WEB: 95e0d181e2c34ef3a17b6e31d168af101a52d275
-- HJ-Telegram-Streaming: b8dc7076bfa88be9802b3900aff10e37cf5e218b
-- HJ-GROUPS-OF-FILES: 7b4dfe2a20cbaf06431fca8409fd817df179c509
+Phase 1 (audit) and Phase 2 (HJ Web container removal) were treated as already executed and were **not redone**.
 
-Important deployment drift was found between GitHub source and the Cloudflare control-plane state. The deployed streaming Worker contains R2 + Durable Object + listener code that is not present in the HJ-Telegram-Streaming main branch. The deployed HJ Groups web backend Worker is currently a bootstrap response and is not the server.mjs implementation from GitHub.
+This review only:
+- re-checked the current repository/control-plane state;
+- corrected documentation where previous status was stale or contradictory;
+- added the specifically requested public-catalog cache path;
+- added a Pages Functions routes manifest;
+- added a CI secret-access scan;
+- did not modify the streaming repository;
+- did not modify Episode Analytics;
+- did not migrate, compress, upload, delete, or remap the 950-episode catalog.
 
-## 1. Current architecture
+Production content changes in this review: NO.
 
-### HJ GROUPS Web
+Telegram originals deleted: NO.
 
-Current repository architecture:
-Browser -> Cloudflare Pages static site -> Pages Functions -> HJ_WEB_BACKEND_URL -> Node server runtime (server.mjs).
+Telegram session regenerated: NO.
 
-The repository contains:
-- root Dockerfile based on node:22-slim
-- server.mjs listening on port 4173
-- server-side modules for access, shortener, ads, payments, VIP, Web Push, TTS, analytics and admin APIs
-- cloudflare-backend configured with @cloudflare/containers
-- Functions proxy that forwards /api, /unlock and /health to HJ_WEB_BACKEND_URL
+950-row bulk migration: NO.
 
-The Cloudflare Pages project is connected to GitHub HJ-GROUPS-WEB, production branch main, and currently uses:
-- HJ_WEB_BACKEND_URL
-- VITE_STREAMING_SERVER_URL
-- VITE_SUPABASE_URL
+## 1. Telegram Bot API size limits and large-media policy
 
-The latest Pages production deployment is commit 95e0d181e2c34ef3a17b6e31d168af101a52d275.
+### VERIFIED — official documentation checked 2026-10-08
 
-### HJ Telegram Streaming
+Official references:
+- https://core.telegram.org/bots/faq
+- https://core.telegram.org/bots/api
+- https://core.telegram.org/bots/features
 
-Repository main contains:
-- Cloudflare Worker source under cloudflare-worker/
-- R2 binding declaration for MEDIA_CACHE
-- Durable Object declaration for MEDIA_LISTENER
-- Bot API streaming implementation
-- legacy Node/Express + teleproto server.js
-- Render deployment config render.yaml
+Verified limits:
+- Cloud Bot API `getFile` download limit: 20 MB.
+- Bot API `sendDocument` upload/send limit: currently 50 MB.
+- The 50 MB bot upload limit does NOT increase the 20 MB `getFile` download limit.
 
-Actual deployed Cloudflare Worker currently contains additional R2 cache and MediaListener logic that is absent from the repository main branch.
+Therefore a Telegram source above 20 MB cannot be downloaded through the official cloud Bot API `getFile` path.
 
-### HJ GROUPS OF FILES
+Officially documented options for large files:
+1. Compress/create a smaller derivative below the Bot API download limit.
+2. Run Telegram's local Bot API server; official documentation currently lists local download up to 2000 MB and upload up to 2000 MB.
+3. Use MTProto APIs; official `upload.getFile` returns a whole file or file parts and is usable by users and bots.
 
-Current architecture includes:
-- Telegram bot application
-- Pyrogram/TgCrypto
-- Supabase metadata/indexing
-- GitHub Actions maintenance
-- compression_runner.py using FFmpeg/Ghostscript
-- telegram_media_index
-- Dockerfile and Procfile for the legacy bot runtime
+Architecture decision:
+- A self-hosted/local Bot API server is NOT part of the requested production architecture because it introduces a separately hosted server/runtime. It is therefore NOT an approved always-on production path.
+- MTProto is also NOT approved as the hidden production website streaming runtime because the selected target is Cloudflare Worker + official Bot API. MTProto may be considered only as explicitly controlled maintenance tooling.
+- Chosen production-compatible handling: if acceptable, create a compressed derivative under the Bot API download limit; otherwise pre-split the source into independently verified chunks of <=19 MB and stream/reassemble those chunks.
+- Original Telegram media remains untouched.
 
-The website streaming Worker currently depends directly on telegram_media_index from this repository's Supabase data. Therefore HJ GROUPS OF FILES is currently a request-time data dependency of the website streaming path, which violates the final target architecture.
+### VERIFIED — exact chosen constraint
 
-## 2. Target architecture
+The <=19 MB chunk target is an HJ design decision, not a Telegram official limit. It deliberately leaves headroom below the official 20 MB download ceiling.
 
-HJ GROUPS Web
--> Cloudflare Pages
--> Cloudflare Worker / Pages Functions
--> Supabase + Cloudflare R2 + Telegram Bot API
+## 2. Obtaining file_id for existing old Telegram media
 
-Streaming:
-Browser
--> Cloudflare Streaming Worker
--> access control
--> R2 cache lookup
-   -> HIT: stream from R2
-   -> MISS: resolve verified Telegram source -> retrieve from Telegram Bot API -> write temporary R2 cache -> stream
+### VERIFIED — official method and constraints
 
-Listener lifecycle:
-player starts
--> listener/start
--> heartbeat approximately every 20 seconds
--> player pause/end/unmount
--> listener/end
--> lease expiry protection
--> cleanup evaluation
--> delete R2 object only when no listener is active
+The Bot API does not provide a general arbitrary `getMessage` method that simply retrieves an old channel message by `message_id`.
 
-HJ GROUPS OF FILES:
-- not a website runtime dependency
-- compression remains independently usable
-- maintenance should be private/manual through GitHub Actions
-- no always-on Node runtime is required for website or streaming
-- no Docker/container deployment is required for the target
+The documented `forwardMessage` method accepts `from_chat_id` + `message_id` and returns the sent `Message` on success. That returned Message contains the media object and therefore its bot-visible `file_id`.
 
-## 3. Completed components
+Safe verification method for an existing source message:
+- The production bot must have access to the source channel. Telegram's Bot FAQ states that bots receive all messages from channels where they are a member.
+- For a message that is forwardable, the same production bot token can `forwardMessage` the exact source message into a private dump chat/channel that the bot can write to.
+- Read the returned/sent Message media and record the `file_id`, `file_unique_id`, size, MIME and message identity.
+- Use the SAME bot token for subsequent `getFile`/streaming.
 
-The following components are implemented somewhere in the current system, but several are not yet synchronized with repository source:
+Important:
+- Telegram documents that `file_id` is unique for each individual bot and cannot be transferred from one bot to another.
+- Therefore the file_ids used by the streaming Worker MUST belong to the production `TELEGRAM_BOT_TOKEN`, not a different maintenance bot token.
+- `forwardMessage` cannot forward protected-content messages. Such sources require a different explicitly-approved maintenance path.
 
-1. Cloudflare Pages project exists and is GitHub-connected.
-2. Cloudflare streaming Worker exists in production.
-3. Production streaming Worker has an R2 bucket binding named MEDIA_CACHE for hj-groups-media.
-4. Production streaming Worker has a Durable Object namespace named MediaListener.
-5. Production streaming Worker has /listener/start, /listener/heartbeat and /listener/end routes.
-6. Website App.jsx already contains listener lifecycle code and a 20-second heartbeat.
-7. Media access control exists for free, Premium, VIP and Ads policies.
-8. Secure media tickets exist with HMAC signing, expiry and user-agent binding.
-9. Range-request streaming exists.
-10. R2 cache write/read/delete logic exists in the deployed streaming Worker.
-11. HJ GROUPS OF FILES has independent GitHub Actions compression capability.
-12. Supabase schemas and migrations already contain the access-control, payment, shortener, ad-unlock, VIP, analytics and Telegram identity foundations.
+Official references:
+- https://core.telegram.org/bots/api
+- https://core.telegram.org/bots/faq
 
-Status qualification:
-- Implemented in production control-plane: yes for several streaming pieces.
-- Reconciled into GitHub source of truth: no.
-- Fully matching target architecture: no.
+Status: VERIFIED as the authoritative Bot API approach. Real message-level execution for a production episode: NOT VERIFIED and intentionally not run in this review.
 
-## 4. Pending components
+## 3. Database facts
 
-### Critical
+### VERIFIED — live Supabase queries
 
-1. Reconcile deployed streaming Worker source with HJ-Telegram-Streaming main.
-2. Remove the HJ Web container backend dependency.
-3. Move required HJ Web backend APIs from Node-only server.mjs execution into Workers/Pages Functions without changing business rules unnecessarily.
-4. Remove HJ GROUPS OF FILES request-time dependency from streaming.
-5. Create a safe, verified media mapping owned by the website/streaming architecture. Do not invent Telegram file_id values.
-6. Do not assume telegram_message_id can be converted to file_id by changing URLs.
-7. Implement the exact R2 cache-first order: check R2 before any Telegram Bot API getFile request.
-8. Implement the exact listener cleanup policy requested by the target. Current deployed code uses 45-second leases and a 15-minute grace window; it is not the exact requested 10-minute cleanup behavior.
-9. Ensure cache deletion checks the specific media's listeners and never deletes while any valid listener lease is active.
-10. Migrate all required secrets from legacy/backend storage to the final Cloudflare runtime locations.
-11. Preserve Episode Analytics and its database functions exactly unless a dependency is proven unrelated and tested.
-12. Replace legacy deployment references after cutover, not before.
+HJ Web Supabase:
+- `public.episodes` row count: 950
+- `public.episodes` has NO `file_id` column
+- `public.episodes` has `telegram_message_id`
 
-### Secondary
-
-- Decide the long-term status of the legacy teleproto server.
-- Remove stale Voroa/Vercel/Render references from production configuration and documentation after the cutover path is verified.
-- Move Web Push dispatch from a setInterval Node process to an event/scheduled Worker mechanism.
-- Audit the admin Playwright control path separately; it currently triggers GitHub Actions from the Node backend.
-- Decide the future of the old Supabase telegram-file proxy and Telegram webhook byte-storage path.
-
-## 5. Blocking issues
-
-### P0 — Source/deployment drift
-
-The Cloudflare-deployed hj-telegram-streaming Worker contains:
-- Durable Object MediaListener
-- R2 cache reads/writes/deletes
-- listener endpoints
-- cache lifecycle logic
-
-These are not present in HJ-Telegram-Streaming main. Production and GitHub source are therefore not the same implementation.
-
-The deployed hj-groups-web-backend Worker currently returns a fixed bootstrap response and is not the server.mjs implementation. Pages production still points HJ_WEB_BACKEND_URL to this Worker. Therefore the repository's Node backend behavior cannot be treated as the behavior deployed behind Pages.
-
-### P0 — HJ GROUPS OF FILES is a runtime data dependency
-
-The streaming Worker resolves Telegram file_id and media metadata from telegram_media_index. That table belongs to HJ GROUPS OF FILES and only contains a subset of media.
-
-This means:
-- an episode with no verified mapping cannot be streamed through the Bot API path;
-- changing Supabase URLs alone cannot solve this;
-- a 950-row mass mapping is unsafe and explicitly prohibited in this phase.
-
-### P0 — HJ Web container dependency
-
-The repository still declares @cloudflare/containers and configures a container image for HJWebBackend. The Pages Function forwards API traffic to that backend.
-
-This directly violates the final containerless target.
-
-### P1 — R2 cache order is not target-exact
-
-The deployed streaming Worker currently calls Telegram getFile before checking the R2 cache. Therefore an R2 HIT is not truly independent of Telegram metadata lookup.
-
-For the target:
-R2 lookup must happen first. Only a true MISS should require Telegram source resolution/retrieval.
-
-### P1 — Listener cleanup timing differs from the target
-
-The deployed MediaListener code uses:
-- 45-second listener leases
-- 15-minute cache grace
-- media-duration-based base expiry
-- Durable Object alarms
-
-The requested target specifies a 10-minute cleanup check after the last listener disappears. The implementation must be reconciled before being declared complete.
-
-### P1 — No safe file_id source for all episodes
-
-The HJ Web episodes schema relies on telegram_message_id. The production content setup does not add a file_id column to episodes.
-
-HJ GROUPS OF FILES telegram_media_index stores file_id, but only for indexed media.
-
-No file_id may be fabricated, guessed, copied from another message, or mass-assigned without message-level verification.
-
-### P1 — Telegram Bot API 20 MB download limit
-
-Telegram's official Bot API getFile supports files up to 20 MB for download. Telegram bots can currently send files up to 50 MB, but that does not increase the Bot API download limit.
+HJ GROUPS OF FILES Supabase:
+- `public.telegram_media_index` exists
+- current row count: 24
 
 Therefore:
-- an R2 MISS for a >20 MB Telegram source cannot be fulfilled through the official Bot API getFile path;
-- R2 does not bypass this source limitation;
-- the correct target behavior is to keep the original Telegram media and only stream an already-available <=20 MB Bot API-compatible derivative;
-- using a self-hosted/local Bot API to remove the 20 MB limit is outside the requested architecture and is not permitted in this migration.
+- `telegram_media_index` is only a small subset relative to the 950-episode HJ Web catalog.
+- `telegram_message_id` must NOT be treated as a `file_id`.
+- Do NOT point `MEDIA_INDEX_SUPABASE_URL` at the HJ Web database blindly.
+- Any future streaming mapping must come from an authoritative Telegram result and be recorded explicitly.
 
-Telegram's MTProto upload.getFile method is separate from the Bot API and can retrieve file parts, but using an MTProto user-session streaming runtime would violate the specified Bot API streaming target. It may remain an independent maintenance mechanism only where explicitly allowed and must not be silently introduced as a production streaming bypass.
+No rows were bulk migrated in this review.
 
-### P1 — Existing compression flow replaces media in place
+## 4. Listener/Durable Object request-cost analysis
 
-compression_runner.py downloads media and uses edit_message_media to replace the media attached to the original Telegram message.
+### VERIFIED — calculation based on current Cloudflare Free limits
 
-This is incompatible with the strict migration rule "do not delete original Telegram media" if the goal is to preserve the original attachment independently.
+Legacy listener model:
+- `listener/start`: 1 Worker request
+- heartbeat every ~20 seconds: about 3 requests/minute
+- `listener/end`: 1 Worker request
 
-Do not run this flow against the 950 episodes in this phase. A future maintenance design should preserve the original message/media and create a separately verified compressed derivative, then record the verified mapping.
+Approximate request formula:
+`2 + session_seconds / 20`
 
-### P1 — Web Push is tied to an always-running Node timer
+Examples:
+- 30-minute listening session: ~90 heartbeats + 2 = ~92 Worker requests
+- 60-minute session: ~180 heartbeats + 2 = ~182 Worker requests
+- 45-minute session: ~135 heartbeats + 2 = ~137 Worker requests
 
-server/webPush.mjs starts a 15-second setInterval dispatcher.
+Cloudflare currently documents:
+- Workers Free: 100,000 requests/day, reset at midnight UTC.
+- Pages Function requests count toward the Workers Free request quota.
+- Static asset requests that do not invoke Functions are free on Pages.
 
-This is not compatible with the final no-always-on-Node architecture. The notification data model can remain; the dispatcher must move to a scheduled/event-driven runtime.
+Using ONLY the listener requests and assuming one listening session/user/day:
+- ~100,000 / 92 = ~1,086 theoretical 30-minute sessions/day
+- ~100,000 / 182 = ~549 theoretical 60-minute sessions/day
+- A practical one-session/day envelope is therefore roughly 500–1,000 active listeners/day BEFORE other dynamic Worker/Pages Function requests, auth calls, APIs, admin calls, retries, etc.
 
-### P2 — stale deployment references
+This is a budget estimate, not a capacity guarantee.
 
-HJ-GROUPS-WEB contains stale references to:
-- Voroa
-- Vercel
-- legacy Render streaming hosts
+### VERIFIED — architecture decision
 
-HJ-Telegram-Streaming contains legacy Render deployment configuration.
+The legacy Durable Object listener lease/heartbeat approach is NOT the target architecture.
 
-HJ-GROUPS-OF-FILES contains Render-related documentation and a render package dependency.
+Decision:
+- REPLACE listener leases/heartbeat coordination with temporary R2 hot-cache objects and an R2 lifecycle expiration policy.
+- No listener/heartbeat Durable Object system is part of the final target.
 
-These are drift/hygiene issues. They should not be blindly removed until the final deployment path is verified.
+This replacement itself belongs to the later streaming phases and is NOT being implemented in this review.
 
-## 6. Database/schema dependencies
+Official Cloudflare references:
+- https://developers.cloudflare.com/workers/platform/limits/
+- https://developers.cloudflare.com/pages/functions/pricing/
 
-### HJ GROUPS Web schema
-
-Critical content identity:
-- stories
-- episodes
-- books
-- video_stories
-- video_episodes
-- telegram_message_id fields
-- file_url/file_path legacy fields
+## 5. Voroa deployment constraint
 
-Access/control:
-- content_access_settings
-- purchases
-- user_vip_grants
-- ad_unlocks
-- rewarded_ad_unlock_intents
-- shortener_links
-- shortener_unlocks
+### NOT VERIFIED — operational state supplied by user
 
-Payments:
-- payment_orders
-
-Analytics:
-- user_activity and related analytics tables/functions
-- get_hj_admin_analytics_v2
-- all Episode Analytics-specific migrations/functions must remain unchanged during the migration
+User-reported current situation:
+- website `hj-groups-website` runs on Voroa;
+- HJ Files bot `hj-groups-of-files` runs on Voroa;
+- this month's Voroa build-minutes and bandwidth allowances are exhausted.
 
-Telegram ingestion:
-- telegram_ingest_log
-- telegram-webhook Supabase Edge Function
+No Voroa dashboard/connector evidence is available in this review, so these operational quota facts are NOT independently verified.
 
-Other backend data:
-- app_settings
-- web_push_subscriptions
-- web_push_dispatch_state
-- web_push_episode_dispatches
-
-### HJ GROUPS OF FILES schema
-
-Runtime-dependency table today:
-- telegram_media_index
-
-Fields include:
-- storage_chat_id
-- telegram_message_id
-- media_kind
-- file_id
-- file_unique_id
-- file_name
-- mime_type
-- file_size
-- duration
-- width
-- height
-- updated_at
-
-Maintenance queue:
-- compression_jobs
-
-Configuration:
-- bot_settings / storage channel configuration
-
-### Required future schema boundary
-
-Do not add file_id to episodes merely to make the migration easier.
-
-Preferred safe boundary:
-- keep HJ Web content tables authoritative for content identity and access;
-- create a dedicated streaming/media-source mapping owned by the final streaming architecture;
-- populate only verified mappings;
-- key mapping by media kind + Telegram message identity, with verified Telegram file_id and media metadata;
-- migrate mappings incrementally/on-demand or by explicitly selected verified messages;
-- do not mass-update 950 rows.
-
-A future schema migration is required, but no schema change was made in this audit phase.
-
-## 7. Exact files that must change
-
-The following are the primary future-change files. They are NOT being modified in this audit phase.
-
-### HJ-GROUPS-WEB
-
-- functions/[[path]].js
-- cloudflare-backend/wrangler.jsonc
-- cloudflare-backend/src/index.js
-- cloudflare-backend/package.json
-- .github/workflows/deploy-cloudflare-web-backend.yml
-- server.mjs
-- server/shortenerUnlock.mjs
-- server/rewardedAdUnlock.mjs
-- server/payment.mjs
-- server/vipAccess.mjs
-- server/webPush.mjs
-- server/analyticsSession.mjs
-- server/adminUserExport.mjs
-- server/playwrightControl.mjs
-- server/edgeTts.mjs
-- server/sarvamTts.mjs
-- src/lib/secureMedia.js
-- src/lib/streamingUrl.js
-- src/lib/telegramContent.js
-- supabase/functions/telegram-file/index.ts
-- supabase/functions/telegram-webhook/index.ts
-- a future Supabase migration for the new verified streaming-media mapping and any listener-related metadata that must live outside the DO
-
-Root Dockerfile may be retired/decommissioned after the containerless backend cutover is proven. It is not to be used for the target runtime.
-
-### HJ-Telegram-Streaming
-
-- cloudflare-worker/src/index.js
-- cloudflare-worker/src/pure.js
-- cloudflare-worker/wrangler.jsonc
-- .github/workflows/deploy-cloudflare-worker.yml
-- add/refactor the MediaListener implementation into repository source so deployed and GitHub source are identical
-- future source-map/mapping integration file(s) as required by the chosen verified mapping design
-
-### HJ-GROUPS-OF-FILES
-
-- .github/workflows/telegram-maintenance.yml
-- scripts/compression_runner.py
-- scripts/media_indexer.py
-- supabase_schema.sql only if the maintenance schema needs a controlled separation
-- related maintenance documentation
-
-The HJ GROUPS OF FILES bot itself is not required to become a website runtime dependency. Its compression/indexing capability should remain separately runnable through GitHub Actions.
-
-## 8. Exact files that must NOT change in this phase
-
-No production behavior files were changed in this phase.
-
-High-risk files that must remain untouched until the migration implementation phase:
-- HJ-GROUPS-WEB/src/App.jsx, except a future implementation phase may adjust listener plumbing without touching Episode Analytics logic
-- HJ-GROUPS-WEB analytics-related source and migrations
-- HJ-GROUPS-WEB server/analyticsSession.mjs
-- HJ-GROUPS-WEB analytics migrations and get_hj_admin_analytics_v2 definitions
-- HJ-Telegram-Streaming/server.js
-- HJ-Telegram-Streaming/scripts/generate-session.js
-- current TELEGRAM_SESSION / authorization state
-- Telegram storage-channel originals
-- HJ GROUPS OF FILES link-generation and unrelated bot handlers
-- existing production content rows
-- existing Telegram message IDs
-- existing file_id mappings
-- 950-episode bulk content
-
-Do not run bulk migration, bulk compression, message replacement, Telegram deletion, or session regeneration during the migration implementation without a separate verified plan.
-
-## 9. Deployment dependencies
-
-### Cloudflare Pages
-
-Current project:
-- hj-groups-web
-- GitHub source: HJ-GROUPS-WEB
-- production branch: main
-- Pages Functions enabled
-
-Current production environment variables include:
-- HJ_WEB_BACKEND_URL
-- VITE_STREAMING_SERVER_URL
-- VITE_SUPABASE_URL
-
-### Cloudflare streaming Worker
-
-Current production bindings:
-- MEDIA_CACHE -> R2 bucket hj-groups-media
-- MEDIA_LISTENER -> Durable Object MediaListener
-- MEDIA_TICKET_SECRET
-- SUPABASE_SERVICE_ROLE_KEY
-- MEDIA_INDEX_SUPABASE_SERVICE_ROLE_KEY
-- TELEGRAM_BOT_TOKEN
-
-Current deployed configuration also contains old-looking secret bindings:
-- TELEGRAM_API_ID
-- TELEGRAM_API_HASH
-- TELEGRAM_SESSION
-
-These should be treated as deployment drift/stale secret bindings until proven necessary. Do not regenerate the Telegram session as part of cleanup.
-
-### HJ Web backend Worker
-
-Current deployed script settings contain Supabase, shortener, GitHub Actions and Web Push bindings, but the deployed source is only a bootstrap response.
-
-Repository container configuration additionally expects:
-- Cashfree credentials
-- Sarvam credentials
-- HJ_PUBLIC_BASE_URL
-- other backend secrets
-
-This mismatch must be reconciled before production API migration.
-
-### GitHub Actions
-
-Relevant:
-- HJ Web quality-check workflow
-- HJ Web Cloudflare backend deployment workflow
-- HJ Telegram streaming Cloudflare Worker deployment workflow
-- HJ Files telegram-maintenance workflow
-- HJ Files maintenance-test workflow
-- Playwright workflow
-
-Node/Python usage inside GitHub Actions is acceptable as build/test/maintenance tooling. The final restriction is about production always-on runtimes, not ephemeral CI runners.
-
-## 10. Testing plan
-
-Testing must happen in stages and must not start with the 950-episode catalog.
-
-### Stage A — static architecture checks
-
-Verify:
-- no production @cloudflare/containers dependency
-- no backend proxy to an always-on Node runtime
-- no Render/Railway/Vercel/Voroa production runtime reference
-- no Docker runtime path in the target deployment
-- HJ Files is not queried by the streaming Worker at request time
-- Telegram session is not used by production streaming
-- no change to Episode Analytics
-
-### Stage B — media mapping
-
-Use a tiny controlled test set only:
-- one <=20 MB audio
-- one <=20 MB video
-- one document/book
-- one protected media item
-- one intentionally unmapped media item
-- one >20 MB source item
-
-For every mapped item verify Telegram message identity, media kind, file_id, file_unique_id, size and MIME metadata from an authoritative source.
-
-### Stage C — R2 streaming
-
-Test:
-1. first request = R2 MISS
-2. source resolution only on MISS
-3. Telegram retrieval
-4. R2 write
-5. response streaming
-6. second request = R2 HIT without Telegram getFile
-7. 206 range requests
-8. 416 invalid ranges
-9. HEAD
-10. failed Telegram source
-11. missing mapping
-12. R2 failure recovery
-
-### Stage D — access control
-
-Test:
-- free media
-- first-episode free preview rules
-- Premium
-- VIP
-- Ads
-- mixed access
-- missing authentication
-- invalid/expired authentication
-- valid entitlement
-- signed ticket expiry
-- ticket/user-agent binding
-
-### Stage E — listener lifecycle
-
-For one test media:
-- user A start
-- user B start
-- A heartbeat
-- A end
-- verify cache remains because B is active
-- B heartbeat
-- B end
-- wait through the configured cleanup window
-- verify deletion only after no active listener remains
-- start a new listener during cleanup and verify deletion is prevented
-- verify lease expiry acts as fail-safe
-
-The exact cleanup interval must match the agreed 10-minute target before production sign-off.
-
-### Stage F — website/admin regression
-
-Verify:
-- playback
-- story/episode selection
-- Admin create/manage flows
-- TTS
-- shortener
-- Ads unlock
-- Cashfree payment flow
-- VIP grants
-- Web Push
-- security page
-- Playwright control
-- analytics
-- Episode Analytics unchanged
-
-### Stage G — maintenance regression
-
-Use GitHub Actions on a controlled test media only.
-Verify:
-- compression succeeds
-- resulting media is <=20 MB when that is the selected target
-- caption/metadata preservation
-- original Telegram media is preserved according to the approved future process
-- verified file_id is recorded
-- no website runtime call is made to HJ GROUPS OF FILES
-
-## 11. Safe migration order
-
-1. Freeze this audit snapshot. No production behavior changes.
-2. Reconcile GitHub HJ-Telegram-Streaming source with the actual deployed Worker code, or explicitly make GitHub the authoritative source after reviewing every difference.
-3. Reconcile the deployed HJ web backend with the intended backend source before changing routing.
-4. Migrate Web API capabilities from Node server.mjs to Cloudflare Worker/Pages Functions in small functional slices.
-5. Keep business rules unchanged while changing the runtime boundary.
-6. Establish the dedicated verified streaming-media mapping schema.
-7. Populate only selected/test mappings first. Never fabricate file_id.
-8. Modify streaming Worker to use the new mapping, not HJ Files at request time.
-9. Make R2 lookup the first media-data operation on every request.
-10. Add/fix exact listener lifecycle and 10-minute cleanup behavior.
-11. Migrate required secrets to the final runtime.
-12. Test all Stage A-G cases with a tiny controlled set.
-13. Cut over Pages API routing.
-14. Observe production with a limited media set.
-15. Only after stable operation, deprecate legacy container/Node/Render/Voroa/Vercel runtime paths.
-16. Keep original Telegram media intact throughout.
-17. Expand mappings incrementally only after verified success. No forced 950-row migration.
-
-## 12. Known hard limitations
-
-1. Official Telegram Bot API getFile download limit is 20 MB. The streaming Worker cannot legally/officially stream a >20 MB source through the Bot API path.
-2. Telegram bots can currently send files up to 50 MB, but that is an upload/send limit and does not remove the 20 MB getFile download limit.
-3. An R2 cache hit can serve previously cached data without Telegram retrieval only after the object already exists in R2. R2 cannot create a missing object from a >20 MB source through Bot API getFile.
-4. No local Bot API server or other bypass is part of this migration.
-5. MTProto is technically a different transfer mechanism and must not be introduced into the production Bot API streaming Worker as a hidden workaround.
-6. telegram_message_id is not equivalent to Telegram Bot API file_id.
-7. file_id must be sourced from an authoritative Telegram result. It must never be guessed.
-8. HJ GROUPS OF FILES telegram_media_index is currently incomplete for the website catalog.
-9. Current compression_runner.py replaces media in place; therefore it must not be used for the prohibited 950-item migration or any future flow that must preserve originals independently.
-10. Current deployed listener behavior is not yet an exact implementation of the requested 10-minute cleanup policy.
-11. Production control-plane state and GitHub source are currently divergent.
-
-Official Telegram references checked during this audit:
-- core.telegram.org/bots/faq
-- core.telegram.org/bots/api
-- core.telegram.org/method/upload.getFile
-- core.telegram.org/api/files
-
-## 13. Recommended next phase
-
-Recommended next phase: "SOURCE-OF-TRUTH RECONCILIATION + CONTAINERLESS WEB BACKEND PREPARATION"
-
-First fix the two most dangerous forms of drift without changing content:
-A. reconcile the deployed streaming Worker (R2 + MediaListener) into HJ-Telegram-Streaming source;
-B. reconcile the HJ Web backend deployment so its actual Worker source matches the intended backend implementation before any runtime migration.
-
-Then perform a small-scope architecture migration:
-- define the verified streaming-media mapping schema;
-- migrate only a few known message IDs;
-- make R2 the true first lookup;
-- move the required API endpoints incrementally to Pages/Workers;
-- preserve all existing access rules and Episode Analytics;
-- keep HJ GROUPS OF FILES out of the request path;
-- keep compression manual/independent;
-- do not touch the 950-episode catalog yet.
-
-Production sign-off criteria:
-- GitHub source == deployed source for each production Worker
-- no container/always-on Node dependency
-- no HJ GROUPS OF FILES request-time dependency
-- verified media mapping coverage for the selected production set
-- R2-first behavior confirmed
-- listener cleanup confirmed
-- >20 MB source handling explicitly returns the supported failure state or uses an already-created <=20 MB derivative
-- Episode Analytics regression-free
-- Telegram originals preserved
-
-Audit conclusion:
-The final target architecture is technically achievable without bulk-migrating or bulk-compressing the 950 episodes, but it is NOT production-ready yet. The primary blockers are deployment/source drift, the HJ Web container backend, incomplete media mappings, current HJ Files runtime dependency, non-target R2 lookup order, and the need to reconcile the listener cleanup semantics.
-
-
----
-
-# Phase Addendum — 2026-10-08 — R2-first / No-DO correction
-
-This addendum supersedes any earlier audit text that describes a Durable Object listener/heartbeat design as the final target.
-
-## Agreed architecture for this phase
-
-- Website target remains Cloudflare Pages + Pages Functions/Workers + Supabase + R2 + official Telegram Bot API.
-- No Durable Object listener/heartbeat system is part of the final design.
-- R2 is a temporary hot cache; cleanup is controlled by an R2 lifecycle rule.
-- HJ GROUPS OF FILES is an independent maintenance utility and must not be queried by the website/streaming Worker at request time.
-- Media mapping is lazy and on-demand; no bulk mapping was performed.
-- Heavy compression/splitting remains manual GitHub Actions work; no 950-episode bulk operation was performed.
-- Telegram originals were not deleted and the Telegram session was not regenerated.
-- Episode Analytics was not modified.
-
-## What was actually changed/verified in this phase
-
-### HJ-Telegram-Streaming
-
-A new review branch was created from `main`:
-
-`codex/r2-first-lifecycle-no-do`
-
-A previous draft PR that implemented the now-rejected Durable Object/listener design was closed without merging:
-
-`PR #7 — closed, not merged`
-
-A new draft review PR contains the corrected implementation:
-
-`PR #8 — Migration phase: R2-first hot cache without Durable Objects`
-
-Verified source changes on the review branch:
-- Durable Object/listener/heartbeat code removed from the target Worker source.
-- Durable Object binding and migration removed from `wrangler.jsonc`.
-- R2 is checked before Telegram Bot API `getFile`.
-- On R2 MISS only, the Worker resolves the verified Telegram source.
-- Request-time media mapping is switched from the HJ GROUPS OF FILES `telegram_media_index` table to HJ Web Supabase `public.streaming_media_sources`.
-- Worker package validation files were added.
-- R2 lifecycle configuration is versioned in `cloudflare-worker/r2-lifecycle.json`.
-- The deployment workflow applies that lifecycle configuration after a Worker deployment when the Cloudflare token is configured.
-
-### HJ Web Supabase mapping table
-
-Created:
-
-`public.streaming_media_sources`
-
-Security/verification:
-- RLS enabled.
-- Service-role-only policy created.
-- Live SQL verification returned `row_count = 0`.
-
-This is intentional. No 950-row mapping or bulk data migration has been performed.
-
-### Cloudflare R2
-
-Live bucket checked:
-
-`hj-groups-media`
-
-Verified lifecycle configuration:
-- Existing multipart-abort rule retained: 7 days.
-- New `Expire HJ Hot Media` rule:
-  - prefix: `media/`
-  - age threshold: 600 seconds (10 minutes)
-
-Important limitation:
-Cloudflare documents lifecycle deletion as asynchronous; objects are typically removed within 24 hours after their expiration becomes due. Therefore 600 seconds is the configured eligibility/age threshold, NOT a guaranteed exact deletion time.
-
-### Telegram official limit
-
-Official Telegram Bot API documentation currently states that `getFile` downloads work for files up to 20 MB. Bots can send files up to 50 MB, but that is a separate upload/send limit. The migration will not bypass the 20 MB download limit.
-
-Agreed handling for larger content:
-- create separately verified <=19 MB derivatives/chunks using GitHub Actions maintenance;
-- upload those derivatives/chunks to Telegram;
-- keep original Telegram media untouched;
-- reassemble verified parts in the streaming Worker as a future implementation phase.
-
-## NOT VERIFIED / still pending
-
-- The corrected Worker has NOT been promoted to production from PR #8.
-- Real production media regression matrix (R2 HIT/MISS, Message 7, Range, seek, protected access, failure paths) is still NOT VERIFIED.
-- GitHub Actions CI result for the new PR is not yet available through the current connector.
-- The new mapping table is empty; no selected production media has been mapped yet.
-- HJ GROUPS OF FILES request-time dependency is removed in the corrected Worker branch, but website/admin flows that still depend on its old scanning/indexing behavior require a separate regression pass.
-- Containerless HJ Web backend migration is still pending.
-- Web API runtime migration from `server.mjs` to Pages/Workers is still pending.
-- Web Push scheduled/event-driven migration is still pending.
-- Episode Analytics remains unchanged and must be regression-tested after the web runtime migration.
-
-## Phase qualification
-
-Status: PARTIALLY COMPLETED — source correction + mapping boundary + R2 lifecycle configuration are implemented/verified; production cutover is intentionally not completed.
-
-No production content migration was performed.
-
-
-## Phase 2026-10-08 final checkpoint
-
-Additional verified changes since the previous addendum:
-- HJ Web Supabase `public.streaming_media_sources` schema now models original content identity separately from verified Telegram source/chunk identity and includes assembled-file size.
-- The live table remains at 0 rows; no catalog rows were migrated.
-- A repository migration file was added at `supabase/migrations/20261008110000_streaming_media_sources.sql`.
-- Security advisor check after the mapping-table policy shows no remaining RLS-without-policy finding for this table. The only current security warning returned was the pre-existing leaked-password-protection warning.
-- HJ GROUPS OF FILES maintenance is now manual-trigger-only for the existing maintenance workflow; its automatic 5-minute trigger and automatic history indexing step were removed.
-- A manual single-message lazy mapper was added to HJ GROUPS OF FILES. It writes only an individually verified <=20 MB source mapping to HJ Web Supabase.
-
-Production state:
-- The live Cloudflare Worker still contains the older Durable Object/listener implementation and still reads the older deployed source; the corrected PR #8 branch has not been deployed.
-- The live R2 bucket now has the agreed `media/` 600-second lifecycle eligibility rule, but Cloudflare lifecycle deletion is asynchronous and not an exact 10-minute deletion event.
-- The corrected Worker branch removes the Durable Object target and the HJ Files request-time mapping dependency.
+Deployment constraint recorded for this migration:
+- Do NOT perform Voroa deploys until the monthly reset.
+- Cloudflare is the intended replacement runtime.
+
+## 6. HJ Web Phase-2 result re-verification
+
+### NOT VERIFIED — current main contradicts the expected containerless state
+
+This is NOT a re-execution of Phase 2; it is a current-state drift check.
+
+Live Cloudflare control-plane:
+- Pages project: `hj-groups-web`
+- production branch: `main`
+- build command: `npm run build`
+- destination: `dist`
+- Functions enabled: yes
+- current latest production deployment commit: `95e0d181e2c34ef3a17b6e31d168af101a52d275`
+- current Pages production env still contains `HJ_WEB_BACKEND_URL`
+- latest production deployment status observed: success
+
+Current repository main still contains:
+- `cloudflare-backend/src/index.js` importing `@cloudflare/containers`
+- `cloudflare-backend/package.json` depending on `@cloudflare/containers`
+- `cloudflare-backend/wrangler.jsonc` declaring a container image and HJWebBackend binding
+- root `Dockerfile`
+- `functions/[[path]].js` proxying API traffic to `HJ_WEB_BACKEND_URL`
+- `server.mjs` using Node HTTP/fs/path APIs
+
+Therefore the previously claimed Phase-2 container-removal state cannot be marked VERIFIED from the current main/control-plane state.
+
+No container-removal work was redone here.
+
+## 7. Actual HJ Web build / lint / test verification
+
+### VERIFIED — GitHub Actions run
+
+The completed `verify` run on commit `1cfa691d0c7206c36bb0179aa240607c9452577e` completed successfully for these checks:
+- dependency audit: no high/critical production dependency vulnerabilities
+- `npm run lint`: 0 errors, 2 warnings
+- `npm run build`: PASS; Vite build completed successfully
+- existing Node unit tests: 132 tests, 132 passed, 0 failed
+- production server startup smoke check: PASS
+- shortener/server syntax checks: PASS
+- migration filename checks: PASS
+- Auth/settings/source sanity: PASS
+- appearance/security-monitoring sanity: PASS
+- final source sanity: PASS
+- frontend build secret-access scan: PASS
+
+The 2 lint warnings are existing React Hook exhaustive-deps warnings in `src/App.jsx`.
+
+Typecheck:
+- NOT VERIFIED / NOT APPLICABLE — `package.json` has no `typecheck` script and the project does not declare a TypeScript typecheck command.
+
+Latest commit `c14bca0d1f3a8517a3132cfec7975235c6e93715` also adds an explicit Pages Function syntax/routes-manifest CI check, but its latest CI run was still queued at this checkpoint. Therefore that new check is NOT VERIFIED yet.
+
+## 8. Endpoint verification matrix
+
+The following is a current-code/CI verification matrix, not a claim of successful production E2E.
+
+| Surface | Status | Evidence / limitation |
+|---|---|---|
+| Auth / login / signup / recovery | VERIFIED | Auth source sanity + `authRecovery.test.mjs` + successful verify job; production E2E remains NOT VERIFIED |
+| Admin authentication | VERIFIED | Admin security/source sanity + successful verify job; production E2E NOT VERIFIED |
+| Public settings | VERIFIED | `/api/public-settings` source sanity + successful verify job; live production endpoint NOT VERIFIED |
+| Access rules | VERIFIED | access-control source + ad/VIP/shortener unit coverage; production E2E NOT VERIFIED |
+| Premium access | VERIFIED | secure-media/access-control source checks; production E2E NOT VERIFIED |
+| VIP | VERIFIED | `vipAccess.test.mjs` + source sanity; production E2E NOT VERIFIED |
+| Ads | VERIFIED | `adUnlockRules.test.mjs`, `dualProviderUnlock.test.mjs`, source sanity; production E2E NOT VERIFIED |
+| Shortener | VERIFIED | `shortenerUnlock.test.mjs` + server syntax + source sanity; production E2E NOT VERIFIED |
+| Secure media tickets | NOT VERIFIED | streaming ticket runtime belongs to later streaming phases; not changed in this review |
+| Edge TTS / Sarvam TTS | NOT VERIFIED | routes/source are present; live external TTS execution was not successfully verified in the production E2E run |
+| Cashfree payments | VERIFIED | `payment.test.mjs` + source sanity; live payment flow NOT VERIFIED |
+| Analytics session/admin analytics | VERIFIED | `analytics.test.mjs` + successful source sanity; live E2E NOT VERIFIED |
+| Episode Analytics | VERIFIED — unchanged | no Episode Analytics code/migrations changed in this review; post-cutover regression still required |
+| Public catalog | NOT VERIFIED in production | new `/api/public-catalog` implementation added; latest CI route-manifest check still pending |
+| Security headers | VERIFIED at source/CI level | `server.mjs` source + successful CI sanity; live response headers NOT VERIFIED |
+| CORS | VERIFIED at source/CI level | trusted-origin/source checks pass; live browser CORS NOT VERIFIED |
+
+A previous completed production E2E run on the current deployment produced 2 passing tests and 13 failing tests. Representative failures included:
+- `Audio Stories` element not found during multiple flows.
+- `/api/admin/user-export.xlsx` returned 404 where the test expected 401.
+
+The latest E2E run for the newest commit was still in progress at this checkpoint, so no final pass/fail result is claimed for it.
+
+## 9. Current grep / architecture findings
+
+### NOT VERIFIED CLEAN — legacy/container runtime remains
+
+Current repository still contains:
+- `@cloudflare/containers`
+- `cloudflare-backend/wrangler.jsonc` container configuration
+- root `Dockerfile`
+- `server.mjs` Node runtime
+- `server/edgeTts.mjs` using `ws` + Node crypto
+- `server/payment.mjs`, `server/rewardedAdUnlock.mjs`, `server/shortenerUnlock.mjs` using Node crypto
+- `server/adminUserExport.mjs` using Node zlib/Buffer
+- `server.mjs` using fs/path/http
+
+These Node-only usages are legacy server/runtime code, NOT evidence that the new Pages Function itself uses Node APIs.
+
+### VERIFIED CLEAN — target Pages Function files changed in this review
+
+- `functions/api/public-catalog.js` uses standard Fetch/Cache APIs and `context.env`; no `process.env`, fs, child_process or node:crypto usage.
+- `public/_routes.json` limits Function invocation routing to `/api/*`, `/unlock/*`, and `/health`.
+
+### Legacy hosting references
+
+NOT VERIFIED CLEAN:
+- Render/Vercel/Voroa/legacy hosting strings still exist in compatibility/documentation code.
+- `src/lib/streamingUrl.js` intentionally contains legacy Render/Vercel detection to reject stale streaming URLs; this is not itself an active production runtime dependency.
+- `.env.example` still contains legacy Voroa/Render wording and should be cleaned only when the final runtime cutover is actually verified.
+- Current Pages production still has `HJ_WEB_BACKEND_URL`, which is the more important runtime blocker.
+
+No Koyeb production reference was found in the current repository search.
+
+### Process environment usage
+
+- Pages Function target code changed here: no `process.env`.
+- Legacy Node server/tests/workflows do use `process.env`; those are not Pages Function runtime code.
+
+## 10. Public endpoint caching patch
+
+### IMPLEMENTED — production verification pending
+
+Changed:
+- `functions/api/public-catalog.js`
+- `src/lib/telegramContent.js`
+- `public/_routes.json`
+
+Behavior:
+- Public catalogue reads for stories/episodes/books/videos are served through `/api/public-catalog`.
+- `caches.default` is used with a 5-minute cache.
+- Response uses `Cache-Control: public, max-age=300, s-maxage=300`.
+- Requests with `Authorization` or `Cookie` are rejected from the public cache path and use the existing direct-Supabase fallback.
+- No user-specific data or authorization-dependent endpoint is cached.
+- Episode Analytics was not touched.
+- Existing direct Supabase reads remain as a fallback if the Pages cache endpoint is unavailable.
+
+Important Cloudflare behavior:
+- Cache API reduces repeated Supabase reads/egress after a cache HIT, but Cache API runs inside the Worker. It should NOT be described as eliminating the Function invocation itself.
+- `public/_routes.json` keeps static assets out of the Functions path; Cloudflare documents non-Function Pages static asset requests as free.
+
+Production verification:
+- NOT VERIFIED yet because the latest Pages deployment observed is still the older `95e0...` deployment and the newest CI run is still pending.
+
+Official Cloudflare cache references:
+- https://developers.cloudflare.com/workers/runtime-apis/cache/
+- https://developers.cloudflare.com/pages/functions/pricing/
+
+## 11. Frontend/build secret exposure
+
+### VERIFIED — CI source/build identifier scan
+
+Changed:
+- `.github/workflows/quality-check.yml`
+
+The CI now rejects forbidden server-secret access patterns in `src/`, `functions/`, and `dist/`, including `import.meta.env.VITE_*` access to server-only secrets and server-only `process.env/context.env` secret access in frontend/Pages code.
+
+The first run of this corrected scan initially failed because a harmless client-side UI string displayed the literal identifier `HJ_GITHUB_ACTIONS_TOKEN`. The scan was corrected to detect actual secret access expressions rather than harmless secret names.
+
+Final completed `verify` run:
+- frontend build secret-access scan: PASS
+- no server-only secret environment access emitted into the frontend build.
+
+This verifies the repository/build does not emit those server-only environment access patterns. It cannot mathematically prove that an unknown secret value was never hard-coded; no secret value was available to compare.
+
+## 12. Streaming repo — NO IMPLEMENTATION IN THIS REVIEW
+
+### VERIFIED — no streaming implementation performed here
+
+No HJ-Telegram-Streaming source was modified for this review.
+
+The following remain planned for later phases only:
+
+Phase 3:
+- listener/Durable Object removal/replacement decision
+- R2 temporary-cache lifecycle design
+- lazy verified media mapping boundary
+- Bot API source verification
+
+Phase 4:
+- <=19 MB chunked-media playback/reassembly
+- Range/seek regression
+- R2 HIT/MISS regression
+- protected-ticket regression
+- production streaming cutover
+
+These are NOT marked implemented/complete here.
+
+## 13. Remaining issues / blockers
+
+P0:
+1. Current HJ Web main still contains the container backend and Node proxy path, contrary to the expected Phase-2 end state. This is a source/deployment drift verification failure, not a Phase-2 reimplementation.
+2. Current Pages production deployment is still commit `95e0d181e2c34ef3a17b6e31d168af101a52d275` and still has `HJ_WEB_BACKEND_URL`.
+3. Production endpoint E2E is not currently passing; the previous completed run had 13 failures / 2 passes.
+
+P1:
+4. Latest CI run for commit `c14b...` still needs to finish the explicit Pages Function syntax/routes-manifest check.
+5. Supabase Preview CI remains failing in the latest run and needs migration-history reconciliation.
+6. Live CORS/security-header/API verification is not complete.
+7. Live public-catalog cache HIT/MISS behavior is not verified.
+8. TTS, Cashfree, shortener, Ads, VIP and secure-ticket real production flows still need authenticated/real-environment regression.
+9. Web Push is still tied to legacy Node scheduling and needs later scheduled/event-driven migration.
+10. Legacy hosting references remain and should be cleaned after verified cutover only.
+11. `HJ-GROUPS-OF-FILES` Voroa quota state is not independently verified.
+
+## 14. Files changed in this review
+
+HJ-GROUPS-WEB:
+- `functions/api/public-catalog.js` — added 5-minute public catalogue edge cache.
+- `src/lib/telegramContent.js` — use cached public catalogue with direct-Supabase fallback.
+- `public/_routes.json` — function routing limited to dynamic API/health routes.
+- `.github/workflows/quality-check.yml` — secret-access scan + Pages Function/routes checks.
+- `HJ-MIGRATION-STATUS.md` — fully reconciled current review status.
+
+No HJ-Telegram-Streaming file was changed in this review.
+
+No Episode Analytics file/migration/function was changed.
+
+## 15. Qualification
+
+Overall status: **PARTIALLY VERIFIED — NOT PRODUCTION READY**
+
+Verified:
+- official Telegram size limits checked;
+- authoritative file_id acquisition method documented;
+- 950 vs 24 DB mapping facts verified live;
+- listener legacy request estimate calculated from official Cloudflare limits;
+- HJ Web build/lint/unit/smoke/source checks completed successfully in CI;
+- 132/132 unit tests passed;
+- frontend secret-access scan passed;
+- public catalog cache patch implemented.
 
 NOT VERIFIED:
-- GitHub Actions execution for the new mapping workflow has not been run with real secrets.
-- The corrected Worker has not yet passed the real production media regression matrix.
-- The >20 MB preservation-safe split workflow and Worker reassembly are pending.
-- Containerless HJ Web backend migration is still pending.
+- Phase-2 containerless state against current main/control-plane;
+- latest Pages Function/routes-manifest CI completion;
+- production endpoint E2E;
+- live public-catalog cache HIT/MISS;
+- live authenticated API flows;
+- Voroa quota state;
+- all later streaming Phases 3/4.
 
-
-## Phase 2026-10-08 — latest checkpoint
-
-### Implemented in review, not production-cut over
-- HJ-Telegram-Streaming corrected review branch `codex/r2-first-lifecycle-no-do` now removes the Durable Object/listener/heartbeat target and implements verified multi-part byte reassembly.
-- R2 remains the first media source; Telegram Bot API is consulted only on R2 MISS.
-- HJ Web owns request-time media mapping through `public.streaming_media_sources`; the Files repo is not a runtime dependency.
-- Multi-part mappings require contiguous `part_index`, consistent `part_count`, per-part size <=19 MiB, and the sum of chunk sizes must equal `assembled_file_size`.
-- HTTP range requests are mapped across chunk boundaries and exposed as the original assembled byte stream.
-- Split full responses may be cached as one temporary R2 hot-cache object.
-
-### Verified live
-- HJ Web Supabase `streaming_media_sources` exists and is currently empty (0 rows).
-- RLS/policy is present for service-role-only access.
-- Cloudflare R2 `hj-groups-media` has the `media/` lifecycle rule with a 600-second age threshold, plus the existing 7-day multipart-abort rule.
-
-### NOT VERIFIED
-- Real GitHub Actions execution of the single-item lazy mapper or single-item split workflow.
-- Real Telegram upload/download/reassembly on a production media item.
-- Real Worker production Range/seek regression after the corrected branch is deployed.
-- Corrected Worker production deployment/merge.
-- Very-high-part-count behavior against the current Cloudflare plan; Cloudflare's current Worker Free documentation lists 50 external subrequests per invocation.
-- Containerless HJ Web runtime migration is still pending.
-
-No 950-item migration, bulk upload, bulk compression, original Telegram deletion, or Telegram session regeneration was performed.
+Do not mark this migration complete until the current source/deployment drift, production endpoint E2E, and remaining runtime verification gates are cleared.
