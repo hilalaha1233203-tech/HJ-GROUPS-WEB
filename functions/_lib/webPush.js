@@ -135,7 +135,7 @@ async function subscriptionsForTarget(targetType, storyId) {
     const subscriptions = await supabaseJson('/rest/v1/web_push_subscriptions',{params:{select:'user_id',active:'eq.true',limit:MAX_TARGETS}});
     const subscribed=[...new Set((subscriptions||[]).map((row)=>String(row.user_id)))];
     const cutoff=new Date(Date.now()-30*86400000).toISOString();
-    const recent=await supabaseJson('/rest/v1/user_activity',{params:{select:'user_id',created_at:gte.'+cutoff,user_id:not.is.null',limit:10000}});
+    const recent=await supabaseJson('/rest/v1/user_activity',{params:{select:'user_id',created_at:'gte.'+cutoff,user_id:'not.is.null',limit:10000}});
     const active=new Set((recent||[]).map((row)=>String(row.user_id)));
     return subscribed.filter((id)=>!active.has(id));
   }
