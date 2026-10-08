@@ -1,7 +1,6 @@
 import { supabase } from '../supabase'
 
-// The streaming service is deployed separately. Use its stable Vercel project URL
-// instead of pinning the website to an immutable deployment URL.
+// The streaming service is deployed separately on Cloudflare Workers.
 import { STREAMING_SERVER_URL } from './streamingUrl'
 import { normalizeContentStatus } from './contentStatus.js'
 import { optimizeImageUrl } from './storageUpload.js'
@@ -149,24 +148,47 @@ async function selectOptional(table) {
   return result
 }
 
+async function fetchPublicCatalog() {
+  const response = await fetch('/api/public-catalog', {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    cache: 'default',
+  })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok || !payload?.ok) {
+    throw new Error(String(payload?.error || 'Public catalog unavailable'))
+  }
+  return payload
+}
+
 export async function fetchTelegramContent() {
-  // Audio stories/episodes are the core catalogue. Books/videos are optional
-  // until their production tables have been created.
-  const [stories, episodes, books, videoStories, videoEpisodes] = await Promise.all([
-    supabase.from('stories').select('*'),
-    supabase.from('episodes').select('*'),
-    selectOptional('books'),
-    selectOptional('video_stories'),
-    selectOptional('video_episodes'),
-  ])
+  // Public catalog data is served through a 5-minute edge cache. The fallback
+  // keeps local development resilient when the Pages Function is unavailable.
+  try {
+    const payload = await fetchPublicCatalog()
+    return {
+      stories: normalizeStories(payload.stories || [], payload.episodes || []),
+      books: normalizeBooks(payload.books || []),
+      videoStories: normalizeVideoStories(payload.videoStories || [], payload.videoEpisodes || []),
+    }
+  } catch (edgeError) {
+    console.warn('Public catalog edge cache unavailable; falling back to direct Supabase reads:', edgeError)
+    const [stories, episodes, books, videoStories, videoEpisodes] = await Promise.all([
+      supabase.from('stories').select('*'),
+      supabase.from('episodes').select('*'),
+      selectOptional('books'),
+      selectOptional('video_stories'),
+      selectOptional('video_episodes'),
+    ])
 
-  const firstError = stories.error || episodes.error
-  if (firstError) throw firstError
+    const firstError = stories.error || episodes.error
+    if (firstError) throw firstError
 
-  return {
-    stories: normalizeStories(stories.data || [], episodes.data || []),
-    books: normalizeBooks(books.data || []),
-    videoStories: normalizeVideoStories(videoStories.data || [], videoEpisodes.data || []),
+    return {
+      stories: normalizeStories(stories.data || [], episodes.data || []),
+      books: normalizeBooks(books.data || []),
+      videoStories: normalizeVideoStories(videoStories.data || [], videoEpisodes.data || []),
+    }
   }
 }
 
