@@ -335,7 +335,7 @@ GitHub repository:
 - PR URL: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/9
 - PR base: `main`
 - verified code commit: `a291d482dea21d4b890019f15422fccd2faf4f9e`
-- current PR head after status-only documentation update: `e9fc1d94498fa5fa76d84153bcad5695571d0b58`
+- previous status-document commit: `e9fc1d94498fa5fa76d84153bcad5695571d0b58`
 - PR state: OPEN, not merged, mergeable: true.
 
 Live Cloudflare Pages evidence before cutover:
