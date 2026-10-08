@@ -1,6 +1,5 @@
 import {
   authenticateUser,
-  envString,
   isAdminUser,
   jsonResponse,
   readJsonBody,
