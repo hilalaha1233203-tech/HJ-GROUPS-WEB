@@ -2,7 +2,6 @@ import {
   authenticateUser,
   envString,
   hmacBytes,
-  isAdminUser,
   jsonResponse,
   readJsonBody,
   supabaseJson,
