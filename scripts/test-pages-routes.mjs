@@ -17,9 +17,9 @@ const cases=[
   ['POST','/api/push/subscribe',401],
   ['POST','/api/push/preferences',401],
   ['POST','/api/push/subscribe/remove',401],
-  ['POST','/api/tts',400],
+  ['POST','/api/tts',503],
   ['POST','/api/edge-tts',503],
-  ['POST','/api/sarvam-tts',400],
+  ['POST','/api/sarvam-tts',503],
   ['GET','/api/ads/entitlements',401],
   ['POST','/api/ads/start',401],
   ['POST','/api/ads/complete',401],
@@ -40,7 +40,7 @@ for (const [method,path,expected] of cases){
   const response=await fetch(base+path,{
     method,
     headers: method==='POST' ? {'Content-Type':'application/json'} : undefined,
-    body: method==='POST' ? '{}' : undefined,
+    body: method==='POST' ? (path.includes('/tts') ? JSON.stringify({text:'HJ Groups preview smoke test'}) : '{}') : undefined,
     redirect:'manual',
   });
   const accepted=Array.isArray(expected)?expected: [expected];
