@@ -40,7 +40,11 @@ for (const [method,path,expected] of cases){
   const response=await fetch(base+path,{
     method,
     headers: method==='POST' ? {'Content-Type':'application/json'} : undefined,
-    body: method==='POST' ? (path.includes('/tts') ? JSON.stringify({text:'HJ Groups preview smoke test'}) : '{}') : undefined,
+    body: method==='POST'
+      ? (['/api/tts','/api/edge-tts','/api/sarvam-tts'].includes(path)
+        ? JSON.stringify({text:'HJ Groups preview smoke test'})
+        : '{}')
+      : undefined,
     redirect:'manual',
   });
   const accepted=Array.isArray(expected)?expected: [expected];
