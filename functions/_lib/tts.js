@@ -67,7 +67,6 @@ async function handleTtsRequest(request,provider){
     });
   }
 
-  const tamil=isTamilText(text);
   if(!envString('SARVAM_API_KEY')) {
     return jsonResponse(request,503,{error:'Text-to-speech service unavailable',code:'SARVAM_TTS_NOT_CONFIGURED'});
   }
@@ -82,7 +81,6 @@ async function handleTtsRequest(request,provider){
   }catch(error){
     return jsonResponse(request,503,{error:'Text-to-speech service unavailable',detail:String(error?.message||'Sarvam TTS failed').slice(0,300)});
   }
-  return jsonResponse(request,503,{error:'Text-to-speech service unavailable',detail:errors.join(' | ').slice(0,600)});
 }
 
 export function healthTts(){
