@@ -1,7 +1,8 @@
 # HJ GROUPS — Migration Status / Review Patch
 
 Date: 2026-10-08
-Current HJ-GROUPS-WEB main HEAD at this checkpoint: `c14bca0d1f3a8517a3132cfec7975235c6e93715`
+Code verification checkpoint: `c14bca0d1f3a8517a3132cfec7975235c6e93715`
+Status-document commit: this file's current commit
 
 ## Scope of this review
 
@@ -210,7 +211,7 @@ The 2 lint warnings are existing React Hook exhaustive-deps warnings in `src/App
 Typecheck:
 - NOT VERIFIED / NOT APPLICABLE — `package.json` has no `typecheck` script and the project does not declare a TypeScript typecheck command.
 
-Latest commit `c14bca0d1f3a8517a3132cfec7975235c6e93715` also adds an explicit Pages Function syntax/routes-manifest CI check, but its latest CI run was still queued at this checkpoint. Therefore that new check is NOT VERIFIED yet.
+The `c14bca0d1f3a8517a3132cfec7975235c6e93715` verify run also completed the explicit Pages Function syntax/routes-manifest check successfully.
 
 ## 8. Endpoint verification matrix
 
@@ -354,7 +355,7 @@ P0:
 3. Production endpoint E2E is not currently passing; the previous completed run had 13 failures / 2 passes.
 
 P1:
-4. Latest CI run for commit `c14b...` still needs to finish the explicit Pages Function syntax/routes-manifest check.
+4. The completed `c14b...` verify run passed the explicit Pages Function syntax/routes-manifest check; the newest documentation commit triggered another CI cycle, which is not needed to change the already-verified code result.
 5. Supabase Preview CI remains failing in the latest run and needs migration-history reconciliation.
 6. Live CORS/security-header/API verification is not complete.
 7. Live public-catalog cache HIT/MISS behavior is not verified.
