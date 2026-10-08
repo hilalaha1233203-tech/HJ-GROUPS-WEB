@@ -57,32 +57,6 @@ function contextFor(type, row) {
   return { storyId, episodeNumber };
 }
 
-async function existingEpisodeNumbers(type, storyId, start, end) {
-  if (!Number.isInteger(storyId) || !Number.isInteger(start) || !Number.isInteger(end)) return [];
-  if (type === 'audio') {
-    const [a,b] = await Promise.all([
-      supabaseJson('/rest/v1/episodes', { params: { select: 'number,episode_number,available', story_id: 'eq.' + storyId, number: 'gte.' + start, number2: undefined, limit: 1000 } }).catch(()=>[]),
-      supabaseJson('/rest/v1/episodes', { params: { select: 'number,episode_number,available', story_id: 'eq.' + storyId, episode_number: 'gte.' + start, limit: 1000 } }).catch(()=>[]),
-    ]);
-    // Supabase query params cannot encode two operators for the same key via the
-    // object helper, so filter the returned bounded set locally.
-    return [...new Set(
-      [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]
-        .filter((row) => row?.available !== false)
-        .map((row) => Number(row?.number ?? row?.episode_number))
-        .filter((n) => Number.isInteger(n) && n >= start && n <= end)
-    )].sort((x,y)=>x-y);
-  }
-  const rows = await supabaseJson('/rest/v1/video_episodes', {
-    params: { select: 'number,available', video_story_id: 'eq.' + storyId, number: 'gte.' + start, limit: 1000 },
-  });
-  return [...new Set((Array.isArray(rows) ? rows : [])
-    .filter((row) => row?.available !== false)
-    .map((row) => Number(row?.number))
-    .filter((n) => Number.isInteger(n) && n >= start && n <= end)
-  )].sort((x,y)=>x-y);
-}
-
 // Exact range query helper; kept separate because query parameters are unique-keyed.
 async function rangeEpisodes(type, storyId, start, end) {
   if (type === 'audio') {
@@ -133,19 +107,6 @@ async function purchased(userId, type, row) {
   const now = Date.now();
   return (rows || []).some((p)=>Number.isFinite(Date.parse(p.expires_at || '')) ? Date.parse(p.expires_at) > now : !p.expires_at);
 }
-
-export async function hasAdAccess(userId, type, id, row) {
-  if (!userId) return false;
-  if (await hasActiveVipGrant(userId)) return true;
-  if (isAdminUser(await authenticateById(userId))) return true;
-  if (await activeUnlock(userId, type, id, row)) return true;
-  return purchased(userId, type, row);
-}
-
-async function authenticateById() {
-  return null;
-}
-
 export async function handleAds(request) {
   const path = new URL(request.url).pathname;
   if (!path.startsWith('/api/ads/')) return null;
