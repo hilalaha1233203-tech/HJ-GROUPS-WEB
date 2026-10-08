@@ -617,3 +617,103 @@ Production sign-off criteria:
 
 Audit conclusion:
 The final target architecture is technically achievable without bulk-migrating or bulk-compressing the 950 episodes, but it is NOT production-ready yet. The primary blockers are deployment/source drift, the HJ Web container backend, incomplete media mappings, current HJ Files runtime dependency, non-target R2 lookup order, and the need to reconcile the listener cleanup semantics.
+
+
+---
+
+# Phase Addendum — 2026-10-08 — R2-first / No-DO correction
+
+This addendum supersedes any earlier audit text that describes a Durable Object listener/heartbeat design as the final target.
+
+## Agreed architecture for this phase
+
+- Website target remains Cloudflare Pages + Pages Functions/Workers + Supabase + R2 + official Telegram Bot API.
+- No Durable Object listener/heartbeat system is part of the final design.
+- R2 is a temporary hot cache; cleanup is controlled by an R2 lifecycle rule.
+- HJ GROUPS OF FILES is an independent maintenance utility and must not be queried by the website/streaming Worker at request time.
+- Media mapping is lazy and on-demand; no bulk mapping was performed.
+- Heavy compression/splitting remains manual GitHub Actions work; no 950-episode bulk operation was performed.
+- Telegram originals were not deleted and the Telegram session was not regenerated.
+- Episode Analytics was not modified.
+
+## What was actually changed/verified in this phase
+
+### HJ-Telegram-Streaming
+
+A new review branch was created from `main`:
+
+`codex/r2-first-lifecycle-no-do`
+
+A previous draft PR that implemented the now-rejected Durable Object/listener design was closed without merging:
+
+`PR #7 — closed, not merged`
+
+A new draft review PR contains the corrected implementation:
+
+`PR #8 — Migration phase: R2-first hot cache without Durable Objects`
+
+Verified source changes on the review branch:
+- Durable Object/listener/heartbeat code removed from the target Worker source.
+- Durable Object binding and migration removed from `wrangler.jsonc`.
+- R2 is checked before Telegram Bot API `getFile`.
+- On R2 MISS only, the Worker resolves the verified Telegram source.
+- Request-time media mapping is switched from the HJ GROUPS OF FILES `telegram_media_index` table to HJ Web Supabase `public.streaming_media_sources`.
+- Worker package validation files were added.
+- R2 lifecycle configuration is versioned in `cloudflare-worker/r2-lifecycle.json`.
+- The deployment workflow applies that lifecycle configuration after a Worker deployment when the Cloudflare token is configured.
+
+### HJ Web Supabase mapping table
+
+Created:
+
+`public.streaming_media_sources`
+
+Security/verification:
+- RLS enabled.
+- Service-role-only policy created.
+- Live SQL verification returned `row_count = 0`.
+
+This is intentional. No 950-row mapping or bulk data migration has been performed.
+
+### Cloudflare R2
+
+Live bucket checked:
+
+`hj-groups-media`
+
+Verified lifecycle configuration:
+- Existing multipart-abort rule retained: 7 days.
+- New `Expire HJ Hot Media` rule:
+  - prefix: `media/`
+  - age threshold: 600 seconds (10 minutes)
+
+Important limitation:
+Cloudflare documents lifecycle deletion as asynchronous; objects are typically removed within 24 hours after their expiration becomes due. Therefore 600 seconds is the configured eligibility/age threshold, NOT a guaranteed exact deletion time.
+
+### Telegram official limit
+
+Official Telegram Bot API documentation currently states that `getFile` downloads work for files up to 20 MB. Bots can send files up to 50 MB, but that is a separate upload/send limit. The migration will not bypass the 20 MB download limit.
+
+Agreed handling for larger content:
+- create separately verified <=19 MB derivatives/chunks using GitHub Actions maintenance;
+- upload those derivatives/chunks to Telegram;
+- keep original Telegram media untouched;
+- reassemble verified parts in the streaming Worker as a future implementation phase.
+
+## NOT VERIFIED / still pending
+
+- The corrected Worker has NOT been promoted to production from PR #8.
+- Real production media regression matrix (R2 HIT/MISS, Message 7, Range, seek, protected access, failure paths) is still NOT VERIFIED.
+- GitHub Actions CI result for the new PR is not yet available through the current connector.
+- The new mapping table is empty; no selected production media has been mapped yet.
+- HJ GROUPS OF FILES request-time dependency is removed in the corrected Worker branch, but website/admin flows that still depend on its old scanning/indexing behavior require a separate regression pass.
+- Containerless HJ Web backend migration is still pending.
+- Web API runtime migration from `server.mjs` to Pages/Workers is still pending.
+- Web Push scheduled/event-driven migration is still pending.
+- Episode Analytics remains unchanged and must be regression-tested after the web runtime migration.
+
+## Phase qualification
+
+Status: PARTIALLY COMPLETED — source correction + mapping boundary + R2 lifecycle configuration are implemented/verified; production cutover is intentionally not completed.
+
+No production content migration was performed.
