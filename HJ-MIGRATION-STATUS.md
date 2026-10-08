@@ -1,7 +1,7 @@
 # HJ GROUPS — Migration Status / Review Patch
 
 Date: 2026-10-08
-Code verification checkpoint: `21a3b6ebfcaf87f387bd36ae28d1569038612865`
+Code verification checkpoint: `d883c600ee4aa1894a664a4497f5c7364319d97f`
 Status-document commit: this file's current commit
 
 ## Scope of this review
@@ -334,7 +334,7 @@ GitHub repository:
 - open PR created: **#9**
 - PR URL: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/9
 - PR base: `main`
-- current PR head: `21a3b6ebfcaf87f387bd36ae28d1569038612865`
+- current PR head before this final cleanup: `d883c600ee4aa1894a664a4497f5c7364319d97f`
 - PR state: OPEN, not merged, mergeable: true.
 
 Live Cloudflare Pages evidence before cutover:
@@ -422,15 +422,16 @@ Verified in that run:
 - appearance/security-monitoring sanity: PASS;
 - final source sanity: PASS.
 
-A final one-line Web Push cleanup was then made at PR head `21a3b6...` to remove an unused helper. Cloudflare Preview build/deploy below verifies that final head compiles and deploys; because GitHub Actions did not produce a newer post-cleanup run in this check window, **final-head GitHub lint/unit-test verification is NOT VERIFIED** beyond the prior green run.
+An additional final lint-only Web Push cleanup removes an unused constant. The final branch commit after this status update requires one final GitHub CI run; until that run completes, final-head lint/unit-test verification remains NOT VERIFIED.
 
 ### VERIFIED — Cloudflare Pages Preview deployment
 
-Final PR head `21a3b6ebfcaf87f387bd36ae28d1569038612865` was deployed as a Cloudflare Pages **preview**:
+PR head `21a3b6ebfcaf87f387bd36ae28d1569038612865` was deployed as a Cloudflare Pages **preview**:
 - deployment id: **8d69fba2-b0cb-4d29-9983-1ac16fca1c78**
 - short id: **8d69fba2**
 - preview URL: https://8d69fba2.hj-groups-web.pages.dev
 - preview alias: https://phase2-containerless-pages-m.hj-groups-web.pages.dev
+- final lint-only cleanup after this preview requires a new preview deployment after CI acceptance.
 - build stage: SUCCESS
 - deploy stage: SUCCESS
 - Functions: enabled
@@ -720,7 +721,7 @@ VERIFIED:
 - removal of the old production `MEDIA_LISTENER` binding.
 
 NOT VERIFIED:
-- final PR-head GitHub lint/unit-test run after the final one-line Web Push cleanup;
+- final PR-head GitHub lint/unit-test run after the final Web Push cleanup;
 - browser/live HTTP smoke tests against HJ Web Preview;
 - final HJ Web production containerless cutover / removal of live `HJ_WEB_BACKEND_URL`;
 - live authenticated media stream/seek against the production Worker;

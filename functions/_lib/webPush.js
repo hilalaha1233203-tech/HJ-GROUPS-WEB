@@ -8,7 +8,6 @@ import {
   supabaseRequest,
 } from './runtime.js';
 
-const MAX_TARGETS=5000;
 const buckets=new Map();
 
 function rateLimit(key,limit=40){
