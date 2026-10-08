@@ -3,6 +3,8 @@ name: Quality Check
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -23,7 +25,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund --package-lock=false
 
       - name: Dependency audit (production)
         run: |
@@ -63,31 +65,6 @@ jobs:
       - name: Server / payment / shortener unit tests
         run: node --test tests/unit/*.test.mjs
 
-      - name: Production server startup smoke check
-        env:
-          PORT: '4173'
-        run: |
-          set -e
-          node server.mjs > /tmp/hj-groups-web-server.log 2>&1 &
-          pid=$!
-          trap 'kill "$pid" 2>/dev/null || true' EXIT
-          for i in $(seq 1 30); do
-            if curl -fsS "http://127.0.0.1:4173/health" > /tmp/hj-health.json; then
-              cat /tmp/hj-health.json
-              exit 0
-            fi
-            if ! kill -0 "$pid" 2>/dev/null; then
-              cat /tmp/hj-groups-web-server.log
-              exit 1
-            fi
-            sleep 1
-          done
-          cat /tmp/hj-groups-web-server.log
-          exit 1
-
-      - name: Verify shortener server syntax
-        run: node --check server.mjs && node --check server/shortenerUnlock.mjs && node --check server/rewardedAdUnlock.mjs
-
       - name: Verify Supabase migration filenames
         run: |
           node <<'NODE'
@@ -122,8 +99,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --check functions/api/public-catalog.js
+          for f in "functions/[[path]].js" functions/_lib/*.js functions/api/*.js; do
+            node --check "$f"
+          done
           node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('public/_routes.json','utf8')); if(p.version!==1 || !Array.isArray(p.include) || !p.include.includes('/api/*')) process.exit(1); console.log('Pages Functions routes manifest validated')"
+
+      - name: Verify production path has no container backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RInE 'HJ_WEB_BACKEND_URL|@cloudflare/containers|node:|process\.env\.|Buffer\.(from|alloc|concat)|child_process|from ["']node:' functions src
+          test ! -e Dockerfile
+          test ! -e cloudflare-backend/package.json
+          test ! -e cloudflare-backend/wrangler.jsonc
+          test ! -e .github/workflows/deploy-cloudflare-web-backend.yml
+          ! grep -RInE 'HJ_WEB_BACKEND_URL|@cloudflare/containers' public dist 2>/dev/null
+
+      - name: Pages preview route smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler@4.146.0 pages dev dist --functions functions --ip 127.0.0.1 --port 8788 > /tmp/hj-pages.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8788/health" > /tmp/hj-pages-health.json; then
+              cat /tmp/hj-pages-health.json
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              cat /tmp/hj-pages.log
+              exit 1
+            fi
+            sleep 1
+          done
+          test -s /tmp/hj-pages-health.json
+          PAGES_TEST_URL="http://127.0.0.1:8788" npm run test:pages
 
       - name: Verify frontend build contains no server-only secret identifiers
         shell: bash
