@@ -739,3 +739,29 @@ NOT VERIFIED:
 - The corrected Worker has not yet passed the real production media regression matrix.
 - The >20 MB preservation-safe split workflow and Worker reassembly are pending.
 - Containerless HJ Web backend migration is still pending.
+
+
+## Phase 2026-10-08 — latest checkpoint
+
+### Implemented in review, not production-cut over
+- HJ-Telegram-Streaming corrected review branch `codex/r2-first-lifecycle-no-do` now removes the Durable Object/listener/heartbeat target and implements verified multi-part byte reassembly.
+- R2 remains the first media source; Telegram Bot API is consulted only on R2 MISS.
+- HJ Web owns request-time media mapping through `public.streaming_media_sources`; the Files repo is not a runtime dependency.
+- Multi-part mappings require contiguous `part_index`, consistent `part_count`, per-part size <=19 MiB, and the sum of chunk sizes must equal `assembled_file_size`.
+- HTTP range requests are mapped across chunk boundaries and exposed as the original assembled byte stream.
+- Split full responses may be cached as one temporary R2 hot-cache object.
+
+### Verified live
+- HJ Web Supabase `streaming_media_sources` exists and is currently empty (0 rows).
+- RLS/policy is present for service-role-only access.
+- Cloudflare R2 `hj-groups-media` has the `media/` lifecycle rule with a 600-second age threshold, plus the existing 7-day multipart-abort rule.
+
+### NOT VERIFIED
+- Real GitHub Actions execution of the single-item lazy mapper or single-item split workflow.
+- Real Telegram upload/download/reassembly on a production media item.
+- Real Worker production Range/seek regression after the corrected branch is deployed.
+- Corrected Worker production deployment/merge.
+- Very-high-part-count behavior against the current Cloudflare plan; Cloudflare's current Worker Free documentation lists 50 external subrequests per invocation.
+- Containerless HJ Web runtime migration is still pending.
+
+No 950-item migration, bulk upload, bulk compression, original Telegram deletion, or Telegram session regeneration was performed.
