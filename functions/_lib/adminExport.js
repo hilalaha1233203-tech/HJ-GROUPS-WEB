@@ -31,13 +31,20 @@ const excelSerial = (value) => {
   return time == null ? null : (time / 86400000) + 25569
 }
 
-const xmlEscape = (value) => String(value ?? '')
-  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&apos;')
+const xmlEscape = (value) => {
+  let text = String(value ?? '');
+  let clean = '';
+  for (const ch of text) {
+    const code = ch.codePointAt(0) || 0;
+    if (code >= 0x20 || code === 0x09 || code === 0x0A || code === 0x0D) clean += ch;
+  }
+  return clean
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
 
 const unique = (items) => Array.from(new Set(items.filter(Boolean)))
 
