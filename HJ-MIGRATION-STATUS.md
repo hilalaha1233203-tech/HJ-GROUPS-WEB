@@ -717,3 +717,25 @@ Agreed handling for larger content:
 Status: PARTIALLY COMPLETED — source correction + mapping boundary + R2 lifecycle configuration are implemented/verified; production cutover is intentionally not completed.
 
 No production content migration was performed.
+
+
+## Phase 2026-10-08 final checkpoint
+
+Additional verified changes since the previous addendum:
+- HJ Web Supabase `public.streaming_media_sources` schema now models original content identity separately from verified Telegram source/chunk identity and includes assembled-file size.
+- The live table remains at 0 rows; no catalog rows were migrated.
+- A repository migration file was added at `supabase/migrations/20261008110000_streaming_media_sources.sql`.
+- Security advisor check after the mapping-table policy shows no remaining RLS-without-policy finding for this table. The only current security warning returned was the pre-existing leaked-password-protection warning.
+- HJ GROUPS OF FILES maintenance is now manual-trigger-only for the existing maintenance workflow; its automatic 5-minute trigger and automatic history indexing step were removed.
+- A manual single-message lazy mapper was added to HJ GROUPS OF FILES. It writes only an individually verified <=20 MB source mapping to HJ Web Supabase.
+
+Production state:
+- The live Cloudflare Worker still contains the older Durable Object/listener implementation and still reads the older deployed source; the corrected PR #8 branch has not been deployed.
+- The live R2 bucket now has the agreed `media/` 600-second lifecycle eligibility rule, but Cloudflare lifecycle deletion is asynchronous and not an exact 10-minute deletion event.
+- The corrected Worker branch removes the Durable Object target and the HJ Files request-time mapping dependency.
+
+NOT VERIFIED:
+- GitHub Actions execution for the new mapping workflow has not been run with real secrets.
+- The corrected Worker has not yet passed the real production media regression matrix.
+- The >20 MB preservation-safe split workflow and Worker reassembly are pending.
+- Containerless HJ Web backend migration is still pending.
