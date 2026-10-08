@@ -19,7 +19,12 @@ function rateLimit(key,limit=40){
 }
 
 function cleanText(value,max,fallback=''){
-  const text=String(value??'').replace(/[\u0000-\u001F\u007F]/g,'').trim();
+  let text='';
+  for (const ch of String(value??'')) {
+    const code=ch.codePointAt(0)||0;
+    if (code >= 0x20 || code === 0x09 || code === 0x0A || code === 0x0D) text += ch;
+  }
+  text=text.trim();
   return text&&text.length<=max?text:fallback;
 }
 
