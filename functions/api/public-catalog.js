@@ -1,5 +1,3 @@
-const CACHE_TTL_SECONDS = 300;
-
 const TABLES = {
   stories: [
     "id","title","genre","language","cover_url","cover_file_id","cover_path",
