@@ -118,6 +118,13 @@ jobs:
       - name: Verify Vite output exists
         run: test -f dist/index.html
 
+      - name: Verify Pages Functions and routes manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check functions/api/public-catalog.js
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('public/_routes.json','utf8')); if(p.version!==1 || !Array.isArray(p.include) || !p.include.includes('/api/*')) process.exit(1); console.log('Pages Functions routes manifest validated')"
+
       - name: Verify frontend build contains no server-only secret identifiers
         shell: bash
         run: |
