@@ -1010,7 +1010,7 @@ export async function handleAdminUserExport(request) {
     headers.set('Content-Disposition','attachment; filename="hj-groups-user-data-'+stamp+'.xlsx"');
     headers.set('Cache-Control','no-store, private');
     return new Response(workbook,{status:200,headers});
-  }catch(error){
+  }catch{
     return jsonResponse(request,500,{error:'User export could not be generated.'});
   }
 }
