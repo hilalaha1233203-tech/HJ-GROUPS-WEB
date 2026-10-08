@@ -122,16 +122,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          forbidden='SUPABASE_SERVICE_ROLE_KEY|CASHFREE_CLIENT_SECRET|UNLOCK_TOKEN_SECRET|AROLINKS_API_TOKEN|EARN4LINK_API_TOKEN|WEB_PUSH_VAPID_PRIVATE_KEY|HJ_GITHUB_ACTIONS_TOKEN|TELEGRAM_BOT_TOKEN|TELEGRAM_USER_SESSION_STRING|API_HASH'
-          if grep -R -nE "$forbidden" dist; then
-            echo "::error::Server-only secret identifier found in frontend build output."
+          forbidden_vite='import\\.meta\\.env\\.VITE_(SUPABASE_SERVICE_ROLE_KEY|CASHFREE_CLIENT_SECRET|UNLOCK_TOKEN_SECRET|AROLINKS_API_TOKEN|EARN4LINK_API_TOKEN|WEB_PUSH_VAPID_PRIVATE_KEY|HJ_GITHUB_ACTIONS_TOKEN|TELEGRAM_BOT_TOKEN|TELEGRAM_USER_SESSION_STRING|API_HASH)'
+          forbidden_server_env='process\\.env\\.(SUPABASE_SERVICE_ROLE_KEY|CASHFREE_CLIENT_SECRET|UNLOCK_TOKEN_SECRET|AROLINKS_API_TOKEN|EARN4LINK_API_TOKEN|WEB_PUSH_VAPID_PRIVATE_KEY|HJ_GITHUB_ACTIONS_TOKEN|TELEGRAM_BOT_TOKEN|TELEGRAM_USER_SESSION_STRING|API_HASH)|context\\.env\\.(SUPABASE_SERVICE_ROLE_KEY|CASHFREE_CLIENT_SECRET|UNLOCK_TOKEN_SECRET|AROLINKS_API_TOKEN|EARN4LINK_API_TOKEN|WEB_PUSH_VAPID_PRIVATE_KEY|HJ_GITHUB_ACTIONS_TOKEN|TELEGRAM_BOT_TOKEN|TELEGRAM_USER_SESSION_STRING|API_HASH)'
+          if grep -R -nE "$forbidden_vite" dist src functions 2>/dev/null; then
+            echo "::error::Forbidden VITE_ secret access found in frontend/Pages source or build output."
             exit 1
           fi
-          if grep -R -nE 'VITE_(SUPABASE_SERVICE_ROLE_KEY|CASHFREE_CLIENT_SECRET|UNLOCK_TOKEN_SECRET|AROLINKS_API_TOKEN|EARN4LINK_API_TOKEN|WEB_PUSH_VAPID_PRIVATE_KEY|HJ_GITHUB_ACTIONS_TOKEN|TELEGRAM_BOT_TOKEN|TELEGRAM_USER_SESSION_STRING)' src functions 2>/dev/null; then
-            echo "::error::Forbidden VITE_ secret environment name found in frontend/Pages source."
+          if grep -R -nE "$forbidden_server_env" dist src functions 2>/dev/null; then
+            echo "::error::Server-only secret environment access found in frontend/Pages source or build output."
             exit 1
           fi
-          echo "Frontend build secret-identifier scan passed; server-only secret identifiers are absent from dist."
+          echo "Frontend build secret-access scan passed; no server-only secret environment access was emitted."
 
 
       - name: Auth / settings / metadata sanity check
