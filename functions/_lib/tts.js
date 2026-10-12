@@ -148,10 +148,19 @@ async function handleTtsRequest(request,provider){
 }
 
 export function healthTts(){
+  const legacyBackendConfigured=Boolean(envString('HJ_WEB_BACKEND_URL'));
+  const sarvamConfigured=Boolean(envString('SARVAM_API_KEY'));
   return {
-    edge:{configured:false,reason:'not_migrated_to_pages'},
-    sarvam:{configured:Boolean(envString('SARVAM_API_KEY'))},
-    strategy:'Tamil/other text: Sarvam; Edge TTS requires a future provider-specific WebSocket rewrite.',
+    edge:{
+      configured:false,
+      routeConfiguredViaLegacyBackend:legacyBackendConfigured,
+      reason:legacyBackendConfigured?'legacy_backend_configured_not_live_verified':'not_migrated_to_pages',
+    },
+    sarvam:{configured:sarvamConfigured},
+    legacyBackend:{configured:legacyBackendConfigured,liveVerified:false},
+    strategy:legacyBackendConfigured
+      ? 'Temporary legacy backend TTS bridge: use configured Sarvam when available, with Edge fallback; live runtime not verified.'
+      : 'Pages Sarvam requires SARVAM_API_KEY; Edge TTS needs the temporary legacy backend bridge until a Workers-compatible port is live-tested.',
   };
 }
 
