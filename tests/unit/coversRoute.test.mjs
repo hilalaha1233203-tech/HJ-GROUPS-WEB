@@ -45,7 +45,7 @@ test('cover upload requires admin authentication before parsing image data', asy
   try {
     const response = await coverUpload({
       request: new Request('https://preview.test/api/admin/covers/upload', { method: 'POST', headers: { Authorization: 'Bearer user-token' }, body: new FormData() }),
-      env: { SUPABASE_URL: 'https://supabase.test', SUPABASE_PUBLISHABLE_KEY: 'test-public-key', SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key', COVERS_BUCKET: { async put() { throw new Error('must not be called') } } },
+      env: { SUPABASE_URL: 'https://supabase.test', SUPABASE_PUBLISHABLE_KEY: 'test-public-key', COVERS_BUCKET: { async put() { throw new Error('must not be called') } } },
     })
     assert.equal(response.status, 403)
   } finally {
@@ -87,7 +87,6 @@ test('admin cover upload writes both WebP variants to R2 and returns no Supabase
       env: {
         SUPABASE_URL: 'https://supabase.test',
         SUPABASE_PUBLISHABLE_KEY: 'test-public-key',
-        SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
         CF_PAGES_BRANCH: 'phase5u-cover-assets-20261012',
         COVERS_BUCKET: fakeR2,
       },
