@@ -131,7 +131,7 @@ export async function synthesizeEdgeTts({ text, voice = FALLBACK_VOICE, timeoutM
 
   let response;
   try {
-    response = await fetch(url.replace(/^https:/, 'wss:'), {
+    response = await fetch(url, {
       headers: {
         Upgrade: 'websocket',
         Pragma: 'no-cache',
