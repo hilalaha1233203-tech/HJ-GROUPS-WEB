@@ -382,6 +382,7 @@ function audioResponse(request, body, size, options = {}) {
   headers.set('Accept-Ranges', 'bytes');
   headers.set('Cache-Control', 'private, max-age=3600');
   if (options.etag) headers.set('ETag', '"' + String(options.etag).replace(/"/g, '') + '"');
+  if (options.provider) headers.set('X-TTS-Provider', String(options.provider));
   if (options.contentRange) headers.set('Content-Range', options.contentRange);
   if (options.status === 416) {
     headers.set('Content-Range', 'bytes */' + size);
@@ -407,10 +408,28 @@ async function serveCached(request, bucket, key, cachedObject) {
       length: parsedRange.length,
       contentRange: 'bytes ' + parsedRange.start + '-' + parsedRange.end + '/' + size,
       etag: cachedObject.etag,
+      provider: cachedObject.customMetadata?.provider,
     });
   }
   if (!cachedObject.body) return jsonError(request, 503, 'TTS_CACHE_READ_FAILED', 'Cached TTS audio could not be read.');
-  return audioResponse(request, cachedObject.body, size, { etag: cachedObject.etag });
+  return audioResponse(request, cachedObject.body, size, {
+    etag: cachedObject.etag,
+    provider: cachedObject.customMetadata?.provider,
+  });
+}
+
+function audioBytesResponse(request, bytes, provider) {
+  const range = parseByteRange(request.headers.get('range'), bytes.byteLength);
+  if (range.kind === 'invalid') return audioResponse(request, null, bytes.byteLength, { status: 416 });
+  if (range.kind === 'range') {
+    return audioResponse(request, bytes.slice(range.start, range.end + 1), bytes.byteLength, {
+      status: 206,
+      length: range.length,
+      contentRange: 'bytes ' + range.start + '-' + range.end + '/' + bytes.byteLength,
+      provider,
+    });
+  }
+  return audioResponse(request, bytes, bytes.byteLength, { provider });
 }
 
 async function reserveDailyUsage(bucket, userId, dailyLimit) {
@@ -566,7 +585,7 @@ async function handleTtsRequest(request, provider = 'auto') {
     return jsonError(request, 503, 'TTS_CACHE_WRITE_FAILED', 'Generated audio could not be stored in the temporary cache.');
   }
 
-  return audioResponse(request, generated.bytes, generated.bytes.byteLength);
+  return audioBytesResponse(request, generated.bytes, generated.provider);
 }
 
 export function healthTts() {
