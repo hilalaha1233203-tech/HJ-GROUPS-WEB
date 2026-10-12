@@ -13,6 +13,7 @@ test('Pages health reports actual TTS and Web Push configuration', async () => {
   assert.equal(empty.ttsConfigured, false)
   assert.equal(empty.ttsProviders.sarvam.configured, false)
   assert.equal(empty.ttsProviders.edge.configured, false)
+  assert.equal(empty.ttsProviders.legacyBackend.configured, false)
   assert.equal(empty.webPushConfigured, false)
 
   const configured = await run('/health', {
@@ -25,6 +26,51 @@ test('Pages health reports actual TTS and Web Push configuration', async () => {
   assert.equal(ready.ttsProviders.edge.configured, false)
   assert.equal(ready.webPushConfigured, true)
   assert.equal(JSON.stringify(ready).includes('test-only-sarvam-key'), false)
+})
+
+test('Pages TTS routes through the explicit legacy bridge when configured', async () => {
+  const originalFetch = globalThis.fetch
+  const seen = []
+  globalThis.fetch = async (url, init = {}) => {
+    seen.push({ url: String(url), method: init.method, body: JSON.parse(init.body) })
+    return new Response(new Uint8Array([0x49, 0x44, 0x33]), {
+      status: 200,
+      headers: { 'Content-Type': 'audio/mpeg', 'X-TTS-Provider': 'edge' },
+    })
+  }
+  try {
+    const cases = [
+      ['/api/tts', 'https://legacy.test/api/tts'],
+      ['/api/edge-tts', 'https://legacy.test/api/edge-tts'],
+      ['/api/sarvam-tts', 'https://legacy.test/api/sarvam-tts'],
+    ]
+    for (const [path, expectedUrl] of cases) {
+      const response = await run(path, { HJ_WEB_BACKEND_URL: 'https://legacy.test/base-path' }, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: json({ text: 'வணக்கம் HJ GROUPS', provider: 'auto' }),
+      })
+      assert.equal(response.status, 200, path)
+      assert.match(response.headers.get('Content-Type') || '', /^audio\\/mpeg/i)
+      assert.equal(response.headers.get('X-TTS-Provider'), 'edge')
+      assert.equal((await response.arrayBuffer()).byteLength, 3)
+      assert.equal(seen.at(-1).url, expectedUrl)
+      assert.equal(seen.at(-1).method, 'POST')
+      assert.equal(seen.at(-1).body.text, 'வணக்கம் HJ GROUPS')
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Pages health reports the legacy backend only as configured, not live-verified', async () => {
+  const response = await run('/health', { HJ_WEB_BACKEND_URL: 'https://legacy.test' })
+  const health = await response.json()
+  assert.equal(health.ttsConfigured, true)
+  assert.equal(health.ttsProviders.legacyBackend.configured, true)
+  assert.equal(health.ttsProviders.legacyBackend.liveVerified, false)
+  assert.equal(health.ttsProviders.edge.routeConfiguredViaLegacyBackend, true)
+  assert.equal(JSON.stringify(health).includes('legacy.test'), false)
 })
 
 test('Edge TTS returns an explicit not-migrated error without attempting a WebSocket provider', async () => {
