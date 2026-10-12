@@ -72,6 +72,9 @@ export async function onRequestPost(context) {
     return json(400, { error: 'Image dimensions are invalid', code: 'INVALID_COVER_DIMENSIONS' });
   }
 
+  const publicBase = safePublicBase(context.env.COVER_PUBLIC_BASE_URL);
+  if (publicBase === null) return json(503, { error: 'COVER_PUBLIC_BASE_URL must be a valid HTTPS origin', code: 'COVER_PUBLIC_BASE_URL_INVALID' });
+
   const thumbnail = thumbnailResult.bytes;
   const large = largeResult.bytes;
   const assetId = await digestCoverPair(thumbnail, large);
@@ -99,8 +102,6 @@ export async function onRequestPost(context) {
     return json(503, { error: 'Could not save cover image to R2', code: 'COVER_STORAGE_WRITE_FAILED' });
   }
 
-  const publicBase = safePublicBase(context.env.COVER_PUBLIC_BASE_URL);
-  if (publicBase === null) return json(503, { error: 'COVER_PUBLIC_BASE_URL must be a valid HTTPS origin', code: 'COVER_PUBLIC_BASE_URL_INVALID' });
   const path = publicBase ? publicBase + '/' + largeName : '/api/covers/' + largeName;
   const thumbnailUrl = publicBase ? publicBase + '/' + thumbnailName : '/api/covers/' + thumbnailName;
   return json(201, { ok: true, url: path, thumbnailUrl, path: assetId, width, height, thumbnailBytes: thumbnail.length, largeBytes: large.length });
