@@ -1,4 +1,3 @@
-import React from 'react'
 import { handleCoverImageError, resolveCoverImage } from '../lib/coverAssets.js'
 
 function CoverImage({
