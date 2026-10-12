@@ -22,21 +22,85 @@ export function makeSafeFileName(
     )
 }
 
-export function optimizeImageUrl(url, { width = 800, quality = 75 } = {}) {
-  const raw = String(url || '').trim()
-  if (!raw || !/^https:\/\/[^/]*\.supabase\.co\/storage\/v1\/object\/(?:public|authenticated)\//i.test(raw)) {
-    return raw
-  }
+function canvasWebp(bitmap, targetWidth, quality, maxBytes = Infinity) {
+  const width = Math.min(targetWidth, bitmap.width);
+  const height = Math.max(1, Math.round(bitmap.height * width / bitmap.width));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d', { alpha: true });
+  if (!context) throw new Error('Could not prepare the cover image.');
+  context.drawImage(bitmap, 0, 0, width, height);
 
-  const params = new URLSearchParams({
-    url: raw,
-    w: String(width),
-    fit: 'inside',
-    output: 'webp',
-    q: String(quality),
-    maxage: '1y',
-  })
-  return 'https://wsrv.nl/?' + params.toString()
+  const encode = (q) => new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) return reject(new Error('The browser could not convert this cover to WebP.'));
+      if (blob.type !== 'image/webp') return reject(new Error('This browser cannot create WebP images.'));
+      resolve(blob);
+    }, 'image/webp', q);
+  });
+
+  return (async () => {
+    const qualities = [quality, ...[0.76, 0.68, 0.60, 0.52, 0.44, 0.36, 0.28, 0.20, 0.12].filter((q) => q < quality)];
+    let finalBlob = null;
+    for (const q of qualities) {
+      finalBlob = await encode(q);
+      if (finalBlob.size <= maxBytes) return finalBlob;
+    }
+    if (maxBytes !== Infinity) {
+      throw new Error('The cover thumbnail could not be reduced below 80 KB. Choose a simpler or smaller cover image.');
+    }
+    if (finalBlob.size > 2 * 1024 * 1024) {
+      throw new Error('The large WebP cover exceeds 2 MB after optimization.');
+    }
+    return finalBlob;
+  })();
+}
+
+export async function uploadCoverToR2(file) {
+  if (!file) throw new Error('No cover image selected.');
+  const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
+  const type = String(file.type || '').toLowerCase();
+  if (type && !allowed.has(type)) {
+    throw new Error('Use a JPEG, PNG, WebP, GIF or AVIF cover image. SVG uploads are not accepted.');
+  }
+  if (file.size > 20 * 1024 * 1024) throw new Error('Cover source image must be 20 MB or smaller.');
+  if (typeof createImageBitmap !== 'function') throw new Error('This browser does not support safe cover-image optimization.');
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+    if (!bitmap.width || !bitmap.height || bitmap.width > 12000 || bitmap.height > 12000) {
+      throw new Error('Cover dimensions are invalid or too large.');
+    }
+    const thumbnail = await canvasWebp(bitmap, 400, 0.84, 80 * 1024);
+    const large = await canvasWebp(bitmap, 800, 0.82, 2 * 1024 * 1024);
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw new Error('Could not verify the admin session for cover upload.');
+    const token = data?.session?.access_token;
+    if (!token) throw new Error('Please sign in again before uploading a cover.');
+
+    const form = new FormData();
+    form.append('thumbnail', thumbnail, 'cover-400.webp');
+    form.append('large', large, 'cover-800.webp');
+    form.append('width', String(bitmap.width));
+    form.append('height', String(bitmap.height));
+    const response = await fetch('/api/admin/covers/upload', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: form,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Cover upload to Cloudflare R2 failed (HTTP ' + response.status + ').');
+    }
+    if (!payload.url || !payload.path) throw new Error('Cover upload returned an invalid response.');
+    return { url: payload.url, originalUrl: payload.url, path: payload.path, thumbnailUrl: payload.thumbnailUrl };
+  } catch (error) {
+    throw new Error(String(error?.message || 'Cover optimization/upload failed.'), { cause: error });
+  } finally {
+    try { bitmap?.close(); } catch {}
+  }
 }
 
 export async function uploadFileToBucket(
@@ -44,6 +108,8 @@ export async function uploadFileToBucket(
   folder,
   file
 ) {
+  if (bucket === 'story-covers') return uploadCoverToR2(file);
+
   if (!file) {
     throw new Error(
       'No file selected'
@@ -90,11 +156,8 @@ export async function uploadFileToBucket(
         path
       )
 
-  const isImage = String(file.type || '').startsWith('image/') || /\\.(?:jpe?g|png|webp|gif|jfif)$/i.test(String(file.name || ''))
-
   return {
-    url:
-      isImage ? optimizeImageUrl(data.publicUrl) : data.publicUrl,
+    url: data.publicUrl,
     originalUrl: data.publicUrl,
     path,
   }

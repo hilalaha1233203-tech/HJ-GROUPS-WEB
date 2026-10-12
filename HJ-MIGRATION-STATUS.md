@@ -864,3 +864,65 @@ Current status:
 Safety and phase gates:
 - PR #9 remains unmerged; no production Pages settings, Supabase data, Voroa, Telegram session/media, or Episode Analytics were changed by this patch.
 - All newly added upstream/backend calls are represented in mocked tests only until a controlled preview/live verification is approved.
+## 19. Phase 5U — Cover image egress migration (2026-10-12)
+
+### VERIFIED — read-only Supabase Storage snapshot
+
+Project: `yajkfglagnyvenddyvok`.
+All SQL queries in this audit were SELECT/read-only. No production database writes, Storage uploads, or Storage removals were run.
+
+Bucket summary from `storage.objects` and `storage.buckets`:
+
+| Bucket | Objects | Stored size | Use / decision |
+|---|---:|---:|---|
+| `story-covers` | 13 | 12.95 MiB (about 13,581,971 bytes) | Cover source bucket; this is the only bucket in scope for cover migration |
+| `audio` | 2 | 44.18 MiB | Media content, explicitly out of scope; not downloaded or changed |
+| Total for these buckets | 15 | about 57.13 MiB | Stored size is not egress usage |
+
+The 13 cover objects listed and measured by the read-only query are recorded in `tools/cover-source/README.md`. Four current `public.stories.cover_url` values wrap four larger PNG cover URLs (the original-image total is about 10.33 MiB). `public.stories` had 4 rows at the time of this query; `public.books` and `public.video_stories` had 0 rows. No data column was modified.
+
+Decision qualification: 12.95 MiB of stored cover objects does not establish that covers caused the Supabase 42.5 GB cached-egress quota. In the queried 24-hour `2026-10-11T10:20:00Z` to `2026-10-12T10:20:00Z` window, `edge_logs` had 8,113 rows but no rows matched `/storage/v1/object` or `story-covers`; `storage_logs` had 3 rows and none evidenced image downloads. This query window does not prove that no cover traffic occurred. The same `edge_logs` query window contained 3,991 GETs to `/rest/v1/episodes` returning 402, 3,980 GETs to `/rest/v1/web_push_dispatch_state` returning 402, and 43 `/realtime/v1/websocket` GETs returning 402. These are candidate troubleshooting areas, not evidence that those failed requests caused 42.5 GB. Historical cached object traffic, other media/buckets, other API payloads, Realtime and traffic outside the log window remain unmeasured.
+
+### VERIFIED — code changes on the stacked Phase 5U branch / PR
+
+PR: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/10
+Branch: `phase5u-cover-assets-20261012`.
+Base branch is the still-open Phase 2 PR branch `phase2/containerless-pages-migration-20261008`. The Phase 5U branch was reconciled with PR #9 latest head `4dd122eb655023c0ae064acae47b130f94c51229` by merge commit `81b3864f65e0276638a94299658e331fb106f75d`. PR #9 is still open and unmerged. PR #10 remains draft and unmerged.
+
+Implemented on the PR branch:
+- Shared `src/components/CoverImage.jsx` + `src/lib/coverAssets.js` resolve known source URLs against the static manifest, unwrap old `wsrv.nl` URLs, use responsive `srcSet`/`sizes`, lazy-load catalogue covers (eager-load the hero), and fall back to the direct original URL and then a local SVG placeholder.
+- Replaced all 16 `src/App.jsx` cover render sites and all remaining cover preview tags in `src/AdminPanel.jsx`; the current inspection found 0 direct story/book/video cover `<img>` expressions remaining in `src/AdminPanel.jsx`.
+- Removed the external `wsrv.nl` transformation from `src/lib/storageUpload.js` and removed catalog URL rewriting through that transformation in `src/lib/telegramContent.js`.
+- Added immutable cache headers for static `/covers/*` and a short cache for `/cover-manifest.json` in `public/_headers`.
+- Added offline `scripts/optimize-covers.py` to make SHA-256 content-hashed 400px/800px WebP variants, preserve aspect ratio/orientation/transparency, target thumbnails <=80 KiB and large images <=2 MiB, and update both source and public manifests. The script refuses to generate output until all 13 expected originals are present and prints per-file measurements. Downloaded originals are gitignored.
+- Added GET/HEAD `/api/covers/{hash}-400.webp` and `-800.webp` restricted to validated hashed WebP keys, and authenticated `/api/admin/covers/upload` for new uploads into a separate `COVERS_BUCKET` binding. The route only uses a public Supabase Auth key to validate `app_metadata.role=admin`; no service-role key is sent to the browser. The interim Pages route responds with immutable cache headers and does not proxy to Supabase Storage.
+- New cover uploads are converted in-browser to WebP before POSTing the two variants. Only `bucket === 'story-covers'` uses the new path; existing audio/book/video-file upload behavior was not redirected.
+- Added unit tests for manifest hits/misses, legacy URL unwrapping, fallback/placeholder, safe hashed-key routing, cache headers, admin authorization, mocked R2 variant writes and invalid custom-domain rejection.
+
+CI evidence: Quality Check #1081 (`38239348824`) on commit `d904fb9d9482587b01bc8ba9953260ac593be970` completed SUCCESS. Lint, production build, Pages route smoke, Python script syntax and source/security checks passed. Test log reported `# pass 152`, `# fail 0`. This does not constitute real browser playback, real asset conversion, real R2 upload, or deployed Preview verification.
+
+### VERIFIED — Cloudflare configuration safety
+
+- Dedicated R2 bucket `hj-groups-covers` was created on 2026-10-12 and is separate from existing `hj-groups-media`; the cover bucket still has no uploaded cover objects.
+- Pages project `hj-groups-web` Preview configuration has `COVERS_BUCKET -> hj-groups-covers`; production R2 binding remains empty. A read-after-write project config comparison confirmed Production's full deployment config object was unchanged by the Preview-only binding change. Existing Production environment keys and `HJ_WEB_BACKEND_URL` remain unchanged.
+- No custom DNS zone/domain is present in the connected Cloudflare account. Do not use `r2.dev` for production; Cloudflare documents it as rate-limited. Until a user-owned custom domain is configured, new covers use the safe interim Pages Function path `/api/covers/*`. This incurs a Worker/Pages Function request per image miss/request and must be assessed against Free-tier request limits.
+
+### NOT VERIFIED — existing cover binaries, egress savings, real upload and deployment
+
+- `src/lib/cover-manifest.json` and `public/cover-manifest.json` currently contain an empty `covers` object. The 13 source images could not be downloaded or read by the current execution environment because outbound DNS resolution to Supabase failed; no conversion was run and no generated `.webp` files are in the repository. Do not claim that the existing covers have been migrated or optimized yet.
+- Real image bytes and cold/warm measurements on the home page and a story page: NOT VERIFIED. No browser Network capture, `curl`/`curl -I` output, deployed cache hit or real response byte count was available. Code/CI test output is not a substitute for those measurements.
+- Real preview render on mobile and desktop, fallback against a real broken URL, immutable HTTP response headers, and actual R2 admin upload: NOT VERIFIED. Tests mocked R2 and fetch.
+- A new Pages deployment for `phase5u-cover-assets-20261012` is NOT VERIFIED. The Cloudflare deployment list only contains older Phase 2 previews (including `22bec75a`, commit `fda6f6d17d96669f1f8d5182cea1d16742c99d0e`); that URL is stale and must not be represented as the Phase 5U preview. PR #10 remains draft.
+- Actual post-conversion byte savings and actual egress reduction: NOT VERIFIED until the user-provided originals are converted and real page bytes measured.
+
+### Exact next steps / promotion gate
+
+1. From Supabase Dashboard for project `yajkfglagnyvenddyvok`, go to Storage → Files → `story-covers` → `stories`, download only the 13 files listed in `tools/cover-source/README.md`, preserving filenames into `tools/cover-source/stories/`. Do not download the `audio` bucket. If quota blocks download, resolve access through the dashboard after quota/API recovery; do not run a Storage delete or change the production DB.
+2. On Windows PowerShell at the repo root, run `py -m pip install --user Pillow` then `py scripts/optimize-covers.py`. Review the printed original and output bytes for each file. Commit only `public/covers/*.webp` plus the two generated manifests to this branch; never commit originals. Re-check Pages asset count (<20,000) and every asset (<25 MiB). The expected 26 WebP variants are not present until this step succeeds.
+3. Wait for Quality Check on the updated PR head to finish. Cloudflare Dashboard → Workers & Pages → `hj-groups-web` → Deployments/Builds: verify a deployment whose branch is `phase5u-cover-assets-20261012` and whose commit SHA equals the current PR #10 head. If missing, check Settings → Builds → Git integration/preview deployment automation (`all`) and trigger/retry only the new Phase 5U branch deployment. Do not reuse the stale Phase 2 Preview URL as evidence.
+4. Open the real Phase 5U Preview on desktop and mobile. Test manifest hit (one of the four real PNG covers), manifest miss (a URL not in manifest still tries its direct original), intentionally broken URL (placeholder), story-detail page and home list. In Chrome DevTools Network with cache disabled, record all image URL/status/Transferred+Resource size on cold load, then reload with cache enabled and record warm transfer. Use a separate fresh browser/session if needed; do not guess bytes. Compare home vs story page with screenshots/network output.
+5. Check `curl -I https://<preview-host>/covers/<real-hash>-800.webp` for `200`, `image/webp`, `Cache-Control: public, max-age=31536000, immutable`, and the same URL again for cache behaviour; check `GET` + `HEAD`/404. Do not issue a test cover upload until authenticated Preview upload is explicitly tested in the browser with an approved image. Verify it creates only two objects in the separate `hj-groups-covers` bucket and returns no Supabase Storage URL.
+6. The current account has no custom domain/zone. To switch new cover uploads to direct R2 delivery, first configure a user-owned domain in Cloudflare, then R2 → `hj-groups-covers` → Settings → Custom Domains → connect `covers.<your-domain>` and wait for active. Only then set the Preview-only `COVER_PUBLIC_BASE_URL=https://covers.<your-domain>` and test again. Do not use `r2.dev` for production. Keep Production settings unchanged until the user approves a separate production cutover.
+7. Only after existing static assets are generated, current-head CI passes, a real Phase 5U Preview is deployed and the user accepts all tests should PR #10 be changed from draft and reviewed. Do not merge PR #10 or PR #9, and do not promote Production without explicit user approval.
+
+Safety ledger: NO production database writes; NO Storage object uploads/deletes; NO production Pages setting changes; NO Episode Analytics changes; NO Telegram session/media changes; NO `hj-groups-media` binding changes. Preview-only `COVERS_BUCKET` binding and separate bucket creation are the only Cloudflare configuration/resource changes in this phase.

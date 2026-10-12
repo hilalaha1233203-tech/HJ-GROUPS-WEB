@@ -1,4 +1,5 @@
 import FileUploadField from './components/FileUploadField'
+import CoverImage from './components/CoverImage.jsx'
 import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
 import { normalizeShortenerSettings } from './lib/shortenerProviders'
@@ -2428,7 +2429,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   {stories.slice(0, 5).map((story) => (
                     <button key={story.id} onClick={() => setAdminTab('stories')}>
                       <span className="admin-recent-avatar">
-                        {story.cover ? <img src={story.cover} alt="" /> : '🎧'}
+                        {story.cover ? <CoverImage src={story.cover} coverPath={story.coverPath} alt="" /> : '🎧'}
                       </span>
                       <span>
                         <strong>{story.title}</strong>
@@ -3820,7 +3821,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 {stories.filter((story) => adminStoryIds.includes(story.id)).map((story) => (
                   <div key={story.id} className="admin-story-block">
                     <div className="admin-list-item">
-                      <img src={story.cover || undefined} alt="" />
+                      <CoverImage src={story.cover || undefined} coverPath={story.coverPath} alt="" />
                       <div>
                         <strong>{story.title}</strong>
                         <small>{story.genre} · {story.episodes?.length || 0} episodes</small>
@@ -4165,7 +4166,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
               <div className="admin-list">
                 {books.filter((book) => adminBookIds.includes(book.id)).map((book) => (
                   <div key={book.id} className="admin-list-item">
-                    <img src={book.cover || undefined} alt="" />
+                    <CoverImage src={book.cover || undefined} coverPath={book.coverPath} alt="" />
                     <div>
                       <strong>{book.title}</strong>
                       <small>{book.type.toUpperCase()} · {book.category} · {resolveAccessType(book).join(', ').toUpperCase()}</small>
@@ -4371,7 +4372,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                 {videoStories.filter((video) => adminVideoIds.includes(video.id)).map((video) => (
                   <div key={video.id} className="admin-story-block">
                     <div className="admin-list-item">
-                      <img src={video.cover || undefined} alt="" />
+                      <CoverImage src={video.cover || undefined} coverPath={video.coverPath} alt="" />
                       <div>
                         <strong>{video.title}</strong>
                         <small>{video.category} · {resolveAccessType(video).join(', ').toUpperCase()}</small>
