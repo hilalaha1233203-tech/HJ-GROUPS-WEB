@@ -75,7 +75,7 @@ test('Pages health reports exact TTS binding/provider flags without exposing sec
   assert.equal(empty.ttsProviders.edge.viability, 'not_viable_current_workers_handshake')
   assert.equal(empty.ttsProviders.edge.testedInWranglerLocal, true)
   const edgeOnly = await (await run('/health', testEnv(createBucket(), { EDGE_TTS_ENABLED: 'true' }))).json()
-  assert.equal(edgeOnly.ttsProviders.edge.enabled, true)
+  assert.equal(edgeOnly.ttsProviders.edge.enabled, false, 'an env flag cannot override a failed real handshake probe')
   assert.equal(edgeOnly.ttsConfigured, false, 'enabling the known-unviable endpoint must not imply configured TTS')
   assert.equal(empty.ttsProviders.edge.testedInWorkers, false)
   assert.equal(empty.ttsProviders.sarvam.configured, false)
