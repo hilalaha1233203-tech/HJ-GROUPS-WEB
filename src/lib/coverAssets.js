@@ -100,6 +100,7 @@ export function handleCoverImageError(event, fallbackSrc = '') {
   if (!image) return 'ignored'
   const fallback = String(fallbackSrc || '').trim()
   const current = String(image.getAttribute?.('src') || image.src || '')
+  if (image.dataset?.coverFallbackStage === 'placeholder') return 'ignored'
   if (fallback && fallback !== current && image.dataset?.coverFallbackStage !== 'fallback') {
     if (image.dataset) image.dataset.coverFallbackStage = 'fallback'
     image.removeAttribute?.('srcset')
