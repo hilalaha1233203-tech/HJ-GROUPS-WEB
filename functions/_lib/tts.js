@@ -63,7 +63,7 @@ async function handleTtsRequest(request,provider){
     return jsonResponse(request,503,{
       error:'Text-to-speech provider unavailable',
       code:'EDGE_TTS_NOT_MIGRATED',
-      hint:'Edge TTS currently requires a provider-specific WebSocket client rewrite; use /api/tts with Sarvam configured.',
+      hint:'Microsoft Edge Neural TTS uses a provider-specific WebSocket flow that is not implemented for Cloudflare Pages Workers. Options: configure SARVAM_API_KEY and use /api/tts, or keep /api/edge-tts on the legacy backend only if that route is explicitly retained and tested there.'
     });
   }
 
@@ -79,7 +79,7 @@ async function handleTtsRequest(request,provider){
     headers.set('X-TTS-Provider','sarvam');
     return new Response(audio,{status:200,headers});
   }catch(error){
-    return jsonResponse(request,503,{error:'Text-to-speech service unavailable',detail:String(error?.message||'Sarvam TTS failed').slice(0,300)});
+    return jsonResponse(request,503,{error:'Text-to-speech service unavailable',code:'SARVAM_TTS_REQUEST_FAILED',detail:String(error?.message||'Sarvam TTS failed').slice(0,300)});
   }
 }
 
