@@ -578,7 +578,7 @@ const installEdgeTtsSpeechBridge = () => {
 
     const rate = Math.max(0.5, Math.min(2, Number(utterance.rate) || 1))
     const pitch = Number(utterance.pitch) || 0
-    const endpoint = String(import.meta.env.VITE_TTS_API_URL || '/api/tts')
+    const endpoint = '/api/tts'
     const key = JSON.stringify([endpoint, text, voice, rate, pitch])
 
     if (cache.has(key)) return cache.get(key)
