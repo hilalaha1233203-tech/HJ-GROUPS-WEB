@@ -1,4 +1,4 @@
-name: Edge TTS Workers live probe
+name: Edge TTS Workers viability probe
 
 on:
   pull_request:
@@ -23,5 +23,5 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Verify the real Edge TTS WebSocket inside Wrangler local Workers runtime
+      - name: Probe the real Edge TTS WebSocket and record viability inside Wrangler local Workers runtime
         run: node tests/edge-tts-live/probe.mjs
