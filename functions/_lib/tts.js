@@ -138,6 +138,7 @@ export async function synthesizeEdgeTts({ text, voice = FALLBACK_VOICE, timeoutM
     response = await fetch(url, {
       headers: {
         Upgrade: 'websocket',
+        'Sec-WebSocket-Version': '13',
         Pragma: 'no-cache',
         'Cache-Control': 'no-cache',
         Origin: EDGE_ORIGIN,
