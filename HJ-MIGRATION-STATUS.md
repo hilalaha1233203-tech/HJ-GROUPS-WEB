@@ -739,3 +739,65 @@ NOT VERIFIED:
 - full cross-repo production E2E after the HJ Web cutover.
 
 Do not mark the overall HJ migration complete until the Phase 4 authoritative chunk mapping and the remaining live production E2E gates are cleared.
+
+
+## 16. Phase 2 corrective audit — TTS / Web Push (2026-10-12)
+
+### VERIFIED — source-level findings and surgical patch
+
+PR:
+- https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/9
+- Branch: `phase2/containerless-pages-migration-20261008`
+- Patch commit containing health/TTS changes: `39b1e076f33e7a84329957abddedaabd7586593e`
+- Test commit: `d34859ce084f26a9c5608bb44f33423dea262d04`
+- GitHub Actions Quality Check run #1055 / id `38234586990` was IN PROGRESS at this checkpoint. Test result is NOT VERIFIED until the run completes successfully.
+
+Changes limited to PR branch:
+- `functions/[[path]].js`: `ttsConfigured` now follows `healthTts().sarvam.configured`, instead of a hard-coded `true`.
+- `functions/_lib/tts.js`: Edge TTS response keeps structured code `EDGE_TTS_NOT_MIGRATED` and now explains the two honest options: use Sarvam with `SARVAM_API_KEY`, or explicitly retain/test the Edge route on the legacy backend. Sarvam provider failures now include `SARVAM_TTS_REQUEST_FAILED`.
+- Added `tests/unit/pagesTtsWebPush.test.mjs`: tests health configuration flags, structured Edge/Sarvam missing-config responses, mocked Sarvam provider contract, mocked authenticated subscription/preferences writes, and the explicit Web Push delivery pending code.
+- Tests mock external provider/PostgREST requests. They do NOT write to the real Supabase database or call the real Sarvam API.
+
+### TTS capability matrix
+
+| Capability | Evidence | Status |
+|---|---|---|
+| `/health` accurately reports Sarvam configuration | Hard-coded true removed; new unit test added | CI result pending at this checkpoint |
+| `/api/tts` with Sarvam | Requires secret `SARVAM_API_KEY`; route sends documented request shape and returns audio on successful provider response; unit test uses a mocked provider | Source-level implementation present; real Sarvam audio NOT VERIFIED |
+| `/api/edge-tts` on Pages | Handler intentionally returns HTTP 503 + `EDGE_TTS_NOT_MIGRATED`; no Microsoft WebSocket client is implemented in the Pages route | VERIFIED as intentionally unavailable in this branch; actual Microsoft WebSocket compatibility in Workers NOT VERIFIED |
+| Legacy Edge TTS | Legacy Node source has a separate Edge TTS implementation | Live Voroa audio playback NOT VERIFIED in this phase |
+| Fallback behavior | Frontend falls back to the browser's native speech implementation when online TTS fails | Source-level behavior only; live browser voice availability depends on user's device and NOT VERIFIED |
+
+Decision needed before merge: either accept Sarvam-only TTS on Pages after configuring/testing its secret, or explicitly preserve/test the legacy Edge TTS route outside the Pages runtime. Do not claim Edge TTS has migrated.
+
+### Web Push capability matrix
+
+| Capability | Evidence | Status |
+|---|---|---|
+| Public VAPID config endpoint | `GET /api/push/config` returns `configured` based on `WEB_PUSH_VAPID_PUBLIC_KEY` | Source-level verified; live configuration currently reported false by user-provided Preview response |
+| Subscription and preference storage handlers | Pages routes authenticate user and issue PostgREST writes to `web_push_subscriptions` and `web_push_preferences`; new tests mock both writes | Mock test pending CI; live Supabase persistence NOT VERIFIED because project is quota-restricted |
+| Admin notification delivery | Route explicitly returns HTTP 503, code `WEB_PUSH_SEND_NOT_MIGRATED` | VERIFIED from source; feature is NOT migrated |
+| VAPID / Workers-compatible delivery implementation | No Pages delivery implementation. A Workers-compatible Web Push sender using Web Crypto (or another proven Workers-compatible implementation) plus public/private VAPID key configuration is still required | NOT IMPLEMENTED; requires separate scoped change and tests |
+
+No VAPID keys were added. No real subscription was written. No real notification was sent.
+
+### Regression table — legacy production vs PR #9
+
+The source repository shows legacy implementations, but live production behavior was not exercised in this phase. Therefore "works now" is NOT VERIFIED unless a live result is supplied; source presence is not proof of live behavior.
+
+| Feature | Works on live Voroa now? | After PR #9 merge? | Evidence / decision |
+|---|---|---|---|
+| Edge Neural TTS | NOT VERIFIED — legacy handler exists in `server.mjs`/legacy TTS source, but no live audio test in this phase | NO on Pages — explicit `503 EDGE_TTS_NOT_MIGRATED` | User must choose Sarvam-only on Pages or explicitly retain/test legacy Edge route |
+| Sarvam TTS | NOT VERIFIED — no live provider request in this phase | CONDITIONAL — yes only if `SARVAM_API_KEY` is configured and provider request succeeds | Configure secret and perform real Tamil + English audio test before declaring migrated |
+| Web Push subscription/preferences storage | NOT VERIFIED live; legacy source and SQL schema exist | CONDITIONAL — route code is present, but requires working Supabase API/schema and VAPID public key; live storage blocked by current Supabase quota restriction | Retest authenticated subscribe/status/preferences after quota is restored |
+| Admin Web Push delivery | NOT VERIFIED live; legacy `server/webPush.mjs` contains sender logic | NO — explicit `503 WEB_PUSH_SEND_NOT_MIGRATED` | Must approve a separate Workers-compatible delivery implementation or accept the loss |
+| Other Phase 2 features | NOT classified as regressions by this TTS/Web Push audit | NOT VERIFIED here | Existing PR promotion gates remain; do not infer complete feature parity from this focused audit |
+
+### Safety / phase gate
+
+- PR #9 remains OPEN and UNMERGED at this checkpoint.
+- `main`, production Pages settings, production Supabase, Voroa, Telegram session and media were not modified by this patch.
+- Episode Analytics was not modified.
+- No production database writes, real TTS provider calls, VAPID setup or notification sends were performed.
+- Phase 4 remains BLOCKED until PR #9 is merged and user-approved production cutover gates are satisfied.
+- Overall status for this corrective patch: IMPLEMENTED IN PR BRANCH; CI AND LIVE RUNTIME VERIFICATION PENDING.
