@@ -5,7 +5,7 @@ import { handleVipAdmin, handleVipSelf } from './_lib/vip.js';
 import { handleAds } from './_lib/ads.js';
 import { handleShortener } from './_lib/shortener.js';
 import { handlePayments } from './_lib/payment.js';
-import { handleTtsRequest, handleLegacyTtsProxy, healthTts } from './_lib/tts.js';
+import { handleTtsRequest, healthTts } from './_lib/tts.js';
 import { handleWebPush, handleWebPushUnsubscribe, handleAdminNotificationSend } from './_lib/webPush.js';
 import { handleAdminPlaywright } from './_lib/playwright.js';
 import { handleAdminUserExport } from './_lib/adminExport.js';
@@ -17,7 +17,8 @@ function health(request) {
     ok:true,
     service:'hj-groups-web',
     runtime:'cloudflare-pages-functions',
-    ttsConfigured:Boolean(ttsProviders.sarvam.configured || ttsProviders.legacyBackend.configured),
+    ttsConfigured:Boolean(ttsProviders.cacheBucketBound && ((ttsProviders.edge.enabled && ttsProviders.edge.viability==='viable') || ttsProviders.sarvam.configured || ttsProviders.googleCloud.configured || ttsProviders.azureSpeech.configured)),
+    ttsCacheBucketBound:ttsProviders.cacheBucketBound,
     ttsProviders,
     webPushConfigured:Boolean(String(env.WEB_PUSH_VAPID_PUBLIC_KEY || '')),
     containerRuntime:false,
@@ -46,21 +47,11 @@ async function route(request) {
   if(path==='/api/admin/notifications/send') return handleAdminNotificationSend(request);
   if(path==='/api/push/subscribe/remove') return handleWebPushUnsubscribe(request);
   const push=await handleWebPush(request); if(push) return push;
-  if(path==='/api/tts') {
-    const legacy=await handleLegacyTtsProxy(request,'auto');
-    if(legacy) return legacy;
-    return handleTtsRequest(request,'auto');
-  }
-  if(path==='/api/edge-tts') {
-    const legacy=await handleLegacyTtsProxy(request,'edge');
-    if(legacy) return legacy;
-    return handleTtsRequest(request,'edge');
-  }
-  if(path==='/api/sarvam-tts') {
-    const legacy=await handleLegacyTtsProxy(request,'sarvam');
-    if(legacy) return legacy;
-    return handleTtsRequest(request,'sarvam');
-  }
+  if(path==='/api/tts') return handleTtsRequest(request,'auto');
+  // Legacy standalone provider routes remain explicit compatibility errors.
+  // The frontend only uses /api/tts and never selects a provider-specific URL.
+  if(path==='/api/edge-tts') return handleTtsRequest(request,'edge');
+  if(path==='/api/sarvam-tts') return handleTtsRequest(request,'sarvam');
   const ads=await handleAds(request); if(ads) return ads;
   const payment=await handlePayments(request); if(payment) return payment;
   const shortener=await handleShortener(request); if(shortener) return shortener;
