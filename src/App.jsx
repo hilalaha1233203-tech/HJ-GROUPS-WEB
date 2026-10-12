@@ -878,6 +878,7 @@ export function App() {
       const tamilVoices = voices.filter((voice) => /^(ta)(?:[-_]|$)/i.test(String(voice.lang || '')))
       const tamilIndia = tamilVoices.find((voice) => /^(ta)(?:[-_]IN)/i.test(String(voice.lang || '')))
       speechVoiceRef.current = tamilIndia || tamilVoices.find((voice) => voice.localService) || tamilVoices[0] || null
+      if (tamilVoices.length) setTtsFallbackUnavailable(false)
     }
     chooseVoice()
     window.speechSynthesis.addEventListener?.('voiceschanged', chooseVoice)
