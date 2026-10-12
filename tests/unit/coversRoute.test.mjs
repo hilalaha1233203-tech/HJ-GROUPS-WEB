@@ -108,6 +108,44 @@ test('admin cover upload writes both WebP variants to R2 and returns no Supabase
   }
 })
 
+test('admin cover upload rejects a custom URL with a path before any R2 write', async () => {
+  const originalFetch = globalThis.fetch
+  let writes = 0
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/auth/v1/user')) {
+      return new Response(JSON.stringify({
+        id: '00000000-0000-4000-8000-000000000004',
+        app_metadata: { role: 'admin' },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    throw new Error('Unexpected external request')
+  }
+  try {
+    const validWebp = new Uint8Array([0x52,0x49,0x46,0x46,0,0,0,0,0x57,0x45,0x42,0x50,1])
+    const form = new FormData()
+    form.append('thumbnail', new File([validWebp], 'cover-400.webp', { type: 'image/webp' }))
+    form.append('large', new File([validWebp], 'cover-800.webp', { type: 'image/webp' }))
+    form.append('width', '1200')
+    form.append('height', '1800')
+    const response = await coverUpload({
+      request: new Request('https://preview-branch.hj-groups-web.pages.dev/api/admin/covers/upload', {
+        method: 'POST', headers: { Authorization: 'Bearer admin-token' }, body: form,
+      }),
+      env: {
+        SUPABASE_PUBLISHABLE_KEY: 'test-public-key',
+        CF_PAGES_BRANCH: 'phase5u-cover-assets-20261012',
+        COVER_PUBLIC_BASE_URL: 'https://covers.example.test/something',
+        COVERS_BUCKET: { async put() { writes += 1 } },
+      },
+    })
+    assert.equal(response.status, 503)
+    assert.equal((await response.json()).code, 'COVER_PUBLIC_BASE_URL_INVALID')
+    assert.equal(writes, 0)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('cover upload rejects missing admin authorization', async () => {
   const response = await coverUpload({
     request: new Request('https://preview.test/api/admin/covers/upload', { method: 'POST', body: new FormData() }),
