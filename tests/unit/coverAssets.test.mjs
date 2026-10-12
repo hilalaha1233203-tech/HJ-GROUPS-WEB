@@ -63,4 +63,7 @@ test('broken mapped image first retries the original then switches to a placehol
   assert.equal(handleCoverImageError(event, original), 'placeholder')
   assert.equal(image.src, '/cover-placeholder.svg')
   assert.equal(image.onerror, null)
+  const retryAfterPlaceholder = image.src
+  assert.equal(handleCoverImageError(event, original), 'ignored')
+  assert.equal(image.src, retryAfterPlaceholder)
 })
