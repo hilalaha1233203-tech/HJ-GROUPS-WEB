@@ -471,7 +471,7 @@ async function reserveDailyUsage(bucket, userId, dailyLimit) {
 
 async function generateAudio({ text, voice, provider, body }) {
   const failures = [];
-  const edgeEnabled = envString('EDGE_TTS_ENABLED').toLowerCase() !== 'false';
+  const edgeEnabled = envString('EDGE_TTS_ENABLED').toLowerCase() === 'true';
   const providers = [];
 
   if (provider === 'edge') {
@@ -599,7 +599,7 @@ async function handleTtsRequest(request, provider = 'auto') {
 
 export function healthTts() {
   const bucket = getCacheBucket();
-  const edgeEnabled = envString('EDGE_TTS_ENABLED').toLowerCase() !== 'false';
+  const edgeEnabled = envString('EDGE_TTS_ENABLED').toLowerCase() === 'true';
   const sarvamConfigured = Boolean(envString('SARVAM_API_KEY'));
   const googleConfigured = Boolean(envString('GOOGLE_CLOUD_TTS_API_KEY'));
   const azureConfigured = Boolean(envString('AZURE_SPEECH_KEY') && envString('AZURE_SPEECH_REGION'));
@@ -607,7 +607,7 @@ export function healthTts() {
     cacheBucketBound: Boolean(bucket),
     cachePrefix: 'tts/',
     usagePrefix: 'tts-usage/',
-    edge: { enabled: edgeEnabled, testedInWorkers: false, voice: FALLBACK_VOICE },
+    edge: { enabled: edgeEnabled, viability: 'not_viable_current_workers_handshake', testedInWorkers: true, voice: FALLBACK_VOICE },
     sarvam: { configured: sarvamConfigured },
     googleCloud: { configured: googleConfigured },
     azureSpeech: { configured: azureConfigured },
