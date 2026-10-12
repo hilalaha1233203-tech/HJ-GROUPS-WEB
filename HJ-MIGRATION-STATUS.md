@@ -823,3 +823,43 @@ Status:
 - Later wording/test refinements are on the PR branch; their final CI run must be checked before this corrective phase can be called CI-verified.
 
 No production runtime or external TTS endpoint was called for this qualification.
+## 18. User-approved TTS and Web Push transition decisions (2026-10-12)
+
+### TTS — temporary Edge route accepted, Sarvam optional
+
+User decision:
+- Keep existing Edge TTS available through the configured legacy backend temporarily because no Sarvam API key is currently available.
+- If Sarvam is configured and actually succeeds, allow the existing legacy /api/tts auto-provider behavior to use it; otherwise Edge remains the fallback.
+- This is a temporary migration bridge, NOT approval to retain an always-on legacy backend in the final website architecture.
+
+PR #9 branch changes:
+- Added a narrow HTTPS-only bridge in functions/_lib/tts.js; /api/tts, /api/edge-tts, and /api/sarvam-tts use HJ_WEB_BACKEND_URL only when that setting is present.
+- /api/tts calls the legacy backend's existing auto-provider route. The legacy source already tries configured Sarvam according to its provider strategy and can fall back to Edge when Sarvam is unavailable/fails.
+- With no HJ_WEB_BACKEND_URL, no proxy is attempted: Pages keeps its local Sarvam configuration check and explicit EDGE_TTS_NOT_MIGRATED response.
+- /health now distinguishes the legacy bridge being configured from a live-verified provider. legacyBackend.liveVerified remains false.
+- Added mocked tests for the three proxy routes and health reporting. They do not contact the actual backend or Microsoft/Sarvam endpoints.
+
+Status:
+- Proxy source and mocked test coverage: implemented on PR #9 branch.
+- Real Edge audio through the configured HTTPS backend: NOT VERIFIED here.
+- Real Sarvam audio: NOT VERIFIED; no SARVAM_API_KEY was supplied/configured for this task and no provider request was made.
+- Production or Preview environment settings were not changed. The Preview environment must have an appropriate HJ_WEB_BACKEND_URL to exercise this transitional bridge; do not add/change that setting without explicit operational approval.
+- Before final legacy-backend retirement, the bridge must be replaced by a tested Workers-compatible Edge client or another explicitly approved provider and removed from the final runtime dependency chain.
+
+### Edge TTS cost/reliability qualification
+
+The existing open-source Edge TTS clients use Microsoft's consumer Edge Read Aloud service without an Azure/Sarvam API key (examples: https://github.com/travisvn/edge-tts and https://github.com/DejavuMoe/edgeTTS). This makes it available without a separate TTS API charge in the current implementation, but it is an undocumented consumer endpoint rather than a guaranteed developer API with an SLA. Upstream protocol changes, throttling, or blocking can break it; do not describe it as guaranteed free forever or production-SLA-backed. Source projects are independent of Microsoft and do not establish an official Microsoft service commitment.
+
+### Web Push — delivery migration approved, not implemented by this TTS patch
+
+User approved completing notification delivery later with a Workers-compatible implementation. This approval is scoped to the migration work; it does not authorize sending a real notification now or creating/changing VAPID secrets in production.
+
+Current status:
+- Subscription/preferences route tests remain mocked only; live Supabase writes are NOT VERIFIED.
+- Admin notification delivery still returns 503 WEB_PUSH_SEND_NOT_MIGRATED.
+- Workers-compatible delivery (including VAPID signing with Web Crypto or another tested compatible method), public/private key configuration, expiry handling, and test notifications are NOT IMPLEMENTED.
+- No VAPID keys were created, changed, or exposed; no real subscription or notification was sent.
+
+Safety and phase gates:
+- PR #9 remains unmerged; no production Pages settings, Supabase data, Voroa, Telegram session/media, or Episode Analytics were changed by this patch.
+- All newly added upstream/backend calls are represented in mocked tests only until a controlled preview/live verification is approved.
