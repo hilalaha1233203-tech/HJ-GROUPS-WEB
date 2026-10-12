@@ -27,7 +27,7 @@ test('Pages health reports actual TTS and Web Push configuration', async () => {
   assert.equal(JSON.stringify(ready).includes('test-only-sarvam-key'), false)
 })
 
-test('Edge TTS returns an explicit unsupported-runtime error without attempting a WebSocket provider', async () => {
+test('Edge TTS returns an explicit not-migrated error without attempting a WebSocket provider', async () => {
   const originalFetch = globalThis.fetch
   let fetchCalls = 0
   globalThis.fetch = async () => {
