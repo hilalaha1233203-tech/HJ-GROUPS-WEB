@@ -59,7 +59,7 @@ function canvasWebp(bitmap, targetWidth, quality, maxBytes = Infinity) {
   });
 
   return (async () => {
-    const qualities = [0.84, 0.76, 0.68, 0.60, 0.52, 0.44, 0.36, 0.28, 0.20, 0.12];
+    const qualities = [quality, ...[0.76, 0.68, 0.60, 0.52, 0.44, 0.36, 0.28, 0.20, 0.12].filter((q) => q < quality)];
     let finalBlob = null;
     for (const q of qualities) {
       finalBlob = await encode(q);
