@@ -801,3 +801,25 @@ The source repository shows legacy implementations, but live production behavior
 - No production database writes, real TTS provider calls, VAPID setup or notification sends were performed.
 - Phase 4 remains BLOCKED until PR #9 is merged and user-approved production cutover gates are satisfied.
 - Overall status for this corrective patch: IMPLEMENTED IN PR BRANCH; CI AND LIVE RUNTIME VERIFICATION PENDING.
+
+
+## 17. Edge TTS compatibility qualification (2026-10-12)
+
+Official Cloudflare documentation was checked:
+- https://developers.cloudflare.com/workers/examples/websockets/
+- https://developers.cloudflare.com/workers/reference/protocols/
+
+Cloudflare documents outbound WebSocket connections from Workers. Therefore this project must NOT claim that WebSockets are inherently unsupported by Workers.
+
+Verified from the existing legacy source:
+- `server/edgeTts.mjs` imports `ws` and `node:crypto`, and uses `Buffer` operations.
+- The Pages implementation currently does not port this client; `/api/edge-tts` returns the structured `EDGE_TTS_NOT_MIGRATED` response without attempting an outbound connection.
+- The new test verifies this intentional, explicit route behavior. It does NOT establish that Microsoft Edge TTS can or cannot successfully complete its provider-specific handshake from Workers.
+
+Status:
+- Workers outbound WebSocket capability: VERIFIED against official documentation.
+- Microsoft Edge TTS end-to-end handshake/audio in Pages Functions: NOT VERIFIED — needs a dedicated provider-compatible port and live test; do not implement/declare migrated based on protocol support alone.
+- Quality Check #1055 / run id `38234586990`: SUCCESS for the first corrective test commit `d34859ce084f26a9c5608bb44f33423dea262d04`.
+- Later wording/test refinements are on the PR branch; their final CI run must be checked before this corrective phase can be called CI-verified.
+
+No production runtime or external TTS endpoint was called for this qualification.
