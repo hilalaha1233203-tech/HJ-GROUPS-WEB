@@ -4,10 +4,7 @@ import { onRequest as coverGet } from '../../functions/api/covers/[asset].js'
 import { onRequestPost as coverUpload } from '../../functions/api/admin/covers/upload.js'
 
 const hash = 'b'.repeat(64)
-const webp = (suffix = 1) => new File([new Uint8Array([0x52,0x49,0x46,0x46,0,0,0,0,0x57,0x45,0x42,0x50,suffix])], 'cover.webp', { type: 'image/webp' })
-
 test('cover GET returns immutable cache headers and reads only the cover binding', async () => {
-  const saved = []
   const response = await coverGet({
     request: new Request('https://preview.test/api/covers/' + hash + '-800.webp'),
     params: { asset: hash + '-800.webp' },
