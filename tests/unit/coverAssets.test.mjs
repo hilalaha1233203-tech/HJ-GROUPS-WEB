@@ -3,9 +3,10 @@ import assert from 'node:assert/strict'
 import { canonicalCoverSource, handleCoverImageError, resolveCoverImage } from '../../src/lib/coverAssets.js'
 
 const original = 'https://yajkfglagnyvenddyvok.supabase.co/storage/v1/object/public/story-covers/stories/example.png'
+const staticHash = 'a'.repeat(64)
 const entry = {
-  src: '/covers/a'.padEnd(64 + 8, '0') + '-800.webp',
-  srcSet: '/covers/a400.webp 400w, /covers/a800.webp 800w',
+  src: '/covers/' + staticHash + '-800.webp',
+  srcSet: '/covers/' + staticHash + '-400.webp 400w, /covers/' + staticHash + '-800.webp 800w',
   originalUrl: original,
   width: 800,
   height: 1200,
