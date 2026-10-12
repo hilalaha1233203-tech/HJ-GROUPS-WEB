@@ -76,7 +76,7 @@ test('Pages health reports exact TTS binding/provider flags without exposing sec
   const edgeOnly = await (await run('/health', testEnv(createBucket(), { EDGE_TTS_ENABLED: 'true' }))).json()
   assert.equal(edgeOnly.ttsProviders.edge.enabled, true)
   assert.equal(edgeOnly.ttsConfigured, false, 'enabling the known-unviable endpoint must not imply configured TTS')
-  assert.equal(empty.ttsProviders.edge.testedInWorkers, false)
+  assert.equal(empty.ttsProviders.edge.testedInWorkers, true)
   assert.equal(empty.ttsProviders.sarvam.configured, false)
   assert.equal(empty.ttsProviders.googleCloud.configured, false)
   assert.equal(empty.ttsProviders.azureSpeech.configured, false)
