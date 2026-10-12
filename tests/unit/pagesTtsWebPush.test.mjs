@@ -51,7 +51,7 @@ test('Pages TTS routes through the explicit legacy bridge when configured', asyn
         body: json({ text: 'வணக்கம் HJ GROUPS', provider: 'auto' }),
       })
       assert.equal(response.status, 200, path)
-      assert.match(response.headers.get('Content-Type') || '', /^audio\\/mpeg/i)
+      assert.equal((response.headers.get('Content-Type') || '').startsWith('audio/mpeg'), true)
       assert.equal(response.headers.get('X-TTS-Provider'), 'edge')
       assert.equal((await response.arrayBuffer()).byteLength, 3)
       assert.equal(seen.at(-1).url, expectedUrl)
