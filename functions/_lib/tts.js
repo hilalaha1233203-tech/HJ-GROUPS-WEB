@@ -607,7 +607,7 @@ export function healthTts() {
     cacheBucketBound: Boolean(bucket),
     cachePrefix: 'tts/',
     usagePrefix: 'tts-usage/',
-    edge: { enabled: edgeEnabled, viability: 'not_verified', testedInWranglerLocal: false, testedInWorkers: false, voice: FALLBACK_VOICE },
+    edge: { enabled: edgeEnabled, viability: 'not_viable_current_workers_handshake', testedInWranglerLocal: true, testedInWorkers: false, probeHttpStatus: 502, upstreamStatus: 403, audioBytes: 0, voice: FALLBACK_VOICE },
     sarvam: { configured: sarvamConfigured },
     googleCloud: { configured: googleConfigured },
     azureSpeech: { configured: azureConfigured },
