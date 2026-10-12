@@ -77,9 +77,14 @@ function randomHexId() {
 }
 
 function edgeTimestamp() {
-  return new Date().toUTCString()
-    .replace(/^[A-Za-z]{3}, /, '')
-    .replace(' GMT', ' GMT+0000 (Coordinated Universal Time)');
+  const date = new Date();
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const pad = (value) => String(value).padStart(2, '0');
+  return days[date.getUTCDay()] + ' ' + months[date.getUTCMonth()] + ' '
+    + pad(date.getUTCDate()) + ' ' + date.getUTCFullYear() + ' '
+    + pad(date.getUTCHours()) + ':' + pad(date.getUTCMinutes()) + ':' + pad(date.getUTCSeconds())
+    + ' GMT+0000 (Coordinated Universal Time)';
 }
 
 async function edgeSecurityToken() {
