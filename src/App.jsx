@@ -584,35 +584,36 @@ const installEdgeTtsSpeechBridge = () => {
     if (cache.has(key)) return cache.get(key)
 
     const requestAudio = async () => {
-      let lastError = null
+      const { data: { session } = {} } = await supabase.auth.getSession()
+      const headers = { 'Content-Type': 'application/json' }
+      if (session?.access_token) headers.Authorization = 'Bearer ' + session.access_token
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          text,
+          voice,
+          rate,
+          pitch,
+          speaker: 'ratan',
+          pace: isTamil(text) ? Math.min(Math.max(rate * 0.92, 0.65), 1.35) : rate,
+          language_code: isTamil(text) ? 'ta-IN' : 'en-IN',
+          temperature: isTamil(text) ? 0.35 : 0.6,
+        }),
+      })
 
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, voice, rate, pitch, provider: 'auto', speaker: 'ratan', pace: isTamil(text) ? Math.min(Math.max(rate * 0.92, 0.65), 1.35) : rate, language_code: isTamil(text) ? 'ta-IN' : 'en-IN', temperature: isTamil(text) ? 0.35 : 0.6 }),
-          })
-
-          if (!response.ok) {
-            let detail = ''
-            try {
-              const payload = await response.json()
-              detail = payload?.detail || payload?.error || ''
-            } catch {}
-            throw new Error(detail || ('Edge TTS ' + response.status))
-          }
-
-          return await response.blob()
-        } catch (error) {
-          lastError = error
-          if (attempt === 0) {
-            await new Promise((resolve) => setTimeout(resolve, 700))
-          }
-        }
+      if (!response.ok) {
+        let payload = {}
+        try { payload = await response.json() } catch {}
+        const error = new Error(payload?.error || ('TTS ' + response.status))
+        error.code = payload?.code || 'TTS_REQUEST_FAILED'
+        throw error
       }
-
-      throw lastError || new Error('Microsoft Edge Neural TTS request failed')
+      const blob = await response.blob()
+      if (!blob.size || !String(blob.type || '').toLowerCase().includes('audio')) {
+        throw Object.assign(new Error('TTS returned invalid audio.'), { code: 'TTS_INVALID_AUDIO' })
+      }
+      return blob
     }
 
     const promise = requestAudio()
@@ -725,7 +726,7 @@ const installEdgeTtsSpeechBridge = () => {
         if (token !== run) return
         audio.onerror?.()
       })
-    }).catch((error) => {
+    }).catch(async (error) => {
       if (token !== run) return
 
       window.__hjEdgeTtsAudioElement = null
@@ -733,9 +734,35 @@ const installEdgeTtsSpeechBridge = () => {
       window.__hjEdgeTtsPending = false
       window.__hjNativeSpeaking = false
 
-      // Final local fallback: let the browser's installed Tamil/English
-      // voice finish this chunk instead of skipping it when online TTS is
-      // temporarily unavailable.
+      // Browser voice lists can populate asynchronously after page load.
+      const hasTamilVoice = () => (synthesis.getVoices?.() || [])
+        .some((item) => /^(ta)(?:[-_]|$)/i.test(String(item.lang || '')))
+      if (isTamil(text) && !hasTamilVoice()) {
+        await new Promise((resolve) => {
+          let finished = false
+          const finish = () => {
+            if (finished) return
+            finished = true
+            try { synthesis.removeEventListener('voiceschanged', finish) } catch {}
+            resolve()
+          }
+          try { synthesis.addEventListener('voiceschanged', finish, { once: true }) } catch {}
+          setTimeout(finish, 800)
+        })
+      }
+
+      if (isTamil(text) && !hasTamilVoice()) {
+        try {
+          utterance.onerror?.({
+            type: 'error',
+            error: 'no-tamil-voice',
+            message: 'No Tamil voice is available on this device and online TTS is unavailable.',
+          })
+        } catch {}
+        return
+      }
+
+      // One online attempt only; fall back to the user's installed device voice.
       try {
         originalSpeak(utterance)
       } catch {
@@ -837,6 +864,7 @@ export function App() {
   const speechChunkRetryRef = useRef(0)
   const speechRunRef = useRef(0)
   const speechVoiceRef = useRef(null)
+  const [ttsFallbackUnavailable, setTtsFallbackUnavailable] = useState(false)
 
   const pendingAutoReadRef = useRef(false)
   const readAloudRef = useRef(() => { })
@@ -5634,6 +5662,15 @@ export function App() {
             return
           }
 
+          if (event?.error === 'no-tamil-voice') {
+            speechRunRef.current += 1
+            setIsReading(false)
+            setTtsFallbackUnavailable(true)
+            setReadAloudLabel('Tamil voice unavailable on this device. Enable online TTS or install a Tamil voice.')
+            clearReadAloudHighlight()
+            return
+          }
+
           if (event?.error !== 'audio-failed' && event?.error !== 'tts-failed') {
             console.warn(
               'Speech synthesis error:',
@@ -5745,6 +5782,8 @@ export function App() {
         stopReadAloud()
         return
       }
+
+      setTtsFallbackUnavailable(false)
 
       if (
         !readerBook ||
@@ -11103,7 +11142,7 @@ export function App() {
                   type="button"
                   className="reader-read-aloud-bottom"
                   onClick={readAloud}
-                  disabled={readerLocked}
+                  disabled={readerLocked || ttsFallbackUnavailable}
                   aria-label={isReading ? 'Stop Read Aloud' : 'Start Read Aloud'}
                 >
                   {isReading ? '⏹ Stop Read Aloud' : '🔊 Read Aloud'}
@@ -11337,6 +11376,7 @@ export function App() {
                         type="button"
                         className="reader-mini-play"
                         onClick={readAloud}
+                        disabled={ttsFallbackUnavailable}
                         aria-label={isReading ? 'Stop Read Aloud' : 'Start Read Aloud'}
                       >
                         {isReading ? '❚❚' : '▶'}
