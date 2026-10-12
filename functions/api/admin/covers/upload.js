@@ -1,4 +1,4 @@
-import { requireAdmin } from '../../../_lib/runtime.js';
+import { requireAdmin, setRuntimeEnv } from '../../../_lib/runtime.js';
 
 const THUMBNAIL_MAX_BYTES = 80 * 1024;
 const LARGE_MAX_BYTES = 2 * 1024 * 1024;
@@ -47,6 +47,7 @@ function safePublicBase(value) {
 }
 
 export async function onRequestPost(context) {
+  setRuntimeEnv(context.env || {});
   const request = context.request;
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
