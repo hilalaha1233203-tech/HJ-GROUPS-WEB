@@ -64,7 +64,7 @@ function safePublicBase(value) {
   if (!raw) return '';
   try {
     const url = new URL(raw);
-    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) return null;
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') return null;
     return url.toString().replace(/\/+$/, '');
   } catch {
     return null;
