@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { supabase } from '../supabase'
 
 export default function AdminNotificationCenter({ stories = [] }) {
   const [kind, setKind] = useState('promotion')
@@ -9,38 +8,12 @@ export default function AdminNotificationCenter({ stories = [] }) {
   const [message, setMessage] = useState('')
   const [targetUrl, setTargetUrl] = useState('/')
   const [icon, setIcon] = useState('/icon-192.png')
-  const [busy, setBusy] = useState(false)
   const [result, setResult] = useState('')
 
   const selectedStory = useMemo(() => stories.find((story) => String(story?.id) === String(storyId)), [stories, storyId])
 
-  const send = async () => {
-    setResult('')
-    if (!title.trim() || !message.trim()) {
-      setResult('Enter a title and message before sending.')
-      return
-    }
-    if (targetType !== 'all' && targetType !== 'inactive_30d' && !storyId) {
-      setResult('Choose a story for this targeting mode.')
-      return
-    }
-    setBusy(true)
-    try {
-      const { data: { session } = {} } = await supabase.auth.getSession()
-      if (!session?.access_token) throw new Error('Admin session is required.')
-      const response = await fetch('/api/admin/notifications/send', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, targetType, storyId: storyId || null, title, message, targetUrl, icon }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Notification send failed.')
-      setResult('✓ Sent: ' + data.sent + ' · Failed: ' + data.failed + ' · Targeted users: ' + data.targetedUsers)
-    } catch (error) {
-      setResult(String(error?.message || 'Notification send failed.'))
-    } finally {
-      setBusy(false)
-    }
+  const send = () => {
+    setResult('Web Push delivery is not available yet. Subscriptions and preferences remain saved; no notification was sent.')
   }
 
   return (
@@ -49,7 +22,7 @@ export default function AdminNotificationCenter({ stories = [] }) {
         <div><small>WEB PUSH</small><h3>🔔 Notification Center</h3></div>
         <span>📢</span>
       </div>
-      <p className="admin-settings-note">Server-side authorization is required for every send. Browser permission and category preferences remain user-controlled.</p>
+      <p className="admin-settings-note">Delivery is not available yet in the Cloudflare Pages runtime. Existing subscriptions and notification preferences remain saved; this control cannot send notifications.</p>
       <div className="admin-settings-form-grid">
         <label>Notification Type
           <select value={kind} onChange={(e) => setKind(e.target.value)}>
@@ -90,7 +63,7 @@ export default function AdminNotificationCenter({ stories = [] }) {
       </div>
       {selectedStory && <small className="admin-settings-note">Selected story: {selectedStory.title}</small>}
       {result && <div className="admin-settings-save-status saved">{result}</div>}
-      <button type="button" className="admin-submit" onClick={send} disabled={busy}>{busy ? 'Sending…' : '📢 Send Notification'}</button>
+      <button type="button" className="admin-submit" onClick={send} disabled>Delivery not available yet</button>
     </div>
   )
 }
