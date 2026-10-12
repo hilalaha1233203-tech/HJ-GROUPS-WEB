@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, phase2/containerless-pages-migration-20261008]
   workflow_dispatch:
 
 permissions:
