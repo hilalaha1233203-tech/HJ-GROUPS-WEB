@@ -2,7 +2,7 @@ name: Quality Check
 
 on:
   push:
-    branches: [main]
+    branches: [main, phase5u-cover-assets-20261012]
   pull_request:
     branches: [main, phase2/containerless-pages-migration-20261008]
   workflow_dispatch:
