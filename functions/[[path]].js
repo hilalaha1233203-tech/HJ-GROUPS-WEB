@@ -17,7 +17,7 @@ function health(request) {
     ok:true,
     service:'hj-groups-web',
     runtime:'cloudflare-pages-functions',
-    ttsConfigured:Boolean(ttsProviders.cacheBucketBound && (ttsProviders.edge.enabled || ttsProviders.sarvam.configured || ttsProviders.googleCloud.configured || ttsProviders.azureSpeech.configured)),
+    ttsConfigured:Boolean(ttsProviders.cacheBucketBound && (ttsProviders.sarvam.configured || ttsProviders.googleCloud.configured || ttsProviders.azureSpeech.configured)),
     ttsCacheBucketBound:ttsProviders.cacheBucketBound,
     ttsProviders,
     webPushConfigured:Boolean(String(env.WEB_PUSH_VAPID_PUBLIC_KEY || '')),
