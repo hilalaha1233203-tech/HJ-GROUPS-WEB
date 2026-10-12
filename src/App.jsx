@@ -18,6 +18,7 @@ import { applyAppearanceToDocument } from './lib/appearance.js'
 import PaymentModal from './components/PaymentModal'
 import PasswordInput from './components/PasswordInput'
 import WebPushPrompt from './components/WebPushPrompt'
+import CoverImage from './components/CoverImage.jsx'
 import { syncStoryLibrary } from './lib/webPush'
 
 import {
@@ -8255,10 +8256,8 @@ export function App() {
                         )
                       }}
                     >
-                      <img
-                        src={
-                          story.cover
-                        }
+                      <CoverImage
+                        src={story.cover} coverPath={story.coverPath}
                         alt=""
                       />
 
@@ -8331,7 +8330,7 @@ export function App() {
                 )}
               </div>
               <div className="hero-art">
-                <img src={featuredStory.cover} alt={featuredStory.title} />
+                <CoverImage src={featuredStory.cover} coverPath={featuredStory.coverPath} alt={featuredStory.title} eager width={800} height={1200} sizes="(max-width: 900px) 45vw, 420px" />
                 <div className="hero-art-glow" />
                 <div className="hero-art-shade" />
                 <div className="hero-art-caption">
@@ -8428,10 +8427,8 @@ export function App() {
                     }
                   >
                     <div className="story-image">
-                      <img
-                        src={
-                          story.cover
-                        }
+                      <CoverImage
+                        src={story.cover} coverPath={story.coverPath}
                         alt={
                           story.title
                         }
@@ -8640,10 +8637,8 @@ export function App() {
 
             <div className="story-details-content">
               <div className="story-details-cover">
-                <img
-                  src={
-                    selectedStory.cover
-                  }
+                <CoverImage
+                  src={selectedStory.cover} coverPath={selectedStory.coverPath}
                   alt={
                     selectedStory.title
                   }
@@ -8948,10 +8943,8 @@ export function App() {
 
             <div className="story-details-content">
               <div className="story-details-cover">
-                <img
-                  src={
-                    selectedBook.cover
-                  }
+                <CoverImage
+                  src={selectedBook.cover} coverPath={selectedBook.coverPath}
                   alt={
                     selectedBook.title
                   }
@@ -9073,10 +9066,8 @@ export function App() {
 
             <div className="story-details-content">
               <div className="story-details-cover">
-                <img
-                  src={
-                    selectedVideo.cover
-                  }
+                <CoverImage
+                  src={selectedVideo.cover} coverPath={selectedVideo.coverPath}
                   alt={
                     selectedVideo.title
                   }
@@ -9269,7 +9260,7 @@ export function App() {
                       {accessLabel(book, { isAdmin }).toUpperCase()}
                     </span>
                     <div className="media-catalog-cover">
-                      <img src={book.cover} alt={book.title} />
+                      <CoverImage src={book.cover} coverPath={book.coverPath} alt={book.title} />
                       <span className="content-status-badge">{contentStatusLabel(book.status)}</span>
                     </div>
                     <strong>{book.title}</strong>
@@ -9344,7 +9335,7 @@ export function App() {
                       {accessLabel(story, { isAdmin }).toUpperCase()}
                     </span>
                     <div className="media-catalog-cover">
-                      <img src={story.cover} alt={story.title} />
+                      <CoverImage src={story.cover} coverPath={story.coverPath} alt={story.title} />
                       <span className="content-status-badge">{contentStatusLabel(story.status)}</span>
                       <span className="media-catalog-play">▶</span>
                     </div>
@@ -9444,7 +9435,7 @@ export function App() {
                             className="story-image"
                             onClick={() => openStoryDetails(story)}
                           >
-                            <img src={story.cover} alt={story.title} />
+                            <CoverImage src={story.cover} coverPath={story.coverPath} alt={story.title} />
                             <div className="story-overlay" />
                             <span className="story-status">Saved</span>
                             <button
@@ -9495,7 +9486,7 @@ export function App() {
                         onClick={() => openReaderForBook(book)}
                       >
                         <span className="library-card-type">BOOK</span>
-                        <img src={book.cover} alt={book.title} />
+                        <CoverImage src={book.cover} coverPath={book.coverPath} alt={book.title} />
                         <strong>{book.title}</strong>
                         <small>{book.author || book.category || 'Book'}</small>
                       </button>
@@ -9544,7 +9535,7 @@ export function App() {
                         <span className="library-card-type">
                           {accessLabel(video, { isAdmin }).toUpperCase()}
                         </span>
-                        <img src={video.cover} alt={video.title} />
+                        <CoverImage src={video.cover} coverPath={video.coverPath} alt={video.title} />
                         <strong>{video.title}</strong>
                         <small>{video.category || 'Video Story'}</small>
                       </button>
@@ -9625,7 +9616,7 @@ export function App() {
                       className="story-image"
                       onClick={() => openStoryDetails(item)}
                     >
-                      <img src={item.cover} alt={item.title} />
+                      <CoverImage src={item.cover} coverPath={item.coverPath} alt={item.title} />
                       <div className="story-badge vip">
                         {resolveAccessType(item).includes('premium') ? 'Premium' : 'VIP'}
                       </div>
@@ -9752,10 +9743,8 @@ export function App() {
             : readerOpen
         ) && (
           <div className="mini-player">
-            <img
-              src={
-                nowPlaying.cover
-              }
+            <CoverImage
+              src={nowPlaying.cover} coverPath={nowPlaying.coverPath}
               alt=""
               className="mini-cover"
               onClick={
@@ -9983,11 +9972,9 @@ export function App() {
                       }}
                     />
                   ) : (
-                    <img
+                    <CoverImage
                       className="player-cover-large"
-                      src={
-                        currentStory.cover
-                      }
+                      src={currentStory.cover} coverPath={currentStory.coverPath}
                       alt=""
                     />
                   )}
@@ -10382,10 +10369,8 @@ export function App() {
                         ).toUpperCase()}
                       </span>
 
-                      <img
-                        src={
-                          book.cover
-                        }
+                      <CoverImage
+                        src={book.cover} coverPath={book.coverPath}
                         alt={
                           book.title
                         }
@@ -10499,10 +10484,8 @@ export function App() {
                         ).toUpperCase()}
                       </span>
 
-                      <img
-                        src={
-                          story.cover
-                        }
+                      <CoverImage
+                        src={story.cover} coverPath={story.coverPath}
                         alt={
                           story.title
                         }

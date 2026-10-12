@@ -1,4 +1,5 @@
 import FileUploadField from './components/FileUploadField'
+import CoverImage from './components/CoverImage.jsx'
 import { resolveAccessType } from './lib/accessControl'
 import { normalizeContentAccessSettings } from './lib/contentAccessSettings'
 import { normalizeShortenerSettings } from './lib/shortenerProviders'
@@ -2428,7 +2429,7 @@ const [bookAccessType, setBookAccessType] = useState(() => readAdminSettings().c
                   {stories.slice(0, 5).map((story) => (
                     <button key={story.id} onClick={() => setAdminTab('stories')}>
                       <span className="admin-recent-avatar">
-                        {story.cover ? <img src={story.cover} alt="" /> : '🎧'}
+                        {story.cover ? <CoverImage src={story.cover} coverPath={story.coverPath} alt="" /> : '🎧'}
                       </span>
                       <span>
                         <strong>{story.title}</strong>

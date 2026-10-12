@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { uploadFileToBucket, validateFile } from '../lib/storageUpload'
+import CoverImage from './CoverImage.jsx'
 
 function FileUploadField({
   label,
@@ -78,7 +79,7 @@ function FileUploadField({
       {error && <div className="file-upload-status error">{error}</div>}
 
       {!uploading && kind === 'image' && value && (
-        <img src={value} alt="preview" className="file-upload-preview" style={{ width: '120px', height: '160px', objectFit: 'cover', display: 'block', marginTop: '10px', borderRadius: '4px' }} />
+        <CoverImage src={value} alt="preview" className="file-upload-preview" width={120} height={160} sizes="120px" eager style={{ width: '120px', height: '160px', objectFit: 'cover', display: 'block', marginTop: '10px', borderRadius: '4px' }} />
       )}
 
       {!uploading && kind === 'audio' && value && (

@@ -25,3 +25,7 @@ dist-ssr
 
 .vercel
 .env*
+# Locally downloaded source cover images must not be committed.
+tools/cover-source/*
+!tools/cover-source/.gitkeep
+!tools/cover-source/README.md

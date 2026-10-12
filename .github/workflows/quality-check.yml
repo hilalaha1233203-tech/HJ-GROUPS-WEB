@@ -65,6 +65,9 @@ jobs:
       - name: Server / payment / shortener unit tests
         run: node --test tests/unit/*.test.mjs
 
+      - name: Validate cover conversion script syntax
+        run: python3 -m py_compile scripts/optimize-covers.py
+
       - name: Verify Supabase migration filenames
         run: |
           node <<'NODE'
