@@ -25,11 +25,15 @@ const ALLOWED_VOICES = new Set([
   'en-IN-NeerjaNeural',
 ]);
 
-const cleanText = (value) => String(value ?? '')
-  .replace(/\u00a0/g, ' ')
-  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-  .replace(/[ \t\r\n]+/g, ' ')
-  .trim();
+const cleanText = (value) => {
+  let output = '';
+  for (const character of String(value ?? '').replace(/\u00a0/g, ' ')) {
+    const code = character.codePointAt(0) || 0;
+    if (code >= 0x20 && code !== 0x7f) output += character;
+    else if (code === 0x09 || code === 0x0a || code === 0x0d) output += ' ';
+  }
+  return output.replace(/[ \t\r\n]+/g, ' ').trim();
+};
 
 export function normalizeSpeechText(value) {
   return cleanText(value).replace(/(?:[\u0B80-\u0BFF](?:\s+|$)){3,}/gu, (run) => run.replace(/\s+/gu, ''));
@@ -466,7 +470,6 @@ async function reserveDailyUsage(bucket, userId, dailyLimit) {
 
 async function generateAudio({ text, voice, provider, body }) {
   const failures = [];
-  const env = getRuntimeEnv();
   const edgeEnabled = envString('EDGE_TTS_ENABLED').toLowerCase() !== 'false';
   const providers = [];
 
@@ -594,7 +597,6 @@ async function handleTtsRequest(request, provider = 'auto') {
 }
 
 export function healthTts() {
-  const env = getRuntimeEnv();
   const bucket = getCacheBucket();
   const edgeEnabled = envString('EDGE_TTS_ENABLED').toLowerCase() !== 'false';
   const sarvamConfigured = Boolean(envString('SARVAM_API_KEY'));
