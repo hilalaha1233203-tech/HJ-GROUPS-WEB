@@ -97,7 +97,7 @@ export async function uploadCoverToR2(file) {
     if (!payload.url || !payload.path) throw new Error('Cover upload returned an invalid response.');
     return { url: payload.url, originalUrl: payload.url, path: payload.path, thumbnailUrl: payload.thumbnailUrl };
   } catch (error) {
-    throw new Error(String(error?.message || 'Cover optimization/upload failed.'));
+    throw new Error(String(error?.message || 'Cover optimization/upload failed.'), { cause: error });
   } finally {
     try { bitmap?.close(); } catch {}
   }
