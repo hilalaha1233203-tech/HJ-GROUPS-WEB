@@ -1,4 +1,6 @@
-import { requireAdmin, setRuntimeEnv } from '../../../_lib/runtime.js';
+const DEFAULT_SUPABASE_URL = 'https://yajkfglagnyvenddyvok.supabase.co';
+
+function json(status, payload) {
 
 const THUMBNAIL_MAX_BYTES = 80 * 1024;
 const LARGE_MAX_BYTES = 2 * 1024 * 1024;
@@ -12,6 +14,31 @@ function json(status, payload) {
       'X-Content-Type-Options': 'nosniff',
     },
   });
+}
+
+async function authorizeCoverAdmin(request, env) {
+  const header = String(request.headers.get('authorization') || '');
+  const token = /^Bearer\s+\S+$/i.test(header) ? header.replace(/^Bearer\s+/i, '').trim() : '';
+  if (!token) return json(401, { error: 'Unauthorized' });
+  const base = String(env.SUPABASE_URL || env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).replace(/\/+$/, '');
+  const key = String(env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || env.VITE_HJ_CLIENT_KEY || '').trim();
+  if (!key) return json(503, { error: 'Supabase public authentication key is not configured', code: 'COVER_AUTH_NOT_CONFIGURED' });
+
+  let response;
+  try {
+    response = await fetch(base + '/auth/v1/user', {
+      method: 'GET',
+      headers: { apikey: key, Authorization: 'Bearer ' + token, Accept: 'application/json' },
+    });
+  } catch {
+    return json(503, { error: 'Could not validate the admin session', code: 'COVER_AUTH_UNAVAILABLE' });
+  }
+  if (!response.ok) return json(401, { error: 'Unauthorized' });
+  let user;
+  try { user = await response.json(); } catch { return json(401, { error: 'Unauthorized' }); }
+  if (!user?.id) return json(401, { error: 'Unauthorized' });
+  if (user?.app_metadata?.role !== 'admin') return json(403, { error: 'Forbidden' });
+  return null;
 }
 
 async function webpFile(form, key, maxBytes) {
@@ -47,12 +74,12 @@ function safePublicBase(value) {
 }
 
 export async function onRequestPost(context) {
-  setRuntimeEnv(context.env || {});
   const request = context.request;
-  const auth = await requireAdmin(request);
-  if (!auth.ok) return auth.response;
+  const env = context.env || {};
+  const authError = await authorizeCoverAdmin(request, env);
+  if (authError) return authError;
 
-  const bucket = context.env && context.env.COVERS_BUCKET;
+  const bucket = env.COVERS_BUCKET;
   if (!bucket || typeof bucket.put !== 'function') {
     return json(503, { error: 'Cover R2 bucket binding is missing', code: 'COVER_STORAGE_NOT_CONFIGURED' });
   }
@@ -72,14 +99,14 @@ export async function onRequestPost(context) {
     return json(400, { error: 'Image dimensions are invalid', code: 'INVALID_COVER_DIMENSIONS' });
   }
 
-  const publicBase = safePublicBase(context.env.COVER_PUBLIC_BASE_URL);
+  const publicBase = safePublicBase(env.COVER_PUBLIC_BASE_URL);
   if (publicBase === null) return json(503, { error: 'COVER_PUBLIC_BASE_URL must be a valid HTTPS origin', code: 'COVER_PUBLIC_BASE_URL_INVALID' });
 
   const thumbnail = thumbnailResult.bytes;
   const large = largeResult.bytes;
   const assetId = await digestCoverPair(thumbnail, large);
   const url = new URL(request.url);
-  const branch = String(context.env.CF_PAGES_BRANCH || '').toLowerCase();
+  const branch = String(env.CF_PAGES_BRANCH || '').toLowerCase();
   const prefix = branch === 'main' || url.hostname === 'hj-groups-web.pages.dev' ? 'prod-' : 'preview-';
   const thumbnailName = prefix + assetId + '-400.webp';
   const largeName = prefix + assetId + '-800.webp';
