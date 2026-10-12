@@ -768,7 +768,7 @@ Changes limited to PR branch:
 | Legacy Edge TTS | Legacy Node source has a separate Edge TTS implementation | Live Voroa audio playback NOT VERIFIED in this phase |
 | Fallback behavior | Frontend falls back to the browser's native speech implementation when online TTS fails | Source-level behavior only; live browser voice availability depends on user's device and NOT VERIFIED |
 
-Decision needed before merge: either accept Sarvam-only TTS on Pages after configuring/testing its secret, or explicitly preserve/test the legacy Edge TTS route outside the Pages runtime. Do not claim Edge TTS has migrated.
+User decision (2026-10-12): keep Edge TTS through the HJ_WEB_BACKEND_URL-backed legacy bridge temporarily; Sarvam can be used when configured and successful, with Edge fallback. This is transitional only; Edge is NOT migrated to Pages itself, and the legacy dependency must be removed before final runtime sign-off.
 
 ### Web Push capability matrix
 
@@ -787,8 +787,8 @@ The source repository shows legacy implementations, but live production behavior
 
 | Feature | Works on live Voroa now? | After PR #9 merge? | Evidence / decision |
 |---|---|---|---|
-| Edge Neural TTS | NOT VERIFIED — legacy handler exists in `server.mjs`/legacy TTS source, but no live audio test in this phase | NO on Pages — explicit `503 EDGE_TTS_NOT_MIGRATED` | User must choose Sarvam-only on Pages or explicitly retain/test legacy Edge route |
-| Sarvam TTS | NOT VERIFIED — no live provider request in this phase | CONDITIONAL — yes only if `SARVAM_API_KEY` is configured and provider request succeeds | Configure secret and perform real Tamil + English audio test before declaring migrated |
+| Edge Neural TTS | NOT VERIFIED — legacy handler exists, but no live audio test in this phase | CONDITIONAL — routes through legacy backend only when HTTPS `HJ_WEB_BACKEND_URL` is configured; with no URL, Pages returns `503 EDGE_TTS_NOT_MIGRATED` | Temporary compatibility bridge; actual audio remains NOT VERIFIED |
+| Sarvam TTS | NOT VERIFIED — no live provider request in this phase | CONDITIONAL — requires `SARVAM_API_KEY` on the selected backend and a successful provider request; the legacy `/api/tts` auto route falls back to Edge when appropriate | No key was supplied and no real Tamil/English audio test was performed |
 | Web Push subscription/preferences storage | NOT VERIFIED live; legacy source and SQL schema exist | CONDITIONAL — route code is present, but requires working Supabase API/schema and VAPID public key; live storage blocked by current Supabase quota restriction | Retest authenticated subscribe/status/preferences after quota is restored |
 | Admin Web Push delivery | NOT VERIFIED live; legacy `server/webPush.mjs` contains sender logic | NO — explicit `503 WEB_PUSH_SEND_NOT_MIGRATED` | Must approve a separate Workers-compatible delivery implementation or accept the loss |
 | Other Phase 2 features | NOT classified as regressions by this TTS/Web Push audit | NOT VERIFIED here | Existing PR promotion gates remain; do not infer complete feature parity from this focused audit |
