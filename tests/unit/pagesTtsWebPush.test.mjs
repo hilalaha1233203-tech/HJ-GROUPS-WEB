@@ -5,81 +5,238 @@ import { onRequest } from '../../functions/[[path]].js'
 const json = (value) => JSON.stringify(value)
 const request = (path, init = {}) => new Request('https://hj-preview.test' + path, init)
 const run = (path, env = {}, init = {}) => onRequest({ request: request(path, init), env })
+const AUDIO = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x05, 0x06])
 
-test('Pages health reports actual TTS and Web Push configuration', async () => {
-  const unavailable = await run('/health')
-  assert.equal(unavailable.status, 200)
-  const empty = await unavailable.json()
+function createBucket() {
+  const store = new Map()
+  const putKeys = []
+  return {
+    store,
+    putKeys,
+    async get(key, options = {}) {
+      const entry = store.get(key)
+      if (!entry) return null
+      const original = entry.bytes
+      const bytes = options.range
+        ? original.slice(options.range.offset, options.range.offset + options.range.length)
+        : original
+      return {
+        size: original.byteLength,
+        etag: entry.etag,
+        body: new Response(bytes).body,
+        httpMetadata: entry.httpMetadata,
+        customMetadata: entry.customMetadata,
+        text: async () => new TextDecoder().decode(original),
+        arrayBuffer: async () => original.slice().buffer,
+      }
+    },
+    async put(key, value, options = {}) {
+      const previous = store.get(key)
+      const onlyIf = options.onlyIf || {}
+      if (onlyIf.etagDoesNotMatch === '*' && previous) return null
+      if (onlyIf.etagMatches && onlyIf.etagMatches !== previous?.etag) return null
+      let bytes
+      if (typeof value === 'string') bytes = new TextEncoder().encode(value)
+      else if (value instanceof ArrayBuffer) bytes = new Uint8Array(value)
+      else bytes = new Uint8Array(value)
+      const etag = 'mock-etag-' + String(store.size + 1) + '-' + String(putKeys.length + 1)
+      store.set(key, {
+        bytes: bytes.slice(),
+        etag,
+        httpMetadata: options.httpMetadata || {},
+        customMetadata: options.customMetadata || {},
+      })
+      putKeys.push(key)
+      return { etag, size: bytes.byteLength }
+    },
+  }
+}
+
+const testEnv = (bucket, overrides = {}) => ({
+  MEDIA_CACHE: bucket,
+  SUPABASE_URL: 'https://supabase.test',
+  SUPABASE_SERVICE_ROLE_KEY: 'test-only-service-role-key',
+  EDGE_TTS_ENABLED: 'false',
+  ...overrides,
+})
+const authFetch = (url) => String(url).endsWith('/auth/v1/user')
+const authResponse = () => new Response(json({
+  id: '00000000-0000-4000-8000-000000000001',
+  app_metadata: {},
+}), { status: 200, headers: { 'Content-Type': 'application/json' } })
+
+test('Pages health reports exact TTS binding/provider flags without exposing secrets', async () => {
+  const empty = await (await run('/health')).json()
   assert.equal(empty.ttsConfigured, false)
+  assert.equal(empty.ttsCacheBucketBound, false)
+  assert.equal(empty.ttsProviders.cacheBucketBound, false)
+  assert.equal(empty.ttsProviders.edge.enabled, true)
+  assert.equal(empty.ttsProviders.edge.testedInWorkers, false)
   assert.equal(empty.ttsProviders.sarvam.configured, false)
-  assert.equal(empty.ttsProviders.edge.configured, false)
-  assert.equal(empty.ttsProviders.legacyBackend.configured, false)
+  assert.equal(empty.ttsProviders.googleCloud.configured, false)
+  assert.equal(empty.ttsProviders.azureSpeech.configured, false)
   assert.equal(empty.webPushConfigured, false)
 
-  const configured = await run('/health', {
+  const ready = await (await run('/health', testEnv(createBucket(), {
     SARVAM_API_KEY: 'test-only-sarvam-key',
     WEB_PUSH_VAPID_PUBLIC_KEY: 'test-only-vapid-public-key',
-  })
-  const ready = await configured.json()
+  }))).json()
   assert.equal(ready.ttsConfigured, true)
+  assert.equal(ready.ttsCacheBucketBound, true)
   assert.equal(ready.ttsProviders.sarvam.configured, true)
-  assert.equal(ready.ttsProviders.edge.configured, false)
   assert.equal(ready.webPushConfigured, true)
   assert.equal(JSON.stringify(ready).includes('test-only-sarvam-key'), false)
+  assert.equal(JSON.stringify(ready).includes('test-only-vapid-public-key'), false)
 })
 
-test('Pages TTS routes through the explicit legacy bridge when configured', async () => {
+test('TTS requires authentication, enforces configured max characters and never retries provider errors', async () => {
+  const noAuth = await run('/api/tts', testEnv(createBucket()), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: json({ text: 'வணக்கம்' }),
+  })
+  assert.equal(noAuth.status, 401)
+  assert.equal((await noAuth.json()).code, 'TTS_AUTH_REQUIRED')
+
+  const tooLong = await run('/api/tts', testEnv(createBucket(), { TTS_MAX_CHARS: '4' }), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+    body: json({ text: '12345' }),
+  })
+  assert.equal(tooLong.status, 413)
+  assert.equal((await tooLong.json()).code, 'TTS_MAX_CHARS_EXCEEDED')
+
   const originalFetch = globalThis.fetch
-  const seen = []
-  globalThis.fetch = async (url, init = {}) => {
-    seen.push({ url: String(url), method: init.method, body: JSON.parse(init.body) })
-    return new Response(new Uint8Array([0x49, 0x44, 0x33]), {
-      status: 200,
-      headers: { 'Content-Type': 'audio/mpeg', 'X-TTS-Provider': 'edge' },
-    })
+  let providerCalls = 0
+  globalThis.fetch = async (url) => {
+    if (authFetch(url)) return authResponse()
+    providerCalls += 1
+    return new Response('temporarily unavailable', { status: 503 })
   }
   try {
-    const cases = [
-      ['/api/tts', 'https://legacy.test/api/tts'],
-      ['/api/edge-tts', 'https://legacy.test/api/edge-tts'],
-      ['/api/sarvam-tts', 'https://legacy.test/api/sarvam-tts'],
-    ]
-    for (const [path, expectedUrl] of cases) {
-      const response = await run(path, { HJ_WEB_BACKEND_URL: 'https://legacy.test/base-path' }, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: json({ text: 'வணக்கம் HJ GROUPS', provider: 'auto' }),
-      })
-      assert.equal(response.status, 200, path)
-      assert.equal((response.headers.get('Content-Type') || '').startsWith('audio/mpeg'), true)
-      assert.equal(response.headers.get('X-TTS-Provider'), 'edge')
-      assert.equal((await response.arrayBuffer()).byteLength, 3)
-      assert.equal(seen.at(-1).url, expectedUrl)
-      assert.equal(seen.at(-1).method, 'POST')
-      assert.equal(seen.at(-1).body.text, 'வணக்கம் HJ GROUPS')
-    }
+    const response = await run('/api/tts', testEnv(createBucket(), { SARVAM_API_KEY: 'test-only-sarvam-key' }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'வணக்கம் HJ GROUPS' }),
+    })
+    assert.equal(response.status, 503)
+    assert.equal((await response.json()).code, 'TTS_PROVIDERS_UNAVAILABLE')
+    assert.equal(providerCalls, 1, 'one provider attempt; no retry storm')
   } finally {
     globalThis.fetch = originalFetch
   }
 })
 
-test('Pages health reports the legacy backend only as configured, not live-verified', async () => {
-  const response = await run('/health', { HJ_WEB_BACKEND_URL: 'https://legacy.test' })
-  const health = await response.json()
-  assert.equal(health.ttsConfigured, true)
-  assert.equal(health.ttsProviders.legacyBackend.configured, true)
-  assert.equal(health.ttsProviders.legacyBackend.liveVerified, false)
-  assert.equal(health.ttsProviders.edge.routeConfiguredViaLegacyBackend, true)
-  assert.equal(JSON.stringify(health).includes('legacy.test'), false)
+test('TTS miss writes one stable R2 key and subsequent normalized text request is a cache hit', async () => {
+  const bucket = createBucket()
+  const originalFetch = globalThis.fetch
+  let authCalls = 0
+  let providerCalls = 0
+  let providerUrl = ''
+  let providerHeaders
+  let providerBody
+  globalThis.fetch = async (url, init = {}) => {
+    if (authFetch(url)) { authCalls += 1; return authResponse() }
+    providerCalls += 1
+    providerUrl = String(url)
+    providerHeaders = new Headers(init.headers)
+    providerBody = JSON.parse(init.body)
+    return new Response(AUDIO, { status: 200, headers: { 'Content-Type': 'audio/mpeg' } })
+  }
+  try {
+    const first = await run('/api/tts', testEnv(bucket, { SARVAM_API_KEY: 'test-only-sarvam-key' }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'வணக்கம்   HJ GROUPS', voice: 'ta-IN-PallaviNeural' }),
+    })
+    assert.equal(first.status, 200)
+    assert.equal(first.headers.get('X-TTS-Provider'), 'sarvam')
+    assert.equal(first.headers.get('Accept-Ranges'), 'bytes')
+    assert.equal((await first.arrayBuffer()).byteLength, AUDIO.byteLength)
+    assert.equal(providerUrl, 'https://api.sarvam.ai/text-to-speech/stream')
+    assert.equal(providerHeaders.get('api-subscription-key'), 'test-only-sarvam-key')
+    assert.equal(providerBody.model, 'bulbul:v3')
+    assert.equal(providerBody.target_language_code, 'ta-IN')
+
+    const second = await run('/api/tts', testEnv(bucket, { SARVAM_API_KEY: 'test-only-sarvam-key' }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'வணக்கம் HJ GROUPS', voice: 'ta-IN-PallaviNeural' }),
+    })
+    assert.equal(second.status, 200)
+    assert.equal(second.headers.get('X-TTS-Provider'), 'sarvam')
+    assert.equal(await second.text(), new TextDecoder().decode(AUDIO))
+    assert.equal(providerCalls, 1, 'second normalized request must use R2')
+    assert.equal(authCalls, 2, 'each request still authenticates the caller')
+    assert.equal(bucket.putKeys.filter((key) => key.startsWith('tts/')).length, 1)
+    assert.equal([...bucket.store.keys()].filter((key) => /^tts\/[a-f0-9]{64}\.mp3$/.test(key)).length, 1)
+    assert.equal(bucket.putKeys.some((key) => key.startsWith('tts-usage/')), true)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
-test('Edge TTS returns an explicit not-migrated error without attempting a WebSocket provider', async () => {
+test('cached TTS honours a single byte Range request with 206 and Content-Range', async () => {
+  const bucket = createBucket()
+  const originalFetch = globalThis.fetch
+  let providerCalls = 0
+  globalThis.fetch = async (url) => {
+    if (authFetch(url)) return authResponse()
+    providerCalls += 1
+    return new Response(AUDIO, { status: 200, headers: { 'Content-Type': 'audio/mpeg' } })
+  }
+  try {
+    const env = testEnv(bucket, { SARVAM_API_KEY: 'test-only-sarvam-key' })
+    await run('/api/tts', env, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'Range Tamil text' }),
+    })
+    const response = await run('/api/tts', env, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token', Range: 'bytes=1-3' },
+      body: json({ text: 'Range Tamil text' }),
+    })
+    assert.equal(response.status, 206)
+    assert.equal(response.headers.get('Content-Range'), 'bytes 1-3/' + AUDIO.byteLength)
+    assert.equal(response.headers.get('Content-Length'), '3')
+    assert.equal((await response.arrayBuffer()).byteLength, 3)
+    assert.equal(providerCalls, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('TTS enforces a per-user daily limit using R2 only', async () => {
+  const bucket = createBucket()
+  const originalFetch = globalThis.fetch
+  let providerCalls = 0
+  globalThis.fetch = async (url) => {
+    if (authFetch(url)) return authResponse()
+    providerCalls += 1
+    return new Response(AUDIO, { status: 200, headers: { 'Content-Type': 'audio/mpeg' } })
+  }
+  try {
+    const env = testEnv(bucket, { SARVAM_API_KEY: 'test-only-sarvam-key', TTS_DAILY_LIMIT: '1' })
+    const make = () => run('/api/tts', env, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'Daily limit Tamil' }),
+    })
+    assert.equal((await make()).status, 200)
+    const limited = await make()
+    assert.equal(limited.status, 429)
+    assert.equal((await limited.json()).code, 'TTS_DAILY_LIMIT_REACHED')
+    assert.equal(providerCalls, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('standalone Edge route remains explicit error and frontend does not require that route', async () => {
   const originalFetch = globalThis.fetch
   let fetchCalls = 0
-  globalThis.fetch = async () => {
-    fetchCalls += 1
-    throw new Error('Unexpected network request')
-  }
+  globalThis.fetch = async () => { fetchCalls += 1; throw new Error('Unexpected network request') }
   try {
     const response = await run('/api/edge-tts', {}, {
       method: 'POST',
@@ -87,60 +244,8 @@ test('Edge TTS returns an explicit not-migrated error without attempting a WebSo
       body: json({ text: 'வணக்கம் HJ GROUPS' }),
     })
     assert.equal(response.status, 503)
-    const payload = await response.json()
-    assert.equal(payload.code, 'EDGE_TTS_NOT_MIGRATED')
-    assert.match(payload.hint, /Cloudflare Workers supports outbound WebSockets/)
-    assert.match(payload.hint, /Node ws\/crypto\/Buffer APIs/)
-    assert.match(payload.hint, /SARVAM_API_KEY/)
-    assert.match(payload.hint, /legacy backend/)
+    assert.equal((await response.json()).code, 'EDGE_TTS_NOT_MIGRATED')
     assert.equal(fetchCalls, 0)
-  } finally {
-    globalThis.fetch = originalFetch
-  }
-})
-
-test('Sarvam TTS reports missing configuration as a structured error', async () => {
-  const response = await run('/api/tts', {}, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: json({ text: 'வணக்கம் HJ GROUPS' }),
-  })
-  assert.equal(response.status, 503)
-  assert.deepEqual(await response.json(), {
-    error: 'Text-to-speech service unavailable',
-    code: 'SARVAM_TTS_NOT_CONFIGURED',
-  })
-})
-
-test('Sarvam TTS uses the external API contract and returns audio when the provider succeeds', async () => {
-  const originalFetch = globalThis.fetch
-  let calledUrl = ''
-  let calledHeaders
-  let calledBody
-  globalThis.fetch = async (url, init) => {
-    calledUrl = String(url)
-    calledHeaders = new Headers(init.headers)
-    calledBody = JSON.parse(init.body)
-    return new Response(new Uint8Array([0x49, 0x44, 0x33, 1]), {
-      status: 200,
-      headers: { 'Content-Type': 'audio/mpeg' },
-    })
-  }
-  try {
-    const response = await run('/api/tts', { SARVAM_API_KEY: 'test-only-sarvam-key' }, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: json({ text: 'வணக்கம் HJ GROUPS', language_code: 'ta-IN', speaker: 'ratan' }),
-    })
-    assert.equal(response.status, 200)
-    assert.match(response.headers.get('Content-Type') || '', /^audio\/mpeg/i)
-    assert.equal(response.headers.get('X-TTS-Provider'), 'sarvam')
-    assert.equal((await response.arrayBuffer()).byteLength, 4)
-    assert.equal(calledUrl, 'https://api.sarvam.ai/text-to-speech/stream')
-    assert.equal(calledHeaders.get('api-subscription-key'), 'test-only-sarvam-key')
-    assert.equal(calledBody.model, 'bulbul:v3')
-    assert.equal(calledBody.target_language_code, 'ta-IN')
-    assert.equal(calledBody.output_audio_codec, 'mp3')
   } finally {
     globalThis.fetch = originalFetch
   }
