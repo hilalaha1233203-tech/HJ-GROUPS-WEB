@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { supabase } from '../supabase'
 
 export default function AdminNotificationCenter({ stories = [] }) {
   const [kind, setKind] = useState('promotion')
