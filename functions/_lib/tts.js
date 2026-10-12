@@ -601,7 +601,7 @@ async function handleTtsRequest(request, provider = 'auto') {
 
 export function healthTts() {
   const bucket = getCacheBucket();
-  const edgeEnabled = envString('EDGE_TTS_ENABLED').toLowerCase() === 'true';
+  const edgeEnabled = EDGE_TTS_WORKERS_VIABLE && envString('EDGE_TTS_ENABLED', 'true').toLowerCase() !== 'false';
   const sarvamConfigured = Boolean(envString('SARVAM_API_KEY'));
   const googleConfigured = Boolean(envString('GOOGLE_CLOUD_TTS_API_KEY'));
   const azureConfigured = Boolean(envString('AZURE_SPEECH_KEY') && envString('AZURE_SPEECH_REGION'));
