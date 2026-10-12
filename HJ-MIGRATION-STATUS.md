@@ -838,6 +838,7 @@ PR #9 branch changes:
 - With no HJ_WEB_BACKEND_URL, no proxy is attempted: Pages keeps its local Sarvam configuration check and explicit EDGE_TTS_NOT_MIGRATED response.
 - /health now distinguishes the legacy bridge being configured from a live-verified provider. legacyBackend.liveVerified remains false.
 - Added mocked tests for the three proxy routes and health reporting. They do not contact the actual backend or Microsoft/Sarvam endpoints.
+- GitHub Actions Quality Check run #1066 (`38235388474`) on code/test commit `4c54fedfc80d05f9c1b765a343dee0074bf31a2d`: SUCCESS. Lint and production build passed; all 140 unit tests passed, 0 failed, including the new legacy bridge and health tests. The later status-document-only commit records the approved decision and does not change source code.
 
 Status:
 - Proxy source and mocked test coverage: implemented on PR #9 branch.
