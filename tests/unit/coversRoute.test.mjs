@@ -45,9 +45,65 @@ test('cover upload requires admin authentication before parsing image data', asy
   try {
     const response = await coverUpload({
       request: new Request('https://preview.test/api/admin/covers/upload', { method: 'POST', headers: { Authorization: 'Bearer user-token' }, body: new FormData() }),
-      env: { SUPABASE_URL: 'https://supabase.test', SUPABASE_PUBLISHABLE_KEY: 'test-public-key', COVERS_BUCKET: { async put() { throw new Error('must not be called') } } },
+      env: { SUPABASE_URL: 'https://supabase.test', SUPABASE_PUBLISHABLE_KEY: 'test-public-key', SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key', COVERS_BUCKET: { async put() { throw new Error('must not be called') } } },
     })
     assert.equal(response.status, 403)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+
+test('admin cover upload writes both WebP variants to R2 and returns no Supabase Storage URL', async () => {
+  const originalFetch = globalThis.fetch
+  const writes = []
+  const fakeR2 = {
+    async put(key, value, options) {
+      writes.push({ key, bytes: value.byteLength || value.length, options })
+    },
+  }
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/auth/v1/user')) {
+      return new Response(JSON.stringify({
+        id: '00000000-0000-4000-8000-000000000003',
+        app_metadata: { role: 'admin' },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    throw new Error('Unexpected external request')
+  }
+  try {
+    const validWebp = new Uint8Array([0x52,0x49,0x46,0x46,0,0,0,0,0x57,0x45,0x42,0x50,1])
+    const form = new FormData()
+    form.append('thumbnail', new File([validWebp], 'cover-400.webp', { type: 'image/webp' }))
+    form.append('large', new File([validWebp], 'cover-800.webp', { type: 'image/webp' }))
+    form.append('width', '1200')
+    form.append('height', '1800')
+    const response = await coverUpload({
+      request: new Request('https://preview-branch.hj-groups-web.pages.dev/api/admin/covers/upload', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer admin-token' },
+        body: form,
+      }),
+      env: {
+        SUPABASE_URL: 'https://supabase.test',
+        SUPABASE_PUBLISHABLE_KEY: 'test-public-key',
+        SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+        CF_PAGES_BRANCH: 'phase5u-cover-assets-20261012',
+        COVERS_BUCKET: fakeR2,
+      },
+    })
+    assert.equal(response.status, 201)
+    const payload = await response.json()
+    assert.equal(payload.ok, true)
+    assert.match(payload.url, /^\/api\/covers\/preview-[a-f0-9]{64}-800\.webp$/)
+    assert.equal(payload.thumbnailBytes, validWebp.length)
+    assert.equal(payload.largeBytes, validWebp.length)
+    assert.equal(writes.length, 2)
+    assert.ok(writes.some(item => /-400\.webp$/.test(item.key)))
+    assert.ok(writes.some(item => /-800\.webp$/.test(item.key)))
+    assert.ok(writes.every(item => item.options.httpMetadata.cacheControl === 'public, max-age=31536000, immutable'))
+    assert.ok(writes.every(item => item.options.httpMetadata.contentType === 'image/webp'))
+    assert.equal(payload.url.includes('supabase.co'), false)
   } finally {
     globalThis.fetch = originalFetch
   }
