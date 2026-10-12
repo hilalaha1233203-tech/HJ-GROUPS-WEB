@@ -16,7 +16,7 @@ function health(request) {
     ok:true,
     service:'hj-groups-web',
     runtime:'cloudflare-pages-functions',
-    ttsConfigured:true,
+    ttsConfigured:healthTts().sarvam.configured,
     ttsProviders:healthTts(),
     webPushConfigured:Boolean(String(env.WEB_PUSH_VAPID_PUBLIC_KEY || '')),
     containerRuntime:false,
