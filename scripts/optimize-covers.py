@@ -49,7 +49,7 @@ def webp_bytes(image: Image.Image, width: int, qualities: list[int], max_bytes: 
     target_width = min(width, image.width)
     target_height = max(1, round(image.height * target_width / image.width))
     resized = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
-    mode = "RGBA" if "A" in resized.getbands() else "RGB"
+    mode = "RGBA" if "A" in resized.getbands() or "transparency" in resized.info else "RGB"
     if resized.mode != mode:
         resized = resized.convert(mode)
     last = b""
@@ -104,6 +104,7 @@ def main() -> int:
     manifest = {"version": 1, "covers": {}}
     total_before = 0
     total_after = 0
+    converted_count = 0
 
     for source in inputs:
         rel = source.relative_to(SOURCE_ROOT).as_posix()
@@ -151,6 +152,7 @@ def main() -> int:
 
         total_before += len(original_bytes)
         total_after += len(thumb) + len(large)
+        converted_count += 1
         print(
             f"OK {rel}: {len(original_bytes)} -> {len(thumb)} + {len(large)} bytes; "
             f"thumbnail quality={thumb_quality}, large quality={large_quality}; "
@@ -160,7 +162,7 @@ def main() -> int:
     serialized = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
     SOURCE_MANIFEST.write_text(serialized, encoding="utf-8")
     PUBLIC_MANIFEST.write_text(serialized, encoding="utf-8")
-    print(f"Manifest entries: {len(manifest['covers'])}; source objects converted: {len(inputs)}")
+    print(f"Manifest entries: {len(manifest['covers'])}; source objects converted: {converted_count}")
     print(f"Input bytes: {total_before}; both WebP variants total: {total_after}")
     print(f"Output directory: {OUTPUT_ROOT}")
     print("No Supabase API or production database writes were made.")
