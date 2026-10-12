@@ -14,6 +14,8 @@ const EDGE_VERSION = '143.0.3650.75';
 const EDGE_VERSION_HEADER = '1-' + EDGE_VERSION;
 const EDGE_ORIGIN = 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold';
 const EDGE_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0';
+// Set true only after a new real Wrangler/Workers probe returns valid MP3 bytes.
+const EDGE_TTS_WORKERS_VIABLE = false;
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_CHARS = 2000;
 const HARD_MAX_CHARS = 10000;
@@ -471,7 +473,7 @@ async function reserveDailyUsage(bucket, userId, dailyLimit) {
 
 async function generateAudio({ text, voice, provider, body }) {
   const failures = [];
-  const edgeEnabled = envString('EDGE_TTS_ENABLED').toLowerCase() === 'true';
+  const edgeEnabled = EDGE_TTS_WORKERS_VIABLE && envString('EDGE_TTS_ENABLED', 'true').toLowerCase() !== 'false';
   const providers = [];
 
   if (provider === 'edge') {
@@ -613,7 +615,7 @@ export function healthTts() {
     azureSpeech: { configured: azureConfigured },
     maxCharacters: envInteger('TTS_MAX_CHARS', DEFAULT_MAX_CHARS, 1, HARD_MAX_CHARS),
     dailyLimit: envInteger('TTS_DAILY_LIMIT', DEFAULT_DAILY_LIMIT, 1, 1000),
-    implementation: 'edge-first-with-configured-fallbacks',
+    implementation: 'edge-disabled-after-403-with-configured-fallbacks',
   };
 }
 
