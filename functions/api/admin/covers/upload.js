@@ -1,7 +1,5 @@
 const DEFAULT_SUPABASE_URL = 'https://yajkfglagnyvenddyvok.supabase.co';
 
-function json(status, payload) {
-
 const THUMBNAIL_MAX_BYTES = 80 * 1024;
 const LARGE_MAX_BYTES = 2 * 1024 * 1024;
 
