@@ -63,7 +63,7 @@ async function handleTtsRequest(request,provider){
     return jsonResponse(request,503,{
       error:'Text-to-speech provider unavailable',
       code:'EDGE_TTS_NOT_MIGRATED',
-      hint:'Microsoft Edge Neural TTS uses a provider-specific WebSocket flow that is not implemented for Cloudflare Pages Workers. Options: configure SARVAM_API_KEY and use /api/tts, or keep /api/edge-tts on the legacy backend only if that route is explicitly retained and tested there.'
+      hint:'Cloudflare Workers supports outbound WebSockets, but the legacy Microsoft Edge TTS client uses Node ws/crypto/Buffer APIs and has not been ported or tested in Pages Functions. Options: configure SARVAM_API_KEY and use /api/tts, or explicitly retain and test /api/edge-tts on the legacy backend.'
     });
   }
 
