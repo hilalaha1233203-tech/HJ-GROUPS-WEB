@@ -51,6 +51,70 @@ async function sarvamAudio({text,languageCode,speaker='ratan',pace=1,temperature
   return buffer;
 }
 
+
+// Temporary compatibility bridge: when the legacy backend is explicitly configured,
+// keep its existing Edge-first / Sarvam-fallback TTS behavior during migration.
+// This is not the final runtime target and is not considered live-verified.
+export async function handleLegacyTtsProxy(request, provider='auto'){
+  const configuredBase=envString('HJ_WEB_BACKEND_URL');
+  if(!configuredBase) return null;
+
+  if(request.method==='OPTIONS') return new Response(null,{status:204,headers:headersForCors(request)});
+  if(request.method!=='POST') return jsonResponse(request,405,{error:'Method not allowed'},{Allow:'POST, OPTIONS'});
+
+  let rawBody;
+  try {
+    rawBody=await request.text();
+    if(rawBody.length>64000) return jsonResponse(request,413,{error:'TTS request body is too large'});
+  } catch {
+    return jsonResponse(request,400,{error:'Invalid request body'});
+  }
+
+  let body;
+  try { body=JSON.parse(rawBody); } catch {
+    return jsonResponse(request,400,{error:'Invalid JSON request'});
+  }
+  const text=normalizeSpeechText(body?.text);
+  if(!text) return jsonResponse(request,400,{error:'text is required'});
+  if(text.length>MAX_CHARS) return jsonResponse(request,413,{error:'text exceeds '+MAX_CHARS+' characters'});
+
+  let upstream;
+  try {
+    const base=new URL(configuredBase);
+    if(base.protocol!=='https:' || base.username || base.password) throw new Error('Invalid backend URL');
+    const route=provider==='edge'?'edge-tts':provider==='sarvam'?'sarvam-tts':'tts';
+    upstream=new URL('/api/'+route,base);
+    if(upstream.origin===new URL(request.url).origin) throw new Error('Recursive backend URL');
+  } catch {
+    return jsonResponse(request,503,{
+      error:'Legacy TTS bridge is not safely configured',
+      code:'LEGACY_TTS_BACKEND_INVALID',
+    });
+  }
+
+  try {
+    const response=await fetch(upstream.toString(),{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'audio/mpeg, application/json'},
+      body:JSON.stringify({...body,text}),
+      redirect:'error',
+    });
+    const headers=headersForCors(request);
+    headers.set('Content-Type',response.headers.get('Content-Type')||'application/json; charset=utf-8');
+    const cacheControl=response.headers.get('Cache-Control');
+    if(cacheControl) headers.set('Cache-Control',cacheControl);
+    const providerHeader=response.headers.get('X-TTS-Provider');
+    if(providerHeader) headers.set('X-TTS-Provider',providerHeader);
+    return new Response(response.body,{status:response.status,headers});
+  } catch {
+    return jsonResponse(request,503,{
+      error:'Legacy TTS backend is unavailable',
+      code:'LEGACY_TTS_BACKEND_UNAVAILABLE',
+      hint:'Temporary Edge TTS compatibility requires HJ_WEB_BACKEND_URL to point to a working HTTPS backend. The final Pages runtime must not depend on this bridge.',
+    });
+  }
+}
+
 async function handleTtsRequest(request,provider){
   if(request.method==='OPTIONS') return new Response(null,{status:204,headers:headersForCors(request)});
   if(request.method!=='POST') return jsonResponse(request,405,{error:'Method not allowed'},{Allow:'POST, OPTIONS'});
