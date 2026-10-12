@@ -22,24 +22,6 @@ export function makeSafeFileName(
     )
 }
 
-export function optimizeImageUrl(url, { width = 800, quality = 75 } = {}) {
-  const raw = String(url || '').trim()
-  if (!raw || !/^https:\/\/[^/]*\.supabase\.co\/storage\/v1\/object\/(?:public|authenticated)\//i.test(raw)) {
-    return raw
-  }
-
-  const params = new URLSearchParams({
-    url: raw,
-    w: String(width),
-    fit: 'inside',
-    output: 'webp',
-    q: String(quality),
-    maxage: '1y',
-  })
-  return 'https://wsrv.nl/?' + params.toString()
-}
-
-
 function canvasWebp(bitmap, targetWidth, quality, maxBytes = Infinity) {
   const width = Math.min(targetWidth, bitmap.width);
   const height = Math.max(1, Math.round(bitmap.height * width / bitmap.width));
@@ -174,11 +156,8 @@ export async function uploadFileToBucket(
         path
       )
 
-  const isImage = String(file.type || '').startsWith('image/') || /\\.(?:jpe?g|png|webp|gif|jfif)$/i.test(String(file.name || ''))
-
   return {
-    url:
-      isImage ? optimizeImageUrl(data.publicUrl) : data.publicUrl,
+    url: data.publicUrl,
     originalUrl: data.publicUrl,
     path,
   }
