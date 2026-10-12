@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { onRequest } from '../../functions/[[path]].js'
 
 const json = (value) => JSON.stringify(value)
@@ -249,6 +250,28 @@ test('standalone Edge route remains explicit error and frontend does not require
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('frontend authenticates TTS once, falls back to Tamil device voice and disables unavailable read aloud', async () => {
+  const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8')
+  const bridgeStart = app.indexOf('const installEdgeTtsSpeechBridge')
+  const bridgeEnd = app.indexOf('export function App()', bridgeStart)
+  const bridge = app.slice(bridgeStart, bridgeEnd)
+  assert.match(bridge, /fetch\('\/api\/tts'/)
+  assert.match(bridge, /headers\.Authorization = 'Bearer ' \+ session\.access_token/)
+  assert.doesNotMatch(bridge, /for \(let attempt = 0; attempt < 2/)
+  assert.match(bridge, /error: 'no-tamil-voice'/)
+  assert.match(app, /voiceschanged/)
+  assert.match(app, /chunkTextForSpeech/)
+  assert.match(app, /disabled=\{readerLocked \|\| ttsFallbackUnavailable\}/)
+  assert.match(app, /Tamil voice unavailable on this device/)
+})
+
+test('admin notification center never reports a fake sent count while delivery is deferred', async () => {
+  const ui = await readFile(new URL('../../src/components/AdminNotificationCenter.jsx', import.meta.url), 'utf8')
+  assert.match(ui, /Delivery is not available yet in the Cloudflare Pages runtime/)
+  assert.match(ui, /disabled>Delivery not available yet</)
+  assert.doesNotMatch(ui, /✓ Sent:|Targeted users:|Failed:/)
 })
 
 test('Web Push subscription storage route authenticates and writes subscription plus preferences', async () => {
