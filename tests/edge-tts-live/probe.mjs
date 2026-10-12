@@ -42,9 +42,19 @@ async function main() {
     await waitForLocalWorker();
     const response = await fetch(origin + '/probe', { signal: AbortSignal.timeout(30000) });
     const result = await response.json().catch(() => ({}));
+    const viable = response.status === 200
+      && result.ok === true
+      && result.provider === 'edge'
+      && result.contentType === 'audio/mpeg'
+      && Number(result.bytes) >= 4;
+    const verifiedNotViable = response.status === 502
+      && result.ok === false
+      && result.code === 'EDGE_TTS_HANDSHAKE_FAILED'
+      && Number(result.upstreamStatus) === 403;
     const safe = {
+      classification: viable ? 'viable' : verifiedNotViable ? 'not_viable_current_workers_handshake' : 'unexpected_failure',
       httpStatus: response.status,
-      ok: result.ok === true,
+      ok: viable,
       code: result.code || null,
       upstreamStatus: result.upstreamStatus || null,
       bytes: Number(result.bytes) || 0,
@@ -54,9 +64,13 @@ async function main() {
       contentType: result.contentType || null,
     };
     process.stdout.write(JSON.stringify(safe) + '\n');
-    if (!response.ok || result.ok !== true || result.provider !== 'edge' || result.contentType !== 'audio/mpeg' || !(Number(result.bytes) >= 4)) {
-      throw new Error('EDGE_TTS_LIVE_PROBE_FAILED');
+    if (verifiedNotViable) {
+      process.stdout.write('NOT VIABLE: Microsoft Edge Read Aloud rejected the Workers-runtime WebSocket handshake with HTTP 403.\n');
+      completed = true;
+      return;
     }
+    if (!viable) throw new Error('EDGE_TTS_LIVE_PROBE_UNEXPECTED_FAILURE');
+    process.stdout.write('VIABLE: real Tamil audio was generated inside the Wrangler local Workers runtime.\n');
     completed = true;
   } finally {
     if (child.exitCode === null) {
