@@ -1055,3 +1055,18 @@ Cloudflare's official documentation search was re-run for this checkpoint:
 
 These are official service-plan limits, not guarantees of free use forever. Cloudflare usage and product terms may change; re-check the account dashboard before production cutover.
 
+
+
+## 21. Four active story covers — quota-limited workflow (2026-10-13)
+
+Owner confirmed that the current HJ story catalog has four stories and the four associated local original covers are available under `tools/cover-source/stories/`. Supabase displayed: "Your projects are unable to serve requests as your organization has used up its quota"; direct public object requests returned HTTP 402. Dashboard access and additional Storage downloads are therefore BLOCKED by the current organization quota.
+
+For this batch, Phase 5U's cover generator and verifier were narrowed from the previous 13-object bucket inventory to the four currently active cover originals:
+- `1790866658189-Epic-Fantasy-Warriors_-75M-Plays.png`
+- `1790951665948-Cinematic-King_-H7-Groups-Boss-Poster.png`
+- `1790951925575-Mythic-Cobra-Fortress-Heroes.png`
+- `1790952513979-Warrior-of-the-Golden-Battlefield.png`
+
+The expected output is four manifest source paths and eight hashed WebP files (400px + 800px per cover). The remaining nine objects from the earlier inventory have not been fetched, altered, or deleted; this checkpoint does not claim they are absent from Storage. Originals remain local and must not be committed.
+
+Next manual verification: confirm all four exact filenames exist in `tools/cover-source/stories/`; run `py scripts/optimize-covers.py`; inspect output sizes; run `npm run build`, `npm run check:cover-assets`, `npm run check:cover-source-urls`, and relevant tests. Generated WebP files plus both manifests may be committed only on the Phase 5U PR branch after a clean diff review. Do not commit the original files or `package-lock.json` without reviewing its existing local modification. No Supabase database/Storage writes, no source object deletions, no Episode Analytics changes, no PR merge, and no production promotion were performed for this update.
