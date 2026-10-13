@@ -25,6 +25,7 @@ const ALLOWED_VOICES = new Set([
   'ta-IN-PallaviNeural',
   'ta-IN-ValluvarNeural',
   'en-IN-NeerjaNeural',
+  'en-IN-PrabhatNeural',
 ]);
 
 const cleanText = (value) => {
@@ -49,6 +50,11 @@ function normalizeVoice(value, text) {
   const requested = String(value || '').trim();
   if (ALLOWED_VOICES.has(requested)) return requested;
   return isTamilText(text) ? FALLBACK_VOICE : 'en-IN-NeerjaNeural';
+}
+
+function sarvamSpeakerForVoice(value, text) {
+  const selected = normalizeVoice(value, text);
+  return ['ta-IN-ValluvarNeural', 'en-IN-PrabhatNeural'].includes(selected) ? 'ratan' : 'priya';
 }
 
 function envInteger(name, fallback, min, max) {
@@ -319,15 +325,19 @@ async function sarvamAudio({ text, languageCode, speaker = 'ratan', pace = 1, te
   return bytes;
 }
 
-async function googleAudio({ text }) {
+async function googleAudio({ text, voice }) {
   const key = envString('GOOGLE_CLOUD_TTS_API_KEY');
   if (!key) throw Object.assign(new Error('Google TTS is not configured'), { code: 'GOOGLE_NOT_CONFIGURED' });
+  const selectedVoice = normalizeVoice(voice, text);
+  const languageCode = isTamilText(text) ? 'ta-IN' : 'en-IN';
+  const maleVoice = ['ta-IN-ValluvarNeural', 'en-IN-PrabhatNeural'].includes(selectedVoice);
+  const googleVoiceName = languageCode + '-Standard-' + (maleVoice ? 'B' : 'A');
   const response = await fetch(GOOGLE_TTS_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key },
     body: JSON.stringify({
       input: { text },
-      voice: { languageCode: isTamilText(text) ? 'ta-IN' : 'en-IN', name: isTamilText(text) ? 'ta-IN-Standard-A' : 'en-IN-Standard-A' },
+      voice: { languageCode, name: googleVoiceName },
       audioConfig: { audioEncoding: 'MP3' },
     }),
   });
@@ -483,7 +493,7 @@ async function generateAudio({ text, voice, provider, body }) {
     if (envString('SARVAM_API_KEY')) providers.push(['sarvam', () => sarvamAudio({
       text,
       languageCode: body?.language_code,
-      speaker: body?.speaker,
+      speaker: body?.speaker || sarvamSpeakerForVoice(voice, text),
       pace: body?.pace ?? body?.rate,
       temperature: body?.temperature,
     })]);
@@ -492,11 +502,11 @@ async function generateAudio({ text, voice, provider, body }) {
     if (envString('SARVAM_API_KEY')) providers.push(['sarvam', () => sarvamAudio({
       text,
       languageCode: body?.language_code,
-      speaker: body?.speaker,
+      speaker: body?.speaker || sarvamSpeakerForVoice(voice, text),
       pace: body?.pace ?? body?.rate,
       temperature: body?.temperature,
     })]);
-    if (envString('GOOGLE_CLOUD_TTS_API_KEY')) providers.push(['google', () => googleAudio({ text })]);
+    if (envString('GOOGLE_CLOUD_TTS_API_KEY')) providers.push(['google', () => googleAudio({ text, voice })]);
     if (envString('AZURE_SPEECH_KEY') && envString('AZURE_SPEECH_REGION')) providers.push(['azure', () => azureAudio({ text, voice })]);
   }
 
