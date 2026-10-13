@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 // The streaming service is deployed separately on Cloudflare Workers.
 import { STREAMING_SERVER_URL } from './streamingUrl'
 import { normalizeContentStatus } from './contentStatus.js'
+import { fetchPublicCatalog } from './publicCatalogClient.js'
 import { resolveAudioEpisodeUrl } from './audioUrlPolicy.js'
 
 export function fileUrlFromId(fileId, mediaType = 'audio') {
@@ -146,91 +147,17 @@ function normalizeVideoStories(videoStoryRows, videoEpisodeRows) {
   }))
 }
 
-async function selectOptional(table) {
-  const result = await supabase.from(table).select('*')
-  if (result.error) {
-    const message = String(result.error.message || '')
-    if (/could not find the table|schema cache|relation .* does not exist/i.test(message)) {
-      console.warn(`Optional content table "${table}" is not available yet:`, message)
-      return { data: [], error: null, missing: true }
-    }
-  }
-  return result
-}
-
-async function fetchPublicCatalog() {
-  const response = await fetch('/api/public-catalog', {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-    cache: 'default',
-  })
-  const payload = await response.json().catch(() => null)
-  if (!response.ok || !payload?.ok) {
-    throw new Error(String(payload?.error || 'Public catalog unavailable'))
-  }
-  return payload
-}
 
 export async function fetchTelegramContent() {
-  // Public catalog data is served through a 5-minute edge cache. The fallback
-  // keeps local development resilient when the Pages Function is unavailable.
-  try {
-    const payload = await fetchPublicCatalog()
-    return {
-      stories: normalizeStories(payload.stories || [], payload.episodes || []),
-      books: normalizeBooks(payload.books || []),
-      videoStories: normalizeVideoStories(payload.videoStories || [], payload.videoEpisodes || []),
-    }
-  } catch (edgeError) {
-    console.warn('Public catalog edge cache unavailable; falling back to direct Supabase reads:', edgeError)
-    const [stories, episodes, books, videoStories, videoEpisodes] = await Promise.all([
-      supabase.from('stories').select('*'),
-      supabase.from('episodes').select('*'),
-      selectOptional('books'),
-      selectOptional('video_stories'),
-      selectOptional('video_episodes'),
-    ])
-
-    const firstError = stories.error || episodes.error
-    if (firstError) throw firstError
-
-    return {
-      stories: normalizeStories(stories.data || [], episodes.data || []),
-      books: normalizeBooks(books.data || []),
-      videoStories: normalizeVideoStories(videoStories.data || [], videoEpisodes.data || []),
-    }
+  const payload = await fetchPublicCatalog()
+  return {
+    stories: normalizeStories(payload.stories || [], payload.episodes || []),
+    books: normalizeBooks(payload.books || []),
+    videoStories: normalizeVideoStories(payload.videoStories || [], payload.videoEpisodes || []),
   }
 }
 
-const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1'])
-const LOCAL_CONTENT_POLL_MS = 30_000
-
-export function subscribeToTelegramContent(onChange) {
-  // Local development frequently runs behind restrictive firewalls/proxies
-  // that block WebSockets. Keep production Realtime unchanged, but use a
-  // lightweight polling fallback locally so the app stays live without a
-  // noisy browser WebSocket failure.
-  const hostname = typeof window !== 'undefined' ? String(window.location.hostname || '') : ''
-  if (LOCAL_DEV_HOSTS.has(hostname)) {
-    const timer = window.setInterval(() => {
-      Promise.resolve(onChange?.()).catch(() => {})
-    }, LOCAL_CONTENT_POLL_MS)
-
-    return () => {
-      window.clearInterval(timer)
-    }
-  }
-
-  const channel = supabase
-    .channel('hj-groups-content')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'episodes' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'video_stories' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'video_episodes' }, onChange)
-    .subscribe()
-
-  return () => {
-    supabase.removeChannel(channel)
-  }
+// Kept as a compatibility no-op; public catalog updates occur on page refresh.
+export function subscribeToTelegramContent() {
+  return () => {}
 }
