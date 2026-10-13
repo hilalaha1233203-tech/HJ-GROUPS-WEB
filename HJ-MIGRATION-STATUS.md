@@ -1043,6 +1043,15 @@ Code commit: `1e2905e8c45d7a95973846661e30d2fed52cbf53`.
 #### Latest code-bearing Preview evidence (2026-10-13)
 
 - Cloudflare confirmed deployment of audio preload/auto-next code commit `1e2905e8c45d7a95973846661e30d2fed52cbf53`: `0d3f661f-eca5-49b3-b041-8b36c3bd6f04`, URL https://0d3f661f.hj-groups-web.pages.dev, successful build log at 2026-10-13 05:40 UTC.
-- The latest branch HEAD after the status-only documentation commit is `84813dbc603d69b100e0e33fff67f010830fdeb2`; its Pages deployment was created at `f9bff42a-f977-46d4-bf81-7ac9d5bf1f64` (URL https://f9bff42a.hj-groups-web.pages.dev) and was still in progress at the latest status query. Use the completed code-bearing Preview above for testing, but verify the latest branch deployment before treating the branch HEAD's deployment as complete.
-- No GitHub Actions Quality Check run was recorded for these latest commits. Cloudflare's build is not a replacement for lint/unit/source-guard/asset-gate tests. Run the branch's Quality Check manually; it should block merge while the required 26 WebP files and manifests are absent.
+- An intermediate status-only commit `84813dbc603d69b100e0e33fff67f010830fdeb2` was deployed at `f9bff42a-f977-46d4-bf81-7ac9d5bf1f64`. The next status-record commit `f7a9751211660f7a6cf7b50b69ce8c09cb990452` was also deployed successfully: deployment `8ffc3442-3ff9-43c8-a7a6-818480c940a0`, URL https://8ffc3442.hj-groups-web.pages.dev, Cloudflare check SUCCESS. That status-only Preview does not add missing cover assets.
+- No GitHub Actions Quality Check run was recorded for these latest code commits. Cloudflare's build is not a replacement for lint/unit/source-guard/asset-gate tests. Run the branch's Quality Check manually; the cover gate should block merge while the required 26 WebP files and manifests are absent.
+
+#### Official limit confirmation refresh (2026-10-13)
+
+Cloudflare's official documentation search was re-run for this checkpoint:
+- Pages Free: **20,000 files per site**, individual asset **25 MiB** — https://developers.cloudflare.com/pages/platform/limits/ (documentation marked last updated 2026-09-05).
+- Pages Functions count against Workers plan requests; Workers Free daily request limit is **100,000**, resetting at midnight UTC. Requests served as static assets without invoking a Function are free/unlimited — https://developers.cloudflare.com/pages/functions/pricing/ (last updated 2026-09-08) and https://developers.cloudflare.com/workers/platform/limits/.
+- R2's `r2.dev` public development URL is rate-limited and is not intended for production. Production delivery should use a custom domain on a zone in the same Cloudflare account — https://developers.cloudflare.com/r2/buckets/public-buckets/ (last updated 2026-09-25).
+
+These are official service-plan limits, not guarantees of free use forever. Cloudflare usage and product terms may change; re-check the account dashboard before production cutover.
 
