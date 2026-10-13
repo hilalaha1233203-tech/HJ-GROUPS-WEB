@@ -9,7 +9,7 @@ const DEFAULTS = Object.freeze({
   sleepTimer: 0,
   audioVolume: 1,
   audioSpeed: 1,
-  audioAutoplay: true,
+  audioAutoplay: false,
   audioRememberPosition: true,
   videoVolume: 1,
   videoSpeed: 1,
@@ -398,7 +398,7 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
         <div className="account-settings-grid">
           <label><span>Default volume: {Math.round(mergedSettings.audioVolume * 100)}%</span><input type="range" min="0" max="1" step="0.01" value={mergedSettings.audioVolume} onChange={(event) => setSetting('audioVolume', Number(event.target.value))} /></label>
           <label><span>Default speed</span><select value={mergedSettings.audioSpeed} onChange={(event) => setSetting('audioSpeed', Number(event.target.value))}>{[0.75,1,1.1,1.25,1.5,1.75,2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
-          <label className="settings-check"><input type="checkbox" checked={!!mergedSettings.audioAutoplay} onChange={(event) => setSetting('audioAutoplay', event.target.checked)} /><span>Autoplay next episode</span></label>
+          <div className="account-settings-note">Audio auto-next is disabled to prevent another large episode from loading automatically. Start the next episode manually.</div>
           <label className="settings-check"><input type="checkbox" checked={!!mergedSettings.audioRememberPosition} onChange={(event) => setSetting('audioRememberPosition', event.target.checked)} /><span>Remember episode position</span></label>
         </div>
       </section>

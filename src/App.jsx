@@ -4700,7 +4700,7 @@ export function App() {
 
       const shouldAutoplayNext = currentEpisode?.type === 'video'
         ? accountSettings.videoAutoplay
-        : accountSettings.audioAutoplay
+        : false
 
       if (shouldAutoplayNext) {
         nextEpisode()
