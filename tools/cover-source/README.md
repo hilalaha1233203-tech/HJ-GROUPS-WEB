@@ -1,27 +1,18 @@
 # Existing cover source files — Phase 5U
 
-The existing Supabase objects must be copied locally before the script can create the static WebP assets and non-empty manifest. The script does not call Supabase, does not write the production database, and does not delete any source object.
+The current HJ story catalog has four active stories whose cover originals are already available locally. The generator processes only these four known cover files; it does not call Supabase, write the production database, or delete any source object. A prior read-only bucket inventory reported 13 objects, but the other nine are not required for this four-story batch and must remain untouched.
 
-## Download only the cover bucket
+## Use the four active story covers
 
-1. Open Supabase Dashboard: https://supabase.com/dashboard/project/yajkfglagnyvenddyvok/storage/buckets
-2. Choose **Storage → Files → story-covers → stories**.
-3. Download each of these 13 files individually, preserving the exact filenames and the `stories/` folder:
-- `1788411106863-file_0000000014e882068f423cd2bef840db.png`
-- `1788586464860-6217308045835357343.jpg`
-- `1789997726308-6217308045835357343.jpg`
-- `1789997771808-6217308045835357343.jpg`
-- `1789998931387-6217308045835357343.jpg`
-- `1789999579655-6217308045835357343.jpg`
-- `1789999694248-6217308045835357343.jpg`
-- `1790000595773-6217308045835357343.jpg`
-- `1790836907383-8283a78b-0be0-4a14-b379-d8a549491564.jfif`
+The Supabase organization reported that it had used up its quota on 2026-10-13; Storage and public object requests returned HTTP 402. Do not keep retrying those downloads. The owner confirmed that only four stories have been added and these four source files are already present locally.
+
+1. Keep the four files under `tools/cover-source/stories/` with these exact filenames:
 - `1790866658189-Epic-Fantasy-Warriors_-75M-Plays.png`
 - `1790951665948-Cinematic-King_-H7-Groups-Boss-Poster.png`
 - `1790951925575-Mythic-Cobra-Fortress-Heroes.png`
 - `1790952513979-Warrior-of-the-Golden-Battlefield.png`
-4. Save files under `tools/cover-source/stories/` in this repo. Do **not** download the `audio` bucket (2 files / 44.18 MiB); only download the `story-covers` bucket (13 objects / 12.95 MiB according to a read-only query on 2026-10-12).
-5. Keep originals local only. `.gitignore` excludes downloaded source images from commits.
+2. Do not download the `audio` bucket. Do not delete or modify any Supabase Storage object. The previous 13-object inventory is not the scope of this four-active-story conversion.
+3. Keep originals local only. `.gitignore` excludes downloaded source images from commits.
 
 If the dashboard download fails, use the bucket file list and retry after the Supabase quota restriction is resolved. Do not disable policy checks or copy any service-role secret into the browser.
 
@@ -82,7 +73,7 @@ py -m pip install --user Pillow
 py scripts/optimize-covers.py
 ```
 
-The script refuses to write anything unless all 13 expected object files are present. It creates hashed 400px thumbnails (target ≤80 KiB) and 800px images (target ≤2 MiB), preserving aspect ratio and transparency, then updates both `src/lib/cover-manifest.json` and `public/cover-manifest.json`. Review the exact per-file input/output byte report. If an image cannot meet a size target, the script exits with an error instead of claiming an optimization.
+The script refuses to write anything unless all four active cover files are present. It creates eight hashed WebP assets: a 400px thumbnail (target ≤80 KiB) and an 800px image (target ≤2 MiB) for each cover, preserving aspect ratio and transparency. It updates both `src/lib/cover-manifest.json` and `public/cover-manifest.json`. Review the exact per-file input/output byte report. If an image cannot meet a size target, the script exits with an error instead of claiming an optimization.
 
 Commit only generated `public/covers/*.webp` and both manifest files to the Phase 5U branch. Do not commit the downloaded source images.
 
