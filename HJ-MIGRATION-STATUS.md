@@ -1069,4 +1069,59 @@ For this batch, Phase 5U's cover generator and verifier were narrowed from the p
 
 The expected output is four manifest source paths and eight hashed WebP files (400px + 800px per cover). The remaining nine objects from the earlier inventory have not been fetched, altered, or deleted; this checkpoint does not claim they are absent from Storage. Originals remain local and must not be committed.
 
-Next manual verification: confirm all four exact filenames exist in `tools/cover-source/stories/`; run `py scripts/optimize-covers.py`; inspect output sizes; run `npm run build`, `npm run check:cover-assets`, `npm run check:cover-source-urls`, and relevant tests. Generated WebP files plus both manifests may be committed only on the Phase 5U PR branch after a clean diff review. Do not commit the original files or `package-lock.json` without reviewing its existing local modification. No Supabase database/Storage writes, no source object deletions, no Episode Analytics changes, no PR merge, and no production promotion were performed for this update.
+The four local filenames were confirmed, optimized, built and validated on 2026-10-13. The eight generated WebP assets and both manifests were committed and pushed to the Phase 5U PR branch; evidence and exact byte measurements are recorded in Section 22 below. Remaining work is full GitHub Quality Check execution, Preview/browser checks, and status sync to the local worktree. Do not commit source originals or unrelated `package-lock.json` changes. No Supabase database/Storage writes, no source object deletions, no Episode Analytics changes, no PR merge, and no production promotion were performed.
+
+## 22. Four-cover optimization committed and Preview deployed (2026-10-13)
+
+### VERIFIED — local output supplied by owner
+
+Local isolated worktree: `E:\HILAL @ SIS PLN\PRODUCTS\HJ-GROUPS-WEB-PHASE5U`  
+Local branch: `phase5u-covers-quota-20261013`  
+Remote PR branch: `phase5u-cover-assets-20261012`  
+Asset commit pushed: `b94fffb7b3be93431645bbb91679d9946435a2a4`
+
+The owner supplied PowerShell output proving:
+- The optimizer processed four local originals at 1254×1254, creating one 400w and one 800w WebP for each.
+- Total input bytes: **10,829,851**. Total eight WebP output bytes: **795,560**. Reduction: **10,034,291 bytes (~92.66%)**.
+- 400w thumbnail byte sizes: 48,388; 38,548; 44,172; 45,424 — all below the 80 KiB target.
+- 800w image byte sizes: 175,784; 130,272; 157,482; 155,490 — all below the 2 MiB target.
+- Manifest reports 24 lookup entries for 4 source objects. Both manifests were staged with the eight WebP files.
+- `npm run build`: PASS, Vite 8.2.2, built in 857 ms, 21 files in dist including 8 WebP. Vite emitted non-blocking warnings about a mixed static/dynamic import and a large JS chunk.
+- `npm run check:cover-assets`: PASS — 4 active source covers, matching manifests, 8 optimized assets, no originals tracked, Pages file/count limits satisfied.
+- `npm run check:cover-source-urls`: PASS — no hard-coded Supabase Storage object URLs in runtime code outside documented fallback rules.
+- `npm run lint`: exit 0; 0 errors, 2 warnings for existing `openPlayer` and `openStoryDetails` React hook dependencies in `src/App.jsx` (lines 4439, 4915). This checkpoint did not alter those unrelated functions.
+- `npm ci` completed under Node v24.19.0 but emitted EBADENGINE because `package.json` expects Node 22.x. Future CI verification should use Node 22.x. It also reported 2 high-severity audit findings; `npm audit fix` was not run.
+- `git diff --cached --check` and staged diff checks passed. Exactly 10 files were staged: 8 `public/covers/*.webp`, `public/cover-manifest.json`, and `src/lib/cover-manifest.json`. No original images or package-lock file were committed.
+- Commit `b94fffb7b3be93431645bbb91679d9946435a2a4` was pushed successfully to the existing PR head branch. Owner's post-push `git status --short --branch` showed a clean worktree.
+
+### VERIFIED — GitHub and Cloudflare control-plane evidence
+
+PR #10: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/10 — **OPEN / DRAFT / UNMERGED**, still stacked on PR #9. Do not merge #10 before #9.
+
+- GitHub PR head SHA: `b94fffb7b3be93431645bbb91679d9946435a2a4`.
+- GitHub commit checks for that SHA:
+  - Cloudflare Pages: **success**, https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/runs/115239735545
+  - Supabase Preview: **skipped**, https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/runs/115239513249
+  - No separate full Quality Check run was present on that SHA at the time of this check.
+- Cloudflare Pages Preview deployment for the exact asset commit:
+  - Deployment ID: `b2719257-6a84-4c98-b91a-2b2519a202d5`
+  - URL: https://b2719257.hj-groups-web.pages.dev
+  - Environment: preview; stage: success; branch: `phase5u-cover-assets-20261012`.
+- This is deployment control-plane evidence, not a substitute for live browser and HTTP header tests.
+
+### NOT VERIFIED / pending
+
+- Full GitHub Quality Check (test suite, lint/route smoke, secret scan, new asset gate on the remote PR head) remains **NOT VERIFIED**. Manually run Actions → Quality Check → Run workflow, select `phase5u-cover-assets-20261012`, and capture the result: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions
+- Public HTTP HEAD/GET responses for all 8 WebP assets, immutable cache headers, content type/length, broken-image placeholder behavior, cold/warm home/story byte measurements, mobile/desktop browser verification, and authenticated R2 admin upload remain **NOT VERIFIED**.
+- The previously attempted nine extra public Storage downloads returned HTTP 402 because Supabase organization quota had been exhausted. They are outside the owner's stated four-active-story scope; no repeated retry, object mutation or object deletion was performed in this phase. The previous 13-object inventory does not prove that all 13 stories are active.
+- PR branch's Pages Preview is not Production. No Production promotion, database write, Storage write/deletion, R2 upload, Telegram session/media change, or Episode Analytics change occurred.
+
+### Local follow-up after the status-only commit
+
+If this status update advances the remote PR branch after the owner's asset commit, sync only the isolated worktree using:
+```powershell
+git fetch origin phase5u-cover-assets-20261012
+git merge --ff-only origin/phase5u-cover-assets-20261012
+```
+Do not run this from the original `main` worktree. Keep the four source originals local-only.
+
