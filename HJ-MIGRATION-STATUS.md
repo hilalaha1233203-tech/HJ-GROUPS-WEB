@@ -864,3 +864,118 @@ Current status:
 Safety and phase gates:
 - PR #9 remains unmerged; no production Pages settings, Supabase data, Voroa, Telegram session/media, or Episode Analytics were changed by this patch.
 - All newly added upstream/backend calls are represented in mocked tests only until a controlled preview/live verification is approved.
+
+
+## 19. Phase 2 TTS/Web Push decision patch — final runtime qualification (2026-10-13)
+
+This section supersedes earlier TTS capability statements in Sections 16–18 where the earlier provider viability was still untested. It records branch/CI/probe evidence separately from Preview, production and device testing.
+
+### Git / CI evidence
+
+- Target: PR #9 branch `phase2/containerless-pages-migration-20261008`; PR #9 remains OPEN, UNMERGED, based on `main`.
+- Code/test head verified before this status-only update: `58e50b664ac4db1a4509e580719ff4e446d28dfb`.
+- Quality Check **#1106**, run ID `38262539588`, completed **SUCCESS** on that head. Job steps passed: dependency audit, lint, production build, unit tests, migration filenames, startup exports, Pages routes manifest, no-container production-path guard, Pages route smoke, frontend secret scan, auth/settings sanity, appearance/security-monitoring sanity and final source sanity. Run: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38262539588
+- Real outbound Edge TTS probe **#17**, run ID `38262539570`, completed **SUCCESS as a negative viability test**. The success result means the probe correctly classified the rejection; it does not mean Edge TTS audio works. Actual output:
+  `{"classification":"not_viable_current_workers_handshake","httpStatus":502,"ok":false,"code":"EDGE_TTS_HANDSHAKE_FAILED","upstreamStatus":403,"bytes":0,"voice":"ta-IN-PallaviNeural","runtime":"wrangler-dev-local-workers-runtime"}`
+  The Microsoft consumer endpoint rejected the handshake with HTTP 403, and no audio bytes were returned. Run: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38262539570
+- Quality Check/negative-probe evidence above verifies CI and the probe on the code head. It does not verify an actual Cloudflare Pages Preview, production route, or device speech voices.
+
+### TTS behavior implemented on the PR #9 branch
+
+- `POST /api/tts` requires a signed-in Supabase user, validates text, and defaults to `TTS_MAX_CHARS=2000` (hard code ceiling 10,000 characters).
+- Daily per-user quota defaults to `TTS_DAILY_LIMIT=30`. The counter uses conditional writes and reads in the already-existing `MEDIA_CACHE` R2 binding under `tts-usage/`; it adds no PostgREST table/read for quota tracking. R2 operations are still metered.
+- Audio key: SHA-256 of the normalized text, chosen voice and format; object prefix `tts/`. HIT returns cached MP3; MISS tries each configured provider once, validates MP3, writes to R2 and responds. Cached/ranged audio advertises `audio/mpeg`, `Content-Length`, `Accept-Ranges`, 206 + `Content-Range`, and 416 for invalid ranges.
+- Provider secret names recognized by code: `SARVAM_API_KEY`, `GOOGLE_CLOUD_TTS_API_KEY`, and paired `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION`. Provider calls have no automatic retry loop; each configured provider is attempted at most once per request.
+- **Edge TTS is NOT VIABLE on the tested handshake and is disabled by a code-level viability gate** (`EDGE_TTS_WORKERS_VIABLE=false)). Setting `EDGE_TTS_ENABLED=true` cannot override this gate. `/health` reports the result honestly; no optional provider key is reported as configured unless that secret is present.
+- `/api/edge-tts` intentionally returns a structured `503 EDGE_TTS_NOT_MIGRATED` response; the frontend does not call it. The frontend makes one `/api/tts` request and, when it fails, falls back to device `speechSynthesis`, checks the installed voice list (including `voiceschanged`), chunks long text, and disables Read Aloud with a clear message when no Tamil voice becomes available.
+- Browser fallback behavior is unit/source-tested. Availability/quality on Android Chrome, iOS Safari, Windows and macOS is **NOT VERIFIED**; use the manual matrix below.
+- Microsoft Edge Read Aloud endpoint is an unofficial consumer endpoint, not a verified supported developer TTS API. The observed 403 and any future endpoint/terms/throttling changes are operational and Terms-of-Service risks. This is a risk note, not legal advice.
+
+### Temporary R2 retention — required dashboard configuration, NOT applied/verified here
+
+Use the existing R2 bucket already intended for `MEDIA_CACHE` (the existing media bucket, not a new bucket). Create **prefix-scoped** lifecycle rules only:
+- `tts/` → delete after **604800 seconds (7 days)**.
+- `tts-usage/` → delete after **172800 seconds (2 days)**, so daily counters don't accumulate.
+- Preserve existing `streaming-cache/` lifecycle policy (currently recorded separately as 172800 seconds / 2 days). Do not apply an empty-prefix/all-bucket expiration rule, because that could delete streaming cache objects outside this feature.
+
+These are recommended design settings, **NOT VERIFIED in the live R2 dashboard**. Exact user action:
+1. Cloudflare Dashboard → R2 → the existing media bucket bound as `MEDIA_CACHE` → Settings/Lifecycle rules.
+2. Add the two prefix-only delete rules above, without replacing/removing the existing `streaming-cache/` rule.
+3. Confirm the displayed rule list contains all existing and new rules; keep a screenshot for evidence.
+4. Cloudflare docs say lifecycle deletion is typically completed within 24 hours of the expiration time, not instantly: https://developers.cloudflare.com/r2/buckets/object-lifecycles/
+5. R2's current published monthly included Standard usage is 10 GB-month storage, 1 million Class A operations and 10 million Class B operations; egress is free, but storage/operations remain metered and the free tier is not unlimited or guaranteed forever. Re-check current plan/billing: https://developers.cloudflare.com/r2/pricing/
+
+### Required environment variable and binding names
+
+Set the names below separately in **Cloudflare Pages → hj-groups-web → Settings → Variables and Secrets → Preview** and **Production** as appropriate. Values are not included here. Preview and Production do not automatically share environment configuration.
+
+| Name | Type / required state | Purpose / safety |
+|---|---|---|
+| `MEDIA_CACHE` | R2 binding; required for /api/tts | Bind the existing media R2 bucket; no new bucket. Bind in both Preview and Production if each environment is meant to use TTS. |
+| `SUPABASE_URL` | non-secret variable; required | HJ Web Supabase project URL for server-side authenticated TTS. |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secret**; required for current server-side auth helper | Must remain server-side only; never use a `VITE_` prefix, never print the value, and never expose it to the browser build. |
+| `CORS_ALLOWED_ORIGINS` | non-secret comma-separated origin list; set per environment | Include the exact Pages Preview origin(s) used for testing and the production origin. Don't guess a preview hostname; copy it from the deployed Preview. |
+| `TTS_MAX_CHARS` | optional integer; default 2000, code ceiling 10000 | Per-request text cap. |
+| `TTS_DAILY_LIMIT` | optional integer; default 30 | Per-user daily request cap; valid configured range 1–1000. |
+| `EDGE_TTS_ENABLED` | optional flag; keep `false` for now | Current negative viability gate disables Edge regardless of the env value. Do not use this flag to claim Edge is working. |
+| `SARVAM_API_KEY` | optional **secret** | Only enables Sarvam if the owner configures a key and accepts the usage/pricing conditions. |
+| `GOOGLE_CLOUD_TTS_API_KEY` | optional **secret** | Only enables Google Cloud TTS if a key is supplied and Google Cloud billing/quotas are accepted. |
+| `AZURE_SPEECH_KEY` | optional **secret** | Must be paired with `AZURE_SPEECH_REGION`. |
+| `AZURE_SPEECH_REGION` | optional non-secret variable | Region matching the Azure Speech resource; must be paired with the key. |
+| `WEB_PUSH_VAPID_PUBLIC_KEY` | optional public variable for push config/status | Public key only. It does **not** enable sending; delivery remains deferred. Do not create/change VAPID keys automatically. |
+
+Keep the existing frontend build variables as already configured:
+- `VITE_SUPABASE_URL` — public project URL.
+- `VITE_HJ_CLIENT_KEY` (or the existing supported public publishable/anon key alias) — public browser client key only, never a service-role key.
+- `VITE_STREAMING_SERVER_URL` — existing deployed streaming Worker URL.
+
+Optional provider settings are **not required** for browser speech fallback. If none of the online providers has been deliberately configured, `/api/tts` returns a structured error and the frontend falls back to the device voice. Do not create or add a secret just to make the health flag appear green.
+
+### Official provider cost / limit check (not a promise of free service)
+
+- **Sarvam Bulbul v3:** current official docs advertise ₹100 signup credits, then ₹30 per 10,000 characters; Bulbul v3 Starter is limited to 30 requests/minute. Credits are limited; usage after exhaustion is billable. Sources: https://docs.sarvam.ai/api/getting-started/pricing and https://docs.sarvam.ai/api/getting-started/ratelimits
+- **Google Cloud Text-to-Speech:** official pricing lists a monthly free usage allowance for Standard voices (up to 4 million characters in the currently published pricing table) and bills usage after the allowance. A billing account must be enabled, and charges can apply beyond free usage. Verify current SKU, billing account, budget alerts and quota before enabling: https://cloud.google.com/text-to-speech/pricing
+- **Azure Speech:** official docs bill TTS per character and list a distinct F0 free tier/quotas; the exact allowance should be checked on the current pricing page for the chosen region/resource before enabling. The official quota page lists F0 standard-voice real-time TTS at 20 transactions per 60 seconds and max 10 minutes generated audio per request. Do not treat F0 as unlimited: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-services-quotas-and-limits and https://azure.microsoft.com/en-us/pricing/details/cognitive-services/speech-services/
+- Cloudflare Workers/R2, Supabase plan/egress, provider billing, rate limits and GitHub Actions allowances are separate limit systems. Check each dashboard; no “free forever” or unlimited claim is made.
+
+### Web Push — explicitly deferred
+
+- Admin notification UI states delivery is not available yet and its send button is disabled; no fake sent count is displayed.
+- `POST /api/admin/notifications/send` retains explicit `503 WEB_PUSH_SEND_NOT_MIGRATED`.
+- Subscription/preferences route source and mocked tests are present, but live persistence is **NOT VERIFIED** while Supabase API access is quota-restricted.
+- No real notification, live subscription write, VAPID key creation/change, production DB change or preview/production setting change was made here.
+
+### Regression / acceptance matrix — Phase 2 TTS + Web Push decision patch
+
+| Test surface | Result | Evidence / remaining caveat |
+|---|---|---|
+| Quality Check | VERIFIED PASS | Run #1106 / `38262539588`; lint, build, unit tests, route smoke, source guard and secret scan passed on code head `58e50b664ac4db1a4509e580719ff4e446d28dfb`. |
+| Real Edge WebSocket probe | VERIFIED NOT VIABLE on tested runtime path | Run #17 / `38262539570`: 502 `EDGE_TTS_HANDSHAKE_FAILED`, upstream 403, 0 audio bytes. CI passed because it correctly classified this expected negative outcome. |
+| Edge production provider | DISABLED | `EDGE_TTS_WORKERS_VIABLE=false`; explicit config cannot override the evidence-based gate. |
+| `/api/tts` auth/limits/provider errors | VERIFIED at unit/source level | Tests cover auth rejection, configurable char cap, one-attempt provider failure, R2 usage quota, cache hit/miss and Range. Live Pages Preview is NOT VERIFIED. |
+| TTS cache key normalization | VERIFIED at unit level | Same normalized text + voice + MP3 format reuses one `tts/<sha256>.mp3` key. |
+| Cached audio Range/206/416 headers | VERIFIED at unit level | Live browser/Preview range test is still needed. |
+| Browser `speechSynthesis` fallback | VERIFIED at source/unit level | Device voice availability and audible output are NOT VERIFIED on Android Chrome, iOS Safari, Windows or macOS. |
+| `/health` provider flags | VERIFIED at unit/source level | Reports cache binding and configured provider names only; a secret being present does not prove the provider can generate audio. Live Preview response NOT VERIFIED. |
+| Web Push admin send | VERIFIED deferred state at source/unit level | UI disabled; API explicit `503 WEB_PUSH_SEND_NOT_MIGRATED`; real delivery intentionally not attempted. |
+| Web Push subscription/preferences | NOT VERIFIED live | Tests are mocked; re-test after Supabase quota/access recovers. |
+| Episode Analytics | UNCHANGED BY THIS PATCH | No Episode Analytics files/routes/migrations were intentionally modified. |
+| R2 lifecycle & Pages env | NOT VERIFIED — user action | Add prefix-only lifecycle rules and inspect Preview/Production bindings as described above. |
+| Preview browser regression | NOT VERIFIED — user action | Requires a real Pages Preview deployment after Pages Git integration is reconnected; do not merge until owner approval. |
+
+### Manual Preview and browser checklist (owner action)
+
+After the Supabase quota restriction is lifted and Pages Preview deployment is available:
+1. Confirm Preview has `MEDIA_CACHE`, server-only `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` and the correct Preview origin in `CORS_ALLOWED_ORIGINS`. Do not paste secret values into chat or screenshots.
+2. Signed out → trigger Read Aloud: expect the structured auth failure then native device fallback if a Tamil voice is installed; no repeated online retries. Signed in → test a short Tamil paragraph; with no optional provider configured, expect fallback, not a fake online-audio success.
+3. With an approved provider secret configured, test first TTS MISS, repeat identical text HIT, normalized whitespace reuse, Range request 206 and invalid range 416. Check `/health` flags without exposing secret values.
+4. Check the Admin Notification Center: the send button remains disabled and the UI clearly says delivery is not available yet. Verify subscribe/preferences only when Supabase accepts requests; never send a real notification for this acceptance test.
+5. Test Tamil fallback voices on Android Chrome, iOS Safari, Windows and macOS; note whether `getVoices()` is populated immediately or after `voiceschanged`, and confirm the button is disabled with a clear message where no Tamil voice exists.
+6. In DevTools Network, filter `/api/tts`; verify only one online request per Read Aloud invocation, structured failure codes, and no browser-visible secret values. Save sanitized request/response headers and console output as evidence.
+
+### Safety outcome
+
+- PR #9 stays open and unmerged until the owner tests and approves Preview. PR #12 remains a separate draft stacked on PR #9; do not merge it independently or merge any PR automatically.
+- `main`, production Pages settings, R2 lifecycle settings, Supabase data/schema, Voroa, Telegram session/media and Episode Analytics were not changed by this phase.
+- No real provider key was added; no provider is claimed to have completed live synthesis; no notification was sent.
+- Remaining gates are: apply/verify prefix lifecycle rules, configure bindings/variables in Preview and Production with owner approval, run Preview and device tests, and obtain owner approval before merge/cutover.
