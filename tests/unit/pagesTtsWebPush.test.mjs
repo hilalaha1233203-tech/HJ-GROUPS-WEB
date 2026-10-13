@@ -163,6 +163,7 @@ test('TTS miss writes one stable R2 key and subsequent normalized text request i
     assert.equal(providerHeaders.get('api-subscription-key'), 'test-only-sarvam-key')
     assert.equal(providerBody.model, 'bulbul:v3')
     assert.equal(providerBody.target_language_code, 'ta-IN')
+    assert.equal(providerBody.speaker, 'priya', 'Pallavi preference maps to a supported female Bulbul v3 voice')
 
     const second = await run('/api/tts', testEnv(bucket, { SARVAM_API_KEY: 'test-only-sarvam-key' }), {
       method: 'POST',
@@ -177,6 +178,67 @@ test('TTS miss writes one stable R2 key and subsequent normalized text request i
     assert.equal(bucket.putKeys.filter((key) => key.startsWith('tts/')).length, 1)
     assert.equal([...bucket.store.keys()].filter((key) => /^tts\/[a-f0-9]{64}\.mp3$/.test(key)).length, 1)
     assert.equal(bucket.putKeys.some((key) => key.startsWith('tts-usage/')), true)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('TTS maps saved male/female voice preferences to each configured provider', async () => {
+  const bucket = createBucket()
+  const originalFetch = globalThis.fetch
+  let googleVoice
+  let azureSsml = ''
+  const sarvamSpeakers = []
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url)
+    if (authFetch(target)) return authResponse()
+    if (target === 'https://texttospeech.googleapis.com/v1/text:synthesize') {
+      googleVoice = JSON.parse(init.body).voice
+      return new Response(json({ audioContent: 'SUQzBAUG' }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    if (target.includes('tts.speech.microsoft.com/cognitiveservices/v1')) {
+      azureSsml = String(init.body || '')
+      return new Response(AUDIO, { status: 200, headers: { 'Content-Type': 'audio/mpeg' } })
+    }
+    if (target === 'https://api.sarvam.ai/text-to-speech/stream') {
+      sarvamSpeakers.push(JSON.parse(init.body).speaker)
+      return new Response(AUDIO, { status: 200, headers: { 'Content-Type': 'audio/mpeg' } })
+    }
+    throw new Error('Unexpected mocked provider URL: ' + target)
+  }
+  try {
+    const googleResponse = await run('/api/tts', testEnv(bucket, { GOOGLE_CLOUD_TTS_API_KEY: 'test-only-google-key' }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'வணக்கம் Google', voice: 'ta-IN-ValluvarNeural' }),
+    })
+    assert.equal(googleResponse.status, 200)
+    assert.deepEqual(googleVoice, { languageCode: 'ta-IN', name: 'ta-IN-Standard-B' })
+
+    const azureResponse = await run('/api/tts', testEnv(bucket, {
+      AZURE_SPEECH_KEY: 'test-only-azure-key',
+      AZURE_SPEECH_REGION: 'eastus',
+    }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'Hello from Azure', voice: 'en-IN-PrabhatNeural' }),
+    })
+    assert.equal(azureResponse.status, 200)
+    assert.match(azureSsml, /voice name='en-IN-PrabhatNeural'/, 'Prabhat must not silently normalize to Neerja')
+
+    const sarvamFemale = await run('/api/tts', testEnv(bucket, { SARVAM_API_KEY: 'test-only-sarvam-key' }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'வணக்கம் Sarvam female', voice: 'ta-IN-PallaviNeural' }),
+    })
+    const sarvamMale = await run('/api/tts', testEnv(bucket, { SARVAM_API_KEY: 'test-only-sarvam-key' }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-user-token' },
+      body: json({ text: 'வணக்கம் Sarvam male', voice: 'ta-IN-ValluvarNeural' }),
+    })
+    assert.equal(sarvamFemale.status, 200)
+    assert.equal(sarvamMale.status, 200)
+    assert.deepEqual(sarvamSpeakers, ['priya', 'ratan'])
   } finally {
     globalThis.fetch = originalFetch
   }
@@ -270,6 +332,12 @@ test('frontend authenticates TTS once, falls back to Tamil device voice and disa
   assert.match(app, /chunkTextForSpeech/)
   assert.match(app, /disabled=\{readerLocked \|\| ttsFallbackUnavailable\}/)
   assert.match(app, /Tamil voice unavailable on this device/)
+  assert.doesNotMatch(bridge, /speaker:\s*'ratan'/, 'frontend must not override the selected voice with a hard-coded speaker')
+  assert.match(app, /Voice names are preferences: Azure uses the named neural voice/)
+  const account = await readFile(new URL('../../src/AccountSettings.jsx', import.meta.url), 'utf8')
+  assert.match(account, /Pallavi \(female preference\)/)
+  assert.match(account, /Valluvar \(male preference\)/)
+  assert.match(account, /Prabhat \(male preference\)/)
 })
 
 test('admin notification center never reports a fake sent count while delivery is deferred', async () => {
