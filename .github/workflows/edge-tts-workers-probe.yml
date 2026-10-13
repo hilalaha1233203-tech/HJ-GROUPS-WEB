@@ -1,0 +1,27 @@
+name: Edge TTS Workers viability probe
+
+on:
+  pull_request:
+    branches: [main, phase2/containerless-pages-migration-20261008]
+    paths:
+      - 'functions/_lib/tts.js'
+      - 'tests/edge-tts-live/**'
+      - '.github/workflows/edge-tts-workers-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-edge-tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Probe the real Edge TTS WebSocket and record viability inside Wrangler local Workers runtime
+        run: node tests/edge-tts-live/probe.mjs

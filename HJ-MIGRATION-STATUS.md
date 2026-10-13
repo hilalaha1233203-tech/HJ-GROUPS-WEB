@@ -1,21 +1,21 @@
 # HJ GROUPS — Migration Status / Review Patch
 
 Date: 2026-10-08
-Code verification checkpoint: `c14bca0d1f3a8517a3132cfec7975235c6e93715`
+Code verification checkpoint: `a291d482dea21d4b890019f15422fccd2faf4f9e`
 Status-document commit: this file's current commit
 
 ## Scope of this review
 
-Phase 1 (audit) and Phase 2 (HJ Web container removal) were treated as already executed and were **not redone**.
+Phase 1 audit was re-checked only. The Phase 2 reality check found that the expected containerless implementation was **not actually present on main**, so Phase 2 was implemented now on a dedicated branch and PR. Main was not modified.
 
-This review only:
+This review/implementation:
 - re-checked the current repository/control-plane state;
-- corrected documentation where previous status was stale or contradictory;
-- added the specifically requested public-catalog cache path;
-- added a Pages Functions routes manifest;
-- added a CI secret-access scan;
+- migrated the required HJ Web server routes to Pages Functions using Web APIs;
+- removed the container/Docker production-path artifacts from the migration branch;
+- preserved Episode Analytics with no code/migration changes;
+- retained the requested public-catalog 5-minute cache;
+- added Pages Functions route and production-path guards;
 - did not modify the streaming repository;
-- did not modify Episode Analytics;
 - did not migrate, compress, upload, delete, or remap the 950-episode catalog.
 
 Production content changes in this review: NO.
@@ -324,6 +324,165 @@ Final completed `verify` run:
 
 This verifies the repository/build does not emit those server-only environment access patterns. It cannot mathematically prove that an unknown secret value was never hard-coded; no secret value was available to compare.
 
+## 11A. PHASE 2 REAL-STATE RECONCILE + IMPLEMENTATION — 2026-10-08
+
+### VERIFIED — Phase 2 missing-state evidence
+
+GitHub repository:
+- main base SHA at start of this work: `c51248efbf86b10f65bdaf98ecf83e22b731ba20`
+- no existing Phase 2 implementation branch/PR was found before this work.
+- open PR created: **#9**
+- PR URL: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/9
+- PR base: `main`
+- verified code commit: `a291d482dea21d4b890019f15422fccd2faf4f9e`
+- previous status-document commit: `e9fc1d94498fa5fa76d84153bcad5695571d0b58`
+- PR state: OPEN, not merged, mergeable: true.
+
+Live Cloudflare Pages evidence before cutover:
+- project: `hj-groups-web`
+- production branch: `main`
+- latest production deployment before this PR: **7624f08c-1894-4792-b5f0-6b51590ba8e9**
+- production commit: `95e0d181e2c34ef3a17b6e31d168af101a52d275`
+- production still had `HJ_WEB_BACKEND_URL`
+- therefore production was still on the old container-proxy path.
+
+### VERIFIED — Phase 2 production-path implementation on branch
+
+Changed production-path files include:
+- `functions/[[path]].js` — container proxy replaced by the Pages Functions router.
+- `functions/_lib/runtime.js` — Web API runtime helpers, Supabase REST/Auth, HMAC/Web Crypto, CORS/security response helpers.
+- `functions/_lib/publicSettings.js`
+- `functions/_lib/analytics.js`
+- `functions/_lib/vip.js`
+- `functions/_lib/ads.js`
+- `functions/_lib/shortener.js`
+- `functions/_lib/payment.js`
+- `functions/_lib/tts.js`
+- `functions/_lib/webPush.js`
+- `functions/_lib/playwright.js`
+- `functions/_lib/adminExport.js`
+- `scripts/test-pages-routes.mjs`
+- `.github/workflows/quality-check.yml`
+
+Removed from the migration branch production path:
+- `Dockerfile`
+- `cloudflare-backend/.dockerignore`
+- `cloudflare-backend/package.json`
+- `cloudflare-backend/src/index.js`
+- `cloudflare-backend/wrangler.jsonc`
+- `.github/workflows/deploy-cloudflare-web-backend.yml`
+
+### VERIFIED — route classification / migration outcome
+
+A — migrated to Pages Functions:
+- public settings;
+- analytics session link;
+- admin analytics;
+- admin user export XLSX;
+- admin Playwright workflow trigger;
+- VIP self/admin;
+- rewarded Ads;
+- shortener/unlock;
+- Cashfree create-order/status/webhook/health;
+- Web Push config/status/subscribe/preferences/unsubscribe;
+- security/CORS headers and health.
+
+E — external API calls, preserved as Fetch/Web APIs:
+- Supabase REST/Auth;
+- Cashfree API;
+- AroLinks/Earn4Link APIs;
+- Sarvam TTS;
+- GitHub Actions workflow-dispatch API.
+
+B — not migrated as a fake implementation:
+- **Edge TTS** remains an explicit `503 EDGE_TTS_NOT_MIGRATED` because the old implementation depends on Node WebSocket/runtime behavior. No false-success fallback was introduced.
+- **Web Push admin delivery** remains explicit `503 WEB_PUSH_SEND_NOT_MIGRATED`; subscription/config management is migrated, but delivery sender was not claimed VERIFIED without a Worker-safe implementation.
+
+D — legacy Node server compatibility code is not part of the new production Pages runtime and is not used by `functions/[[path]].js`. It remains in the repository only where needed for rollback/tests until final cutover.
+
+F — no architecture redesign was introduced; the existing API responsibilities were moved behind the Pages Functions boundary.
+
+### VERIFIED — local Pages runtime verification
+
+GitHub Actions Quality Check run:
+- run number **1043**
+- run id **37790428213**
+- commit tested: `e6a8a83449fb84a9c74598110b3e64cb4c3dbaf1`
+- conclusion: **SUCCESS**
+
+Verified in that run:
+- dependency audit: PASS, 0 high/critical production vulnerabilities;
+- lint: PASS after migration cleanup, with the existing two React Hook warnings in `src/App.jsx`;
+- production build: PASS;
+- existing tests: **132 passed / 0 failed**;
+- Pages Function syntax/routes manifest: PASS;
+- production-path container guard: PASS;
+- local `wrangler pages dev` smoke: PASS;
+- frontend server-secret identifier scan: PASS;
+- Auth/settings/metadata sanity: PASS;
+- appearance/security-monitoring sanity: PASS;
+- final source sanity: PASS.
+
+Final PR-head GitHub Actions Quality Check: **run 1048 / run id 37795624866 — SUCCESS**. Lint, build, existing tests, Pages route checks, container guard, local Pages smoke, secret scan, and source sanity all passed on `a291d482...`.
+
+### VERIFIED — Cloudflare Pages Preview deployment history
+
+A preview for the same migration code path was successfully deployed:
+- deployment id: **8d69fba2-b0cb-4d29-9983-1ac16fca1c78**
+- preview URL: https://8d69fba2.hj-groups-web.pages.dev
+
+### VERIFIED — latest final-head Preview deployment
+
+Latest final PR head `a291d482dea21d4b890019f15422fccd2faf4f9e` deployment:
+- deployment id: **f580bb08-cbc1-43e7-a358-6fcce015ea88**
+- preview URL: https://f580bb08.hj-groups-web.pages.dev
+- preview alias: https://phase2-containerless-pages-m.hj-groups-web.pages.dev
+- build stage: SUCCESS
+- deploy stage: SUCCESS
+- Functions enabled.
+- no production promotion was performed.
+- build stage: SUCCESS
+- deploy stage: SUCCESS
+- Functions: enabled
+- production branch remains `main`.
+
+Cloudflare deployment logs confirmed:
+- `npm clean-install` succeeded;
+- `npm run build` succeeded;
+- Vite built successfully;
+- Functions directory uploaded;
+- `_routes.json` uploaded/validated.
+
+### NOT VERIFIED — browser/live HTTP smoke from this environment
+
+Attempted live HTTP fetches to the preview returned a connector-level:
+`403 Forbidden: requests to <preview-host> are not allowed`
+This response came from the tool security layer, not from the HJ application.
+
+Therefore these real user-facing checks remain **NOT VERIFIED — needs user action**:
+- browser health endpoint;
+- public settings;
+- public catalog/cache behavior;
+- login/signup/recovery;
+- admin login;
+- settings;
+- Ads unlock;
+- shortener unlock;
+- VIP/Premium;
+- ticket issue/playback;
+- TTS;
+- Cashfree sandbox create-order;
+- CORS/headers from a real browser;
+- Episode Analytics regression.
+
+### IMPORTANT CUTOVER STATE
+
+The live Pages project still contains the legacy `HJ_WEB_BACKEND_URL` environment variable in its **production and preview deployment configuration**.
+
+The new branch runtime does **not** use that variable, and the branch source/container guard is clean. However, the variable has intentionally NOT been removed from live production configuration yet, so the old backend remains available for rollback exactly as requested.
+
+Do NOT merge/promote PR #9 until the preview has been manually accepted.
+
 ## 12. HJ-Telegram-Streaming Phase 3 — Cloudflare containerless streaming runtime
 
 ### VERIFIED — repository implementation and CI
@@ -515,10 +674,10 @@ Therefore production control-plane deployment is VERIFIED, but live user-facing 
 ## 13. Remaining issues / blockers
 
 P0:
-1. HJ Web Phase-2 source/deployment drift remains unresolved: current HJ Web main still contains the container backend and current Pages production still uses `HJ_WEB_BACKEND_URL`. This was not redone in Phase 3.
+1. HJ Web Phase-2 implementation is now present in open PR #9, but `main` and live Pages production still use the legacy container path until preview acceptance and merge.
 2. Live user-facing streaming E2E against `hj-telegram-streaming.hilalaha1233203.workers.dev` is NOT VERIFIED.
 3. The live HJ Web Supabase database still lacks the authoritative `episode_chunks` table, so >20 MB real chunked playback remains Phase 4 work.
-4. GitHub Actions does not currently have `CLOUDFLARE_API_TOKEN` configured, so the repository deploy workflow's final deploy step intentionally skips. Production Worker deployment was nevertheless completed and verified directly through the Cloudflare control plane.
+4. GitHub Actions does not currently have `CLOUDFLARE_API_TOKEN` configured, so repository auto-deploy remains unavailable. Cloudflare Pages Preview was deployed directly through the Cloudflare control plane for PR #9; production was not promoted.
 
 P1:
 5. HJ Web production endpoint E2E and remaining live authenticated flows still need verification.
@@ -550,7 +709,7 @@ Canonical migration status:
 
 ## 15. Qualification
 
-Overall status: **PARTIALLY VERIFIED — PHASE 3 WORK COMPLETED, LIVE MEDIA E2E / PHASE 4 DATA STILL BLOCKED**
+Overall status: **PARTIALLY VERIFIED — PHASE 2 IMPLEMENTED IN PR #9 + PHASE 3 WORK COMPLETED; USER PREVIEW ACCEPTANCE / PRODUCTION CUTOVER / LIVE MEDIA E2E / PHASE 4 DATA STILL BLOCKED**
 
 VERIFIED:
 - Phase 3 Worker source implementation;
@@ -571,9 +730,258 @@ VERIFIED:
 - removal of the old production `MEDIA_LISTENER` binding.
 
 NOT VERIFIED:
+- browser/live HTTP smoke tests against final PR-head HJ Web Preview;
+
+
+- final HJ Web production containerless cutover / removal of live `HJ_WEB_BACKEND_URL`;
 - live authenticated media stream/seek against the production Worker;
 - real >20 MB chunked playback until Phase 4 creates/populates `episode_chunks`;
-- final HJ Web containerless cutover (separate Phase 2 issue);
 - full cross-repo production E2E after the HJ Web cutover.
 
 Do not mark the overall HJ migration complete until the Phase 4 authoritative chunk mapping and the remaining live production E2E gates are cleared.
+
+
+## 16. Phase 2 corrective audit — TTS / Web Push (2026-10-12)
+
+### VERIFIED — source-level findings and surgical patch
+
+PR:
+- https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/9
+- Branch: `phase2/containerless-pages-migration-20261008`
+- Patch commit containing health/TTS changes: `39b1e076f33e7a84329957abddedaabd7586593e`
+- Test commit: `d34859ce084f26a9c5608bb44f33423dea262d04`
+- GitHub Actions Quality Check run #1055 / id `38234586990` was IN PROGRESS at this checkpoint. Test result is NOT VERIFIED until the run completes successfully.
+
+Changes limited to PR branch:
+- `functions/[[path]].js`: `ttsConfigured` now follows `healthTts().sarvam.configured`, instead of a hard-coded `true`.
+- `functions/_lib/tts.js`: Edge TTS response keeps structured code `EDGE_TTS_NOT_MIGRATED` and now explains the two honest options: use Sarvam with `SARVAM_API_KEY`, or explicitly retain/test the Edge route on the legacy backend. Sarvam provider failures now include `SARVAM_TTS_REQUEST_FAILED`.
+- Added `tests/unit/pagesTtsWebPush.test.mjs`: tests health configuration flags, structured Edge/Sarvam missing-config responses, mocked Sarvam provider contract, mocked authenticated subscription/preferences writes, and the explicit Web Push delivery pending code.
+- Tests mock external provider/PostgREST requests. They do NOT write to the real Supabase database or call the real Sarvam API.
+
+### TTS capability matrix
+
+| Capability | Evidence | Status |
+|---|---|---|
+| `/health` accurately reports Sarvam configuration | Hard-coded true removed; new unit test added | CI result pending at this checkpoint |
+| `/api/tts` with Sarvam | Requires secret `SARVAM_API_KEY`; route sends documented request shape and returns audio on successful provider response; unit test uses a mocked provider | Source-level implementation present; real Sarvam audio NOT VERIFIED |
+| `/api/edge-tts` on Pages | Handler intentionally returns HTTP 503 + `EDGE_TTS_NOT_MIGRATED`; no Microsoft WebSocket client is implemented in the Pages route | VERIFIED as intentionally unavailable in this branch; actual Microsoft WebSocket compatibility in Workers NOT VERIFIED |
+| Legacy Edge TTS | Legacy Node source has a separate Edge TTS implementation | Live Voroa audio playback NOT VERIFIED in this phase |
+| Fallback behavior | Frontend falls back to the browser's native speech implementation when online TTS fails | Source-level behavior only; live browser voice availability depends on user's device and NOT VERIFIED |
+
+User decision (2026-10-12): keep Edge TTS through the HJ_WEB_BACKEND_URL-backed legacy bridge temporarily; Sarvam can be used when configured and successful, with Edge fallback. This is transitional only; Edge is NOT migrated to Pages itself, and the legacy dependency must be removed before final runtime sign-off.
+
+### Web Push capability matrix
+
+| Capability | Evidence | Status |
+|---|---|---|
+| Public VAPID config endpoint | `GET /api/push/config` returns `configured` based on `WEB_PUSH_VAPID_PUBLIC_KEY` | Source-level verified; live configuration currently reported false by user-provided Preview response |
+| Subscription and preference storage handlers | Pages routes authenticate user and issue PostgREST writes to `web_push_subscriptions` and `web_push_preferences`; new tests mock both writes | Mock test pending CI; live Supabase persistence NOT VERIFIED because project is quota-restricted |
+| Admin notification delivery | Route explicitly returns HTTP 503, code `WEB_PUSH_SEND_NOT_MIGRATED` | VERIFIED from source; feature is NOT migrated |
+| VAPID / Workers-compatible delivery implementation | No Pages delivery implementation. A Workers-compatible Web Push sender using Web Crypto (or another proven Workers-compatible implementation) plus public/private VAPID key configuration is still required | NOT IMPLEMENTED; requires separate scoped change and tests |
+
+No VAPID keys were added. No real subscription was written. No real notification was sent.
+
+### Regression table — legacy production vs PR #9
+
+The source repository shows legacy implementations, but live production behavior was not exercised in this phase. Therefore "works now" is NOT VERIFIED unless a live result is supplied; source presence is not proof of live behavior.
+
+| Feature | Works on live Voroa now? | After PR #9 merge? | Evidence / decision |
+|---|---|---|---|
+| Edge Neural TTS | NOT VERIFIED — legacy handler exists, but no live audio test in this phase | CONDITIONAL — routes through legacy backend only when HTTPS `HJ_WEB_BACKEND_URL` is configured; with no URL, Pages returns `503 EDGE_TTS_NOT_MIGRATED` | Temporary compatibility bridge; actual audio remains NOT VERIFIED |
+| Sarvam TTS | NOT VERIFIED — no live provider request in this phase | CONDITIONAL — requires `SARVAM_API_KEY` on the selected backend and a successful provider request; the legacy `/api/tts` auto route falls back to Edge when appropriate | No key was supplied and no real Tamil/English audio test was performed |
+| Web Push subscription/preferences storage | NOT VERIFIED live; legacy source and SQL schema exist | CONDITIONAL — route code is present, but requires working Supabase API/schema and VAPID public key; live storage blocked by current Supabase quota restriction | Retest authenticated subscribe/status/preferences after quota is restored |
+| Admin Web Push delivery | NOT VERIFIED live; legacy `server/webPush.mjs` contains sender logic | NO — explicit `503 WEB_PUSH_SEND_NOT_MIGRATED` | Must approve a separate Workers-compatible delivery implementation or accept the loss |
+| Other Phase 2 features | NOT classified as regressions by this TTS/Web Push audit | NOT VERIFIED here | Existing PR promotion gates remain; do not infer complete feature parity from this focused audit |
+
+### Safety / phase gate
+
+- PR #9 remains OPEN and UNMERGED at this checkpoint.
+- `main`, production Pages settings, production Supabase, Voroa, Telegram session and media were not modified by this patch.
+- Episode Analytics was not modified.
+- No production database writes, real TTS provider calls, VAPID setup or notification sends were performed.
+- Phase 4 remains BLOCKED until PR #9 is merged and user-approved production cutover gates are satisfied.
+- Overall status for this corrective patch: IMPLEMENTED IN PR BRANCH; CI AND LIVE RUNTIME VERIFICATION PENDING.
+
+
+## 17. Edge TTS compatibility qualification (2026-10-12)
+
+Official Cloudflare documentation was checked:
+- https://developers.cloudflare.com/workers/examples/websockets/
+- https://developers.cloudflare.com/workers/reference/protocols/
+
+Cloudflare documents outbound WebSocket connections from Workers. Therefore this project must NOT claim that WebSockets are inherently unsupported by Workers.
+
+Verified from the existing legacy source:
+- `server/edgeTts.mjs` imports `ws` and `node:crypto`, and uses `Buffer` operations.
+- The Pages implementation currently does not port this client; `/api/edge-tts` returns the structured `EDGE_TTS_NOT_MIGRATED` response without attempting an outbound connection.
+- The new test verifies this intentional, explicit route behavior. It does NOT establish that Microsoft Edge TTS can or cannot successfully complete its provider-specific handshake from Workers.
+
+Status:
+- Workers outbound WebSocket capability: VERIFIED against official documentation.
+- Microsoft Edge TTS end-to-end handshake/audio in Pages Functions: NOT VERIFIED — needs a dedicated provider-compatible port and live test; do not implement/declare migrated based on protocol support alone.
+- Quality Check #1055 / run id `38234586990`: SUCCESS for the first corrective test commit `d34859ce084f26a9c5608bb44f33423dea262d04`.
+- Later wording/test refinements are on the PR branch; their final CI run must be checked before this corrective phase can be called CI-verified.
+
+No production runtime or external TTS endpoint was called for this qualification.
+## 18. User-approved TTS and Web Push transition decisions (2026-10-12)
+
+### TTS — temporary Edge route accepted, Sarvam optional
+
+User decision:
+- Keep existing Edge TTS available through the configured legacy backend temporarily because no Sarvam API key is currently available.
+- If Sarvam is configured and actually succeeds, allow the existing legacy /api/tts auto-provider behavior to use it; otherwise Edge remains the fallback.
+- This is a temporary migration bridge, NOT approval to retain an always-on legacy backend in the final website architecture.
+
+PR #9 branch changes:
+- Added a narrow HTTPS-only bridge in functions/_lib/tts.js; /api/tts, /api/edge-tts, and /api/sarvam-tts use HJ_WEB_BACKEND_URL only when that setting is present.
+- /api/tts calls the legacy backend's existing auto-provider route. The legacy source already tries configured Sarvam according to its provider strategy and can fall back to Edge when Sarvam is unavailable/fails.
+- With no HJ_WEB_BACKEND_URL, no proxy is attempted: Pages keeps its local Sarvam configuration check and explicit EDGE_TTS_NOT_MIGRATED response.
+- /health now distinguishes the legacy bridge being configured from a live-verified provider. legacyBackend.liveVerified remains false.
+- Added mocked tests for the three proxy routes and health reporting. They do not contact the actual backend or Microsoft/Sarvam endpoints.
+- GitHub Actions Quality Check run #1066 (`38235388474`) on code/test commit `4c54fedfc80d05f9c1b765a343dee0074bf31a2d`: SUCCESS. Lint and production build passed; all 140 unit tests passed, 0 failed, including the new legacy bridge and health tests. The later status-document-only commit records the approved decision and does not change source code.
+
+Status:
+- Proxy source and mocked test coverage: implemented on PR #9 branch.
+- Real Edge audio through the configured HTTPS backend: NOT VERIFIED here.
+- Real Sarvam audio: NOT VERIFIED; no SARVAM_API_KEY was supplied/configured for this task and no provider request was made.
+- Production or Preview environment settings were not changed. The Preview environment must have an appropriate HJ_WEB_BACKEND_URL to exercise this transitional bridge; do not add/change that setting without explicit operational approval.
+- Before final legacy-backend retirement, the bridge must be replaced by a tested Workers-compatible Edge client or another explicitly approved provider and removed from the final runtime dependency chain.
+
+### Edge TTS cost/reliability qualification
+
+The existing open-source Edge TTS clients use Microsoft's consumer Edge Read Aloud service without an Azure/Sarvam API key (examples: https://github.com/travisvn/edge-tts and https://github.com/DejavuMoe/edgeTTS). This makes it available without a separate TTS API charge in the current implementation, but it is an undocumented consumer endpoint rather than a guaranteed developer API with an SLA. Upstream protocol changes, throttling, or blocking can break it; do not describe it as guaranteed free forever or production-SLA-backed. Source projects are independent of Microsoft and do not establish an official Microsoft service commitment.
+
+### Web Push — delivery migration approved, not implemented by this TTS patch
+
+User approved completing notification delivery later with a Workers-compatible implementation. This approval is scoped to the migration work; it does not authorize sending a real notification now or creating/changing VAPID secrets in production.
+
+Current status:
+- Subscription/preferences route tests remain mocked only; live Supabase writes are NOT VERIFIED.
+- Admin notification delivery still returns 503 WEB_PUSH_SEND_NOT_MIGRATED.
+- Workers-compatible delivery (including VAPID signing with Web Crypto or another tested compatible method), public/private key configuration, expiry handling, and test notifications are NOT IMPLEMENTED.
+- No VAPID keys were created, changed, or exposed; no real subscription or notification was sent.
+
+Safety and phase gates:
+- PR #9 remains unmerged; no production Pages settings, Supabase data, Voroa, Telegram session/media, or Episode Analytics were changed by this patch.
+- All newly added upstream/backend calls are represented in mocked tests only until a controlled preview/live verification is approved.
+
+
+## 19. Phase 2 TTS/Web Push decision patch — final runtime qualification (2026-10-13)
+
+This section supersedes earlier TTS capability statements in Sections 16–18 where the earlier provider viability was still untested. It records branch/CI/probe evidence separately from Preview, production and device testing.
+
+### Git / CI evidence
+
+- Target: PR #9 branch `phase2/containerless-pages-migration-20261008`; PR #9 remains OPEN, UNMERGED, based on `main`.
+- Current code/test head: `8c8d6db78ce59a64909d8a43e794220944510d2f`.
+- Quality Check **#1111**, run ID `38347457234`, completed **SUCCESS** on this code/test head. Lint reported 0 errors and 2 existing React Hook warnings; production build and all 143 unit tests passed (143 passed / 0 failed). Migration filenames, startup exports, Pages routes manifest, no-container production-path guard, Pages route smoke, frontend secret scan, auth/settings sanity, appearance/security-monitoring sanity and final source sanity also passed. Run: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38347457234
+- Real outbound Edge TTS probe **#22**, run ID `38347457259`, completed **SUCCESS as a negative viability test**. dependency audit, lint, production build, unit tests, migration filenames, startup exports, Pages routes manifest, no-container production-path guard, Pages route smoke, frontend secret scan, auth/settings sanity, appearance/security-monitoring sanity and final source sanity. Run: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38347108998
+  Actual negative probe output:
+  `{"classification":"not_viable_current_workers_handshake","httpStatus":502,"ok":false,"code":"EDGE_TTS_HANDSHAKE_FAILED","upstreamStatus":403,"bytes":0,"voice":"ta-IN-PallaviNeural","runtime":"wrangler-dev-local-workers-runtime"}`
+  The Microsoft consumer endpoint rejected the handshake with HTTP 403, and no audio bytes were returned. Run: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38347457259
+- Quality Check/negative-probe evidence above verifies CI and the probe on the code head. It does not verify an actual Cloudflare Pages Preview, production route, or device speech voices.
+
+### TTS behavior implemented on the PR #9 branch
+
+- `POST /api/tts` requires a signed-in Supabase user, validates text, and defaults to `TTS_MAX_CHARS=2000` (hard code ceiling 10,000 characters).
+- Daily per-user quota defaults to `TTS_DAILY_LIMIT=30`. The counter uses conditional reads/writes in the existing `MEDIA_CACHE` R2 binding under `tts-usage/`, so quota tracking adds no PostgREST table or row reads/writes. Each TTS request still performs the necessary Supabase Auth user-validation call; the R2 approach avoids additional database egress for a quota table but does not mean zero Supabase requests. R2 operations are still metered.
+- Audio key: SHA-256 of the normalized text, chosen voice and format; object prefix `tts/`. HIT returns cached MP3; MISS tries each configured provider once, validates MP3, writes to R2 and responds. Cached/ranged audio advertises `audio/mpeg`, `Content-Length`, `Accept-Ranges`, 206 + `Content-Range`, and 416 for invalid ranges.
+- Provider secret names recognized by code: `SARVAM_API_KEY`, `GOOGLE_CLOUD_TTS_API_KEY`, and paired `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION`. Provider calls have no automatic retry loop; each configured provider is attempted at most once per request.
+- Existing saved voice choices are preserved. UI labels clarify Pallavi/Neerja as female and Valluvar/Prabhat as male preferences. Sarvam maps those preferences to its supported `priya`/`ratan` speakers; Google maps to the supported Standard-A/Standard-B voice for the selected language; Azure uses the selected neural voice name. These mappings are unit-tested, not live-audio-tested.
+- **Edge TTS is NOT VIABLE on the tested handshake and is disabled by a code-level viability gate** (`EDGE_TTS_WORKERS_VIABLE=false)). Setting `EDGE_TTS_ENABLED=true` cannot override this gate. `/health` reports the result honestly; no optional provider key is reported as configured unless that secret is present.
+- `/api/edge-tts` intentionally returns a structured `503 EDGE_TTS_NOT_MIGRATED` response; the frontend does not call it. The frontend makes one `/api/tts` request and, when it fails, falls back to device `speechSynthesis`, checks the installed voice list (including `voiceschanged`), chunks long text, and disables Read Aloud with a clear message when no Tamil voice becomes available.
+- Browser fallback behavior is unit/source-tested. Availability/quality on Android Chrome, iOS Safari, Windows and macOS is **NOT VERIFIED**; use the manual matrix below.
+- Microsoft Edge Read Aloud endpoint is an unofficial consumer endpoint, not a verified supported developer TTS API. The observed 403 and any future endpoint/terms/throttling changes are operational and Terms-of-Service risks. This is a risk note, not legal advice.
+
+### Temporary R2 retention — required dashboard configuration, NOT applied/verified here
+
+Use the existing R2 bucket already intended for `MEDIA_CACHE` (the existing media bucket, not a new bucket). Create **prefix-scoped** lifecycle rules only:
+- `tts/` → delete after **604800 seconds (7 days)**.
+- `tts-usage/` → delete after **172800 seconds (2 days)**, so daily counters don't accumulate.
+- Preserve existing `streaming-cache/` lifecycle policy (currently recorded separately as 172800 seconds / 2 days). Do not apply an empty-prefix/all-bucket expiration rule, because that could delete streaming cache objects outside this feature.
+
+These are recommended design settings, **NOT VERIFIED in the live R2 dashboard**. Exact user action:
+1. Cloudflare Dashboard → R2 → the existing media bucket bound as `MEDIA_CACHE` → Settings/Lifecycle rules.
+2. Add the two prefix-only delete rules above, without replacing/removing the existing `streaming-cache/` rule.
+3. Confirm the displayed rule list contains all existing and new rules; keep a screenshot for evidence.
+4. Cloudflare docs say lifecycle deletion is typically completed within 24 hours of the expiration time, not instantly: https://developers.cloudflare.com/r2/buckets/object-lifecycles/
+5. R2's current published monthly included Standard usage is 10 GB-month storage, 1 million Class A operations and 10 million Class B operations; egress is free, but storage/operations remain metered and the free tier is not unlimited or guaranteed forever. Re-check current plan/billing: https://developers.cloudflare.com/r2/pricing/
+
+### Required environment variable and binding names
+
+Set the names below separately in **Cloudflare Pages → hj-groups-web → Settings → Variables and Secrets → Preview** and **Production** as appropriate. Values are not included here. Preview and Production do not automatically share environment configuration.
+
+| Name | Type / required state | Purpose / safety |
+|---|---|---|
+| `MEDIA_CACHE` | R2 binding; required for /api/tts | Bind the existing media R2 bucket; no new bucket. Bind in both Preview and Production if each environment is meant to use TTS. |
+| `SUPABASE_URL` | non-secret variable; required | HJ Web Supabase project URL for server-side authenticated TTS. |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secret**; required for current server-side auth helper | Must remain server-side only; never use a `VITE_` prefix, never print the value, and never expose it to the browser build. |
+| `CORS_ALLOWED_ORIGINS` | non-secret comma-separated origin list; set per environment | Include the exact Pages Preview origin(s) used for testing and the production origin. Don't guess a preview hostname; copy it from the deployed Preview. |
+| `TTS_MAX_CHARS` | optional integer; default 2000, code ceiling 10000 | Per-request text cap. |
+| `TTS_DAILY_LIMIT` | optional integer; default 30 | Per-user daily request cap; valid configured range 1–1000. |
+| `EDGE_TTS_ENABLED` | optional flag; keep `false` for now | Current negative viability gate disables Edge regardless of the env value. Do not use this flag to claim Edge is working. |
+| `SARVAM_API_KEY` | optional **secret** | Only enables Sarvam if the owner configures a key and accepts the usage/pricing conditions. |
+| `GOOGLE_CLOUD_TTS_API_KEY` | optional **secret** | Only enables Google Cloud TTS if a key is supplied and Google Cloud billing/quotas are accepted. |
+| `AZURE_SPEECH_KEY` | optional **secret** | Must be paired with `AZURE_SPEECH_REGION`. |
+| `AZURE_SPEECH_REGION` | optional non-secret variable | Region matching the Azure Speech resource; must be paired with the key. |
+| `WEB_PUSH_VAPID_PUBLIC_KEY` | optional public variable for push config/status | Public key only. It does **not** enable sending; delivery remains deferred. Do not create/change VAPID keys automatically. |
+
+Keep the existing frontend build variables as already configured:
+- `VITE_SUPABASE_URL` — public project URL.
+- `VITE_HJ_CLIENT_KEY` (or the existing supported public publishable/anon key alias) — public browser client key only, never a service-role key.
+- `VITE_STREAMING_SERVER_URL` — existing deployed streaming Worker URL.
+
+Optional provider settings are **not required** for browser speech fallback. If none of the online providers has been deliberately configured, `/api/tts` returns a structured error and the frontend falls back to the device voice. Do not create or add a secret just to make the health flag appear green.
+
+### Official provider cost / limit check (not a promise of free service)
+
+- **Sarvam Bulbul v3:** current official docs advertise ₹100 signup credits, then ₹30 per 10,000 characters; Bulbul v3 Starter is limited to 30 requests/minute. Credits are limited; usage after exhaustion is billable. Sources: https://docs.sarvam.ai/api/getting-started/pricing and https://docs.sarvam.ai/api/getting-started/ratelimits
+- **Google Cloud Text-to-Speech:** official pricing lists a monthly free usage allowance for Standard voices (up to 4 million characters in the currently published pricing table) and bills usage after the allowance. A billing account must be enabled, and charges can apply beyond free usage. Verify current SKU, billing account, budget alerts and quota before enabling: https://cloud.google.com/text-to-speech/pricing
+- **Azure Speech:** official pricing currently lists the F0 neural TTS allowance as 0.5 million characters/month; the official quota page lists F0 standard-voice real-time TTS at 20 transactions per 60 seconds and max 10 minutes generated audio per request. This is a capped allowance, not unlimited use; review current regional resource pricing and budget before enabling: https://azure.microsoft.com/en-us/pricing/details/speech/ and https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-services-quotas-and-limits
+- Cloudflare Workers/R2, Supabase plan/egress, provider billing, rate limits and GitHub Actions allowances are separate limit systems. Check each dashboard; no “free forever” or unlimited claim is made.
+
+### Optional later idea — not implemented
+
+A future, separately scoped manual `workflow_dispatch` in `HJ-GROUPS-OF-FILES` could pre-generate TTS only for fixed story text chosen by the owner. It must be an opt-in maintenance job, use explicit provider keys/usage caps, report cost/usage, and remain independent of HJ Web/streaming runtime. No workflow or HJ-GROUPS-OF-FILES source was changed for this idea; it is documentation only.
+
+### Web Push — explicitly deferred
+
+- Admin notification UI states delivery is not available yet and its send button is disabled; no fake sent count is displayed.
+- `POST /api/admin/notifications/send` retains explicit `503 WEB_PUSH_SEND_NOT_MIGRATED`.
+- Subscription/preferences route source and mocked tests are present, but live persistence is **NOT VERIFIED** while Supabase API access is quota-restricted.
+- No real notification, live subscription write, VAPID key creation/change, production DB change or preview/production setting change was made here.
+
+### Regression / acceptance matrix — Phase 2 TTS + Web Push decision patch
+
+| Test surface | Result | Evidence / remaining caveat |
+|---|---|---|
+| Quality Check | VERIFIED PASS | Run #1111 / `38347457234`; lint (0 errors, 2 existing React Hook warnings), production build, 143 unit tests passed / 0 failed, route smoke, source guard and secret scan passed on code/test head `8c8d6db78ce59a64909d8a43e794220944510d2f`. |
+| Real Edge WebSocket probe | VERIFIED NOT VIABLE on tested runtime path | Run #22 / `38347457259`: 502 `EDGE_TTS_HANDSHAKE_FAILED`, upstream 403, 0 audio bytes. CI passed because it correctly classified this expected negative outcome. |
+| Edge production provider | DISABLED | `EDGE_TTS_WORKERS_VIABLE=false`; explicit config cannot override the evidence-based gate. |
+| `/api/tts` auth/limits/provider errors | VERIFIED at unit/source level | Tests cover auth rejection, configurable char cap, one-attempt provider failure, R2 usage quota, cache hit/miss and Range. Live Pages Preview is NOT VERIFIED. |
+| TTS cache key normalization | VERIFIED at unit level | Same normalized text + voice + MP3 format reuses one `tts/<sha256>.mp3` key. |
+| Cached audio Range/206/416 headers | VERIFIED at unit level | Live browser/Preview range test is still needed. |
+| Browser `speechSynthesis` fallback | VERIFIED at source/unit level | Device voice availability and audible output are NOT VERIFIED on Android Chrome, iOS Safari, Windows or macOS. |
+| `/health` provider flags | VERIFIED at unit/source level | Reports cache binding and configured provider names only; a secret being present does not prove the provider can generate audio. Live Preview response NOT VERIFIED. |
+| Web Push admin send | VERIFIED deferred state at source/unit level | UI disabled; API explicit `503 WEB_PUSH_SEND_NOT_MIGRATED`; real delivery intentionally not attempted. |
+| Web Push subscription/preferences | NOT VERIFIED live | Tests are mocked; re-test after Supabase quota/access recovers. |
+| Episode Analytics | UNCHANGED BY THIS PATCH | No Episode Analytics files/routes/migrations were intentionally modified. |
+| R2 lifecycle & Pages env | NOT VERIFIED — user action | Add prefix-only lifecycle rules and inspect Preview/Production bindings as described above. |
+| Preview browser regression | NOT VERIFIED — user action | Requires a real Pages Preview deployment after Pages Git integration is reconnected; do not merge until owner approval. |
+
+### Manual Preview and browser checklist (owner action)
+
+After the Supabase quota restriction is lifted and Pages Preview deployment is available:
+1. Confirm Preview has `MEDIA_CACHE`, server-only `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` and the correct Preview origin in `CORS_ALLOWED_ORIGINS`. Do not paste secret values into chat or screenshots.
+2. Signed out → trigger Read Aloud: expect the structured auth failure then native device fallback if a Tamil voice is installed; no repeated online retries. Signed in → test a short Tamil paragraph; with no optional provider configured, expect fallback, not a fake online-audio success.
+3. With an approved provider secret configured, test first TTS MISS, repeat identical text HIT, normalized whitespace reuse, Range request 206 and invalid range 416. Check `/health` flags without exposing secret values.
+4. Check the Admin Notification Center: the send button remains disabled and the UI clearly says delivery is not available yet. Verify subscribe/preferences only when Supabase accepts requests; never send a real notification for this acceptance test.
+5. Test Tamil fallback voices on Android Chrome, iOS Safari, Windows and macOS; note whether `getVoices()` is populated immediately or after `voiceschanged`, and confirm the button is disabled with a clear message where no Tamil voice exists.
+6. In DevTools Network, filter `/api/tts`; verify only one online request per Read Aloud invocation, structured failure codes, and no browser-visible secret values. Save sanitized request/response headers and console output as evidence.
+
+### Safety outcome
+
+- PR #9 stays open and unmerged until the owner tests and approves Preview. PR #12 remains a separate draft stacked on PR #9; do not merge it independently or merge any PR automatically.
+- `main`, production Pages settings, R2 lifecycle settings, Supabase data/schema, Voroa, Telegram session/media and Episode Analytics were not changed by this phase.
+- No real provider key was added; no provider is claimed to have completed live synthesis; no notification was sent.
+- Remaining gates are: apply/verify prefix lifecycle rules, configure bindings/variables in Preview and Production with owner approval, run Preview and device tests, and obtain owner approval before merge/cutover.
