@@ -1147,6 +1147,7 @@ Do not run this from the original `main` worktree. Keep the four source original
 | `supabase/functions/telegram-webhook/index.ts` | Inbound Telegram webhook content-ingest path. | Upserts episodes; not a repeated public catalog reader. |
 | `server/webPush.mjs` → `web_push_dispatch_state` | Legacy dispatcher calls one initial tick and then every 15 seconds while configured. Each tick reads the state cursor, followed by up to 100 newly-created episodes. | Cursor query selects only `last_episode_created_at` with `id=1`; episode query selects `id,story_id,episode_number,title,created_at`. Server-side service-role client; not a browser caller. The timer catches/logs failures and retries on the next tick. Actual production runtime of this legacy Node server is NOT VERIFIED; target Pages Web Push delivery remains deferred/disabled. |
 | Browser calls to `web_push_dispatch_state` | No browser/client caller found in the searched repository source. | The earlier migration enables RLS and revokes `anon`, but does not explicitly revoke every privilege from `authenticated` and `PUBLIC`. The proposal below fully revokes client-role table privileges. Live grants/policies remain NOT VERIFIED until dashboard/API access is restored. |
+| `public/hj-push-sw.js` service worker | Source inspection found no Supabase REST request, `web_push_dispatch_state` access, timer, or polling loop. | Handles push notifications and notification-click navigation; it is not a catalog/state-table caller. |
 
 The supplied 24-hour log snapshot had 3,991 GETs to `/rest/v1/episodes` and 3,980 GETs to `/rest/v1/web_push_dispatch_state`, all returning HTTP 402. This proves failed-request volume in that snapshot, not caller identity, response bytes, or how much egress those failures caused. The old 15-second dispatcher is a plausible source of repeated state reads, but the source plus aggregate status logs do **not CONFIRM** that it was the deployed caller. The reported 42.5 GB Cached Egress root cause remains UNCONFIRMED by this phase; the owner separately identified repeated Storage cover delivery as the primary issue addressed in Phase 5U.
 
@@ -1213,6 +1214,14 @@ Official references: https://supabase.com/docs/guides/platform/manage-your-usage
 5. Open Player without pressing Play: expected audio requests = 0. Then Play + seek; confirm playback and record actual Range/media request count + transferred KB.
 6. In Preview only, intercept/mock `/api/public-catalog` with 402, 429 and 503 separately. Confirm first failure does not immediately retry; repeated loader calls within cooldown are blocked, and friendly status appears. Failed function response should be `no-store`; success should be `public, max-age=300, s-maxage=300`; warm response should show cache HIT.
 7. Record Preview URL, head SHA, request counts and transferred KB for Home cold/warm, Story, Player idle/playing, headers and screenshots. Preview deployment, browser metrics, responsive behavior and real cache HIT are NOT VERIFIED until measured.
+
+### GitHub Actions evidence — VERIFIED for the tested code/test commit
+
+- Quality Check run **38424223726** completed **SUCCESS** against code/test SHA `251094bca86d79221259eafc3e8756c226c54437`: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38424223726
+- Job `verify` (job ID `115389235412`) completed successfully. Unit test log: **164 tests, 164 pass, 0 fail**. The Phase 5V regression tests were subtests **77–83**, all marked `ok`: direct fallback/realtime/poll check; 402/429/503 circuit breaker; exponential+jitter retry; non-transient 4xx no-retry; cache headers + explicit columns + MISS/HIT; auth no-store + upstream failure not cached; audio preload/friendly warning.
+- The same run passed dependency audit (production), lint, production build, server/payment/shortener tests, migration filename checks, Pages route smoke tests, frontend secret-access scan and remaining source/asset sanity steps.
+- This run tests the exact source/test commit above. The status-only evidence update after it leaves source/tests unchanged and triggers another CI run; check the latest PR head's run before any merge.
+- CI does **not** verify production Supabase grants/policies, Cloudflare data-center cache behavior, a deployed Phase 5V Preview, or browser request/byte measurements.
 
 ### Status ledger
 - Caller patterns/source: VERIFIED by source inspection above. Exact runtime attribution and request counts: NOT VERIFIED.
