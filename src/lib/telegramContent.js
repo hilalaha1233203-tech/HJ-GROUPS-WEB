@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 // The streaming service is deployed separately on Cloudflare Workers.
 import { STREAMING_SERVER_URL } from './streamingUrl'
 import { normalizeContentStatus } from './contentStatus.js'
+import { resolveAudioEpisodeUrl } from './audioUrlPolicy.js'
 
 export function fileUrlFromId(fileId, mediaType = 'audio') {
   if (!fileId) return ''
@@ -34,9 +35,19 @@ function normalizeStories(storyRows, episodeRows) {
       importKey !== canonicalImportKey
     )
 
-    const src = messageId && STREAMING_SERVER_URL
+    const streamUrl = messageId && STREAMING_SERVER_URL
       ? `${STREAMING_SERVER_URL}/${mediaType}/message/${encodeURIComponent(messageId)}`
-      : ((ep.audio_url && ep.audio_url.includes('example.com')) ? null : (ep.audio_url || fileUrlFromId(ep.file_id, mediaType) || null))
+      : ''
+    const storedAudioUrl = ep.audio_url && ep.audio_url.includes('example.com') ? null : ep.audio_url
+    const fallbackUrl = fileUrlFromId(ep.file_id, mediaType) || null
+    const src = mediaType === 'audio'
+      ? resolveAudioEpisodeUrl({
+        streamUrl,
+        fileUrl: ep.file_url,
+        audioUrl: storedAudioUrl,
+        fallbackUrl,
+      })
+      : (streamUrl || storedAudioUrl || fallbackUrl)
 
     list.push({
       id: ep.id,
@@ -45,7 +56,7 @@ function normalizeStories(storyRows, episodeRows) {
       type: mediaType,
       telegram_message_id: messageId || null,
       isTelegramDuplicate,
-      src: ep.file_url || src,
+      src: mediaType === 'audio' ? src : (ep.file_url || src),
       filePath: ep.file_path || '',
       language: ep.language || 'Tamil',
       available: ep.available !== undefined ? ep.available : true,

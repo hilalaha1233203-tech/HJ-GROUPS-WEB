@@ -100,7 +100,7 @@ const DEFAULT_ACCOUNT_SETTINGS = Object.freeze({
   sleepTimer: 0,
   audioVolume: 1,
   audioSpeed: 1,
-  audioAutoplay: true,
+  audioAutoplay: false,
   audioRememberPosition: true,
   videoVolume: 1,
   videoSpeed: 1,
@@ -8056,7 +8056,7 @@ export function App() {
           <audio
             ref={audioRef}
             src={currentMediaSrc || undefined}
-            preload={accountSettings.dataSaver ? 'metadata' : 'auto'}
+            preload="none"
             onLoadedMetadata={
               handleLoadedMetadata
             }

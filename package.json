@@ -11,7 +11,9 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
-    "test:pages": "node scripts/test-pages-routes.mjs"
+    "test:pages": "node scripts/test-pages-routes.mjs",
+    "check:cover-assets": "node scripts/verify-cover-assets.mjs",
+    "check:cover-source-urls": "node scripts/check-cover-source-urls.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

@@ -85,3 +85,11 @@ py scripts/optimize-covers.py
 The script refuses to write anything unless all 13 expected object files are present. It creates hashed 400px thumbnails (target ≤80 KiB) and 800px images (target ≤2 MiB), preserving aspect ratio and transparency, then updates both `src/lib/cover-manifest.json` and `public/cover-manifest.json`. Review the exact per-file input/output byte report. If an image cannot meet a size target, the script exits with an error instead of claiming an optimization.
 
 Commit only generated `public/covers/*.webp` and both manifest files to the Phase 5U branch. Do not commit the downloaded source images.
+
+## Runtime URL safety policy
+
+The runtime must use the hashed static WebP manifest for all known existing story covers. A manifest entry may retain its original public `story-covers` URL only in its `originalUrl` fallback field (and the corresponding original-URL lookup key); it must never put that URL in `src` or `srcSet`. The offline generator deliberately creates that fallback metadata and does not fetch Supabase itself.
+
+The sole remaining `wsrv.nl` reference in runtime source is a compatibility parser in `src/lib/coverAssets.js`: it unwraps an already-saved proxy URL to its original URL. The application no longer creates or requests new wsrv.nl transformation URLs. CI checks this allowlist and fails if the old transformation URL is reintroduced elsewhere.
+
+Audio playback follows the Cloudflare streaming Worker URL when an episode has a Telegram message ID. If an audio episode has no Worker URL, the frontend does not fall back to a Supabase Storage object URL; that item needs a verified Cloudflare route rather than another Storage download.
