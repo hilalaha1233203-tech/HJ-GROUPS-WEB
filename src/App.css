@@ -8303,3 +8303,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .admin-v2-selection-row { padding:10px; }
   .admin-v2-pagination button { padding:8px 9px; }
 }
+
+
+/* Temporary friendly state for public catalog cooldown (no polling UI). */
+.catalog-load-warning {
+  box-sizing: border-box;
+  width: min(760px, calc(100% - 28px));
+  margin: 12px auto;
+  padding: 12px 16px;
+  border: 1px solid rgba(124, 131, 255, 0.34);
+  border-radius: 12px;
+  background: rgba(10, 12, 20, 0.96);
+  color: #f3f4fb;
+  font-size: 14px;
+  line-height: 1.45;
+}
