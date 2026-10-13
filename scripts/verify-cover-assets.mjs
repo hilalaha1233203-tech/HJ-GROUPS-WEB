@@ -1,7 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import assert from 'node:assert/strict'
 
 const ROOT = process.cwd()
 const EXPECTED_COVERS = [
@@ -12,12 +11,12 @@ const EXPECTED_COVERS = [
   'stories/1789998931387-6217308045835357343.jpg',
   'stories/1789999579655-6217308045835357343.jpg',
   'stories/1789999694248-6217308045835357343.jpg',
-  'stories/1790000595773-8283a78b-0be0-4a14-b379-d8a549491564.jfif',
+  'stories/1790000595773-6217308045835357343.jpg',
+  'stories/1790836907383-8283a78b-0be0-4a14-b379-d8a549491564.jfif',
   'stories/1790866658189-Epic-Fantasy-Warriors_-75M-Plays.png',
   'stories/1790951665948-Cinematic-King_-H7-Groups-Boss-Poster.png',
   'stories/1790951925575-Mythic-Cobra-Fortress-Heroes.png',
   'stories/1790952513979-Warrior-of-the-Golden-Battlefield.png',
-  'stories/1790951665948-Cinematic-King_-H7-Groups-Boss-Poster.png',
 ]
 const EXPECTED_COVER_COUNT = 13
 const MAX_STATIC_FILE_BYTES = 25 * 1024 * 1024
