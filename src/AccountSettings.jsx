@@ -424,10 +424,10 @@ function AccountSettings({ user, settings, onSettingsChange, onBack, onSleepTime
         <div className="account-settings-grid">
           <label><span>Read Aloud volume: {Math.round(mergedSettings.ttsVolume * 100)}%</span><input type="range" min="0" max="1" step="0.01" value={mergedSettings.ttsVolume} onChange={(event) => setSetting('ttsVolume', Number(event.target.value))} /></label>
           <label><span>Read Aloud speed</span><select value={mergedSettings.ttsSpeed} onChange={(event) => setSetting('ttsSpeed', Number(event.target.value))}>{[0.5,0.75,1,1.25,1.5,2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
-          <label><span>Tamil voice</span><select value={mergedSettings.tamilVoice} onChange={(event) => setSetting('tamilVoice', event.target.value)}><option value="ta-IN-PallaviNeural">Pallavi</option><option value="ta-IN-ValluvarNeural">Valluvar</option></select></label>
-          <label><span>English (India) voice</span><select value={mergedSettings.englishVoice} onChange={(event) => setSetting('englishVoice', event.target.value)}><option value="en-IN-NeerjaNeural">Neerja</option><option value="en-IN-PrabhatNeural">Prabhat</option></select></label>
+          <label><span>Tamil voice</span><select value={mergedSettings.tamilVoice} onChange={(event) => setSetting('tamilVoice', event.target.value)}><option value="ta-IN-PallaviNeural">Pallavi (female preference)</option><option value="ta-IN-ValluvarNeural">Valluvar (male preference)</option></select></label>
+          <label><span>English (India) voice</span><select value={mergedSettings.englishVoice} onChange={(event) => setSetting('englishVoice', event.target.value)}><option value="en-IN-NeerjaNeural">Neerja (female preference)</option><option value="en-IN-PrabhatNeural">Prabhat (male preference)</option></select></label>
         </div>
-        <div className="account-settings-note">The Read Aloud button is directly available in the book reader header and player. Voice selection is a setting; it is not a replacement for the Read Aloud control.</div>
+        <div className="account-settings-note">The Read Aloud button remains in the book reader and player. Voice choices are preferences: Azure uses the named neural voice; Google and Sarvam use the closest supported female/male voice; device fallback uses a matching installed voice when available.</div>
       </section>
 
       <section className="account-settings-card">
