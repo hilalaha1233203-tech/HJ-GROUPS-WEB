@@ -1125,3 +1125,97 @@ git merge --ff-only origin/phase5u-cover-assets-20261012
 ```
 Do not run this from the original `main` worktree. Keep the four source originals local-only.
 
+
+
+## 23. Phase 5V — request storm prevention, source trace, and verification (2026-10-13)
+
+### Current PR/branch evidence
+- Phase 5V PR: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/11 (keep OPEN/DRAFT; do not merge yet).
+- The previous PR head diverged from the current Phase 5U base and GitHub marked it not mergeable. This revision is rebuilt on the current `phase5u-cover-assets-20261012` branch to retain its current cover work.
+- No production DB query/write, migration apply, Cloudflare production setting/deploy, media/storage deletion, Telegram session action, or Episode Analytics edit was performed.
+
+### Caller trace (source-inspected; live volume is NOT VERIFIED)
+
+| Source / endpoint | Caller and frequency | Columns, cache and failure handling |
+|---|---|---|
+| `src/App.jsx` → `fetchTelegramContent()` → `GET /api/public-catalog` | One call on app mount per loaded document; no catalog interval or Realtime channel on this branch. | Public catalog only; error displays a friendly status, and there is no direct browser Supabase fallback. |
+| `functions/api/public-catalog.js` → `/rest/v1/episodes` | One of five server-side table reads, only on public catalog cache MISS. | Explicit columns including IDs, story/episode metadata, media URL references, availability/access and timestamps. Success response uses `Cache-Control: public, max-age=300, s-maxage=300`; upstream errors become `503` + `no-store`; only successful results are cached. Cloudflare Cache API is per data-center, not globally replicated. |
+| `src/lib/telegramImport.js` | Admin/import actions check next episode number using `number` and legacy `episode_number` when needed. | Explicit single-column reads; no poll/cache. Failures are reported by the user-initiated import flow. |
+| `src/App.jsx` admin episode insert guard | Admin/import flow checks numbering before insert/recovery. | Reads `number` and `episode_number`, not full rows; not executed for anonymous page visits. |
+| `server/rewardedAdUnlock.mjs` | User-requested rewarded-ad unlock. | Reads explicit fields for the selected episode; range checks select only episode number and availability. No poll/cache found in these call paths. |
+| `server/shortenerUnlock.mjs` | User-requested shortener unlock. | Selects explicit episode fields or requested range columns. No poll/cache found in these call paths. |
+| `supabase/functions/telegram-webhook/index.ts` | Inbound Telegram webhook content-ingest path. | Upserts episodes; not a repeated public catalog reader. |
+| `server/webPush.mjs` → `web_push_dispatch_state` | Legacy dispatcher calls one initial tick and then every 15 seconds while configured. Each tick reads the state cursor, followed by up to 100 newly-created episodes. | Cursor query selects only `last_episode_created_at` with `id=1`; episode query selects `id,story_id,episode_number,title,created_at`. Server-side service-role client; not a browser caller. The timer catches/logs failures and retries on the next tick. Actual production runtime of this legacy Node server is NOT VERIFIED; target Pages Web Push delivery remains deferred/disabled. |
+| Browser calls to `web_push_dispatch_state` | No browser/client caller found in the searched repository source. | The earlier migration enables RLS and revokes `anon`, but does not explicitly revoke every privilege from `authenticated` and `PUBLIC`. The proposal below fully revokes client-role table privileges. Live grants/policies remain NOT VERIFIED until dashboard/API access is restored. |
+
+The supplied 24-hour log snapshot had 3,991 GETs to `/rest/v1/episodes` and 3,980 GETs to `/rest/v1/web_push_dispatch_state`, all returning HTTP 402. This proves failed-request volume in that snapshot, not caller identity, response bytes, or how much egress those failures caused. The old 15-second dispatcher is a plausible source of repeated state reads, but the source plus aggregate status logs do **not CONFIRM** that it was the deployed caller. The reported 42.5 GB Cached Egress root cause remains UNCONFIRMED by this phase; the owner separately identified repeated Storage cover delivery as the primary issue addressed in Phase 5U.
+
+### Implemented in this PR revision
+- Network failures: maximum two attempts with exponential delay + jitter. HTTP 402/429/5xx opens a five-minute in-memory circuit breaker; non-transient 4xx errors fail immediately. No direct `select('*')` browser fallback remains.
+- Catalog errors show a `role="status"` message and avoid repeated detailed error logs; no interval/poll is scheduled.
+- Audio player remains `preload="none"`.
+- The public catalog response uses explicit column lists and a 300-second cache header. Removed `stale-while-revalidate` because Cloudflare Cache API `put/match` does not support that directive.
+- Proposed migration `supabase/migrations/20261012190000_phase5v_dispatch_state_lockdown.sql` enables RLS and revokes all privileges from `anon`, `authenticated`, and `PUBLIC`. File only; NOT applied. It does not grant any browser role access.
+- Episode Analytics source files were not changed.
+
+### Read-only SQL — user must run manually after access is restored
+Tuple size is a database-storage metric; JSON text approximates an uncompressed payload but is not exact PostgREST wire size.
+
+```sql
+select 'episodes' as table_name, count(*) as row_count,
+       round(avg(pg_column_size(e)))::bigint as avg_tuple_bytes,
+       max(pg_column_size(e))::bigint as max_tuple_bytes,
+       round(avg(octet_length(to_jsonb(e)::text)))::bigint as avg_json_bytes,
+       sum(octet_length(to_jsonb(e)::text))::bigint as total_json_bytes
+from public.episodes as e
+union all
+select 'web_push_dispatch_state', count(*),
+       round(avg(pg_column_size(s)))::bigint,
+       max(pg_column_size(s))::bigint,
+       round(avg(octet_length(to_jsonb(s)::text)))::bigint,
+       sum(octet_length(to_jsonb(s)::text))::bigint
+from public.web_push_dispatch_state as s;
+```
+
+Read-only RLS/grant inspection (do not run until dashboard/API is available):
+
+```sql
+select grantee, privilege_type
+from information_schema.role_table_grants
+where table_schema='public'
+  and table_name='web_push_dispatch_state'
+  and grantee in ('anon','authenticated','service_role');
+
+select c.relrowsecurity as rls_enabled, c.relforcerowsecurity as force_rls
+from pg_class c join pg_namespace n on n.oid=c.relnamespace
+where n.nspname='public' and c.relname='web_push_dispatch_state';
+
+select policyname, roles, cmd, qual, with_check
+from pg_policies
+where schemaname='public' and tablename='web_push_dispatch_state';
+```
+
+### Exact dashboard checks — no setting changes
+1. Supabase Organization → Usage → select project `yajkfglagnyvenddyvok` → Cached Egress. Set cycle 28 Sep–28 Oct 2026 and inspect service/category breakdown + daily graph/export.
+2. Project → Reports → API. Inspect Total Requests, Response Errors, Network Traffic; filter the available 24-hour window for `/rest/v1/episodes` and `/rest/v1/web_push_dispatch_state`. Save path/status evidence.
+3. Project → Reports → Storage. Inspect Total Requests, Network Traffic, Request Caching and top object paths for cover/audio. Do not delete or rewrite source objects.
+4. Project → Logs / Log Explorer. Inspect API Gateway/edge log entries around both paths and any available database role, auth/client, user-agent or request-origin fields. A caller is CONFIRMED only if the logs actually identify it. Logs may not contain response-byte counts.
+5. Usage → Log Ingestion: select the same cycle and view the daily ingestion graph by date; compare it to the dashboard's reported free allowance. Save screenshots/exports. The dashboard labels/window may differ by plan; use the selectable window available for this project.
+6. Do not apply migration or run SQL against production unless separately approved with the exact action.
+
+Official references: https://supabase.com/docs/guides/platform/manage-your-usage/egress ; https://supabase.com/docs/guides/platform/reports ; https://supabase.com/docs/guides/telemetry/logs ; https://supabase.com/docs/guides/database/postgres/row-level-security ; https://developers.cloudflare.com/workers/runtime-apis/cache/.
+
+### Preview DevTools checklist — NOT VERIFIED; needs owner action
+1. Open the actual Phase 5V Preview matching the latest PR head SHA (not the old Phase 2/5U preview). DevTools → Network → Preserve log. For a cold pass, enable Disable cache and reload Home; record total requests + transferred KB. Filter `public-catalog`, `rest/v1/episodes`, `web_push_dispatch_state`, `storage/v1/object`, `realtime/v1`, and audio/video paths.
+2. Home expectation: one browser `GET /api/public-catalog`; zero direct browser `/rest/v1/episodes` and `/rest/v1/web_push_dispatch_state`; zero catalog Realtime/poll connection. A cold Cache API MISS may make five server-side Supabase requests; a same-data-center warm hit should return `X-HJ-Public-Catalog-Cache: HIT` without those upstream reads.
+3. Reload Home warm and record request count + KB. To test expiry, wait over five minutes; do not force production requests.
+4. Open a Story page and record additional requests/KB. Navigation alone should not trigger another catalog fetch or any direct browser episode/state request.
+5. Open Player without pressing Play: expected audio requests = 0. Then Play + seek; confirm playback and record actual Range/media request count + transferred KB.
+6. In Preview only, intercept/mock `/api/public-catalog` with 402, 429 and 503 separately. Confirm first failure does not immediately retry; repeated loader calls within cooldown are blocked, and friendly status appears. Failed function response should be `no-store`; success should be `public, max-age=300, s-maxage=300`; warm response should show cache HIT.
+7. Record Preview URL, head SHA, request counts and transferred KB for Home cold/warm, Story, Player idle/playing, headers and screenshots. Preview deployment, browser metrics, responsive behavior and real cache HIT are NOT VERIFIED until measured.
+
+### Status ledger
+- Caller patterns/source: VERIFIED by source inspection above. Exact runtime attribution and request counts: NOT VERIFIED.
+- Retry/circuit-breaker/cache/header/column behavior: dynamic tests added; latest-run output pending.
+- Live RLS/grants, SQL payload sizes, API/Storage service breakdown, log-ingestion per-day graph: NOT VERIFIED — user action needed.
+- No production DB writes/migrations, production deployment/settings, Episode Analytics edits, original media/Storage deletions, or Telegram session changes.
