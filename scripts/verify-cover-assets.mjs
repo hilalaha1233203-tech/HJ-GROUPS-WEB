@@ -4,21 +4,12 @@ import { execFileSync } from 'node:child_process'
 
 const ROOT = process.cwd()
 const EXPECTED_COVERS = [
-  'stories/1788411106863-file_0000000014e882068f423cd2bef840db.png',
-  'stories/1788586464860-6217308045835357343.jpg',
-  'stories/1789997726308-6217308045835357343.jpg',
-  'stories/1789997771808-6217308045835357343.jpg',
-  'stories/1789998931387-6217308045835357343.jpg',
-  'stories/1789999579655-6217308045835357343.jpg',
-  'stories/1789999694248-6217308045835357343.jpg',
-  'stories/1790000595773-6217308045835357343.jpg',
-  'stories/1790836907383-8283a78b-0be0-4a14-b379-d8a549491564.jfif',
   'stories/1790866658189-Epic-Fantasy-Warriors_-75M-Plays.png',
   'stories/1790951665948-Cinematic-King_-H7-Groups-Boss-Poster.png',
   'stories/1790951925575-Mythic-Cobra-Fortress-Heroes.png',
   'stories/1790952513979-Warrior-of-the-Golden-Battlefield.png',
 ]
-const EXPECTED_COVER_COUNT = 13
+const EXPECTED_COVER_COUNT = 4
 const MAX_STATIC_FILE_BYTES = 25 * 1024 * 1024
 const MAX_THUMB_BYTES = 80 * 1024
 const MAX_LARGE_BYTES = 2 * 1024 * 1024
@@ -88,8 +79,8 @@ for (const [sourcePath, entry] of byOriginalPath) {
 const publicCoverDir = path.join(ROOT, 'public/covers')
 const staticCoverFiles = walk(publicCoverDir).filter((file) => file.toLowerCase().endsWith('.webp'))
 const staticCoverNames = new Set(staticCoverFiles.map((file) => path.relative(publicCoverDir, file).split(path.sep).join('/')))
-if (staticCoverNames.size !== 26) {
-  errors.push('Committed public/covers WebP file count: ' + staticCoverNames.size + '; expected 26 (13 covers × 400/800 variants).')
+if (staticCoverNames.size !== 8) {
+  errors.push('Committed public/covers WebP file count: ' + staticCoverNames.size + '; expected 8 (4 active covers × 400/800 variants).')
 }
 for (const required of requiredAssets) {
   if (!staticCoverNames.has(required)) errors.push('Manifest asset is missing from public/covers: ' + required)
@@ -115,8 +106,8 @@ for (const file of distFiles) {
   if (bytes > MAX_STATIC_FILE_BYTES) errors.push(path.relative(ROOT, file) + ': exceeds Pages 25 MiB static-file limit (' + bytes + ' bytes).')
 }
 const distCoverFiles = walk(path.join(ROOT, 'dist/covers')).filter((file) => file.toLowerCase().endsWith('.webp'))
-if (distCoverFiles.length !== 26) {
-  errors.push('Built dist/covers WebP file count: ' + distCoverFiles.length + '; expected 26.')
+if (distCoverFiles.length !== 8) {
+  errors.push('Built dist/covers WebP file count: ' + distCoverFiles.length + '; expected 8.')
 }
 let trackedOriginals = ''
 try {
@@ -136,5 +127,5 @@ if (errors.length) {
   for (const error of errors) console.error(' - ' + error)
   process.exitCode = 1
 } else {
-  console.log('Cover asset verification PASS: manifests match, 13 source covers mapped, 26 optimized WebP files present, no source originals tracked, and Pages static asset limits satisfied.')
+  console.log('Cover asset verification PASS: manifests match, 4 active source covers mapped, 8 optimized WebP files present, no source originals tracked, and Pages static asset limits satisfied.')
 }
