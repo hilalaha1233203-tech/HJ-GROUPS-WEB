@@ -1032,3 +1032,11 @@ Apply only after the corresponding Cloudflare path is verified with real public 
 
 Safety ledger for this checkpoint: no Episode Analytics changes; no production DB writes; no Supabase Storage object upload/delete; no Telegram session/media changes; no production Pages configuration change; no R2 upload; no merge or Production promotion.
 
+#### Follow-on audio autoplay enforcement (2026-10-13)
+
+Code commit: `1e2905e8c45d7a95973846661e30d2fed52cbf53`.
+
+- The audio player no longer auto-advances to another episode, even if an old local/cloud setting still contains `audioAutoplay: true`. The Account Settings default is aligned to false and the old audio auto-next checkbox is replaced by a clear bandwidth note.
+- Video autoplay behavior/settings remain unchanged.
+- Manual source diff confirms this change is limited to the audio ended-handler and its account-settings presentation. Build/deployment of this source commit was still in progress at the last control-plane read; a subsequent Cloudflare build success record and a real browser playback test are required before marking it deployed/tested. Production was not promoted.
+
