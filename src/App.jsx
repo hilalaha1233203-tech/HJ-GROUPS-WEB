@@ -595,7 +595,6 @@ const installEdgeTtsSpeechBridge = () => {
           voice,
           rate,
           pitch,
-          speaker: 'ratan',
           pace: isTamil(text) ? Math.min(Math.max(rate * 0.92, 0.65), 1.35) : rate,
           language_code: isTamil(text) ? 'ta-IN' : 'en-IN',
           temperature: isTamil(text) ? 0.35 : 0.6,
@@ -10819,8 +10818,8 @@ export function App() {
                         )
                       }
                     >
-                      <option value="ta-IN-PallaviNeural">Pallavi</option>
-                      <option value="ta-IN-ValluvarNeural">Valluvar</option>
+                      <option value="ta-IN-PallaviNeural">Pallavi (female preference)</option>
+                      <option value="ta-IN-ValluvarNeural">Valluvar (male preference)</option>
                     </select>
                   </label>
 
@@ -10835,10 +10834,11 @@ export function App() {
                         )
                       }
                     >
-                      <option value="en-IN-NeerjaNeural">Neerja</option>
-                      <option value="en-IN-PrabhatNeural">Prabhat</option>
+                      <option value="en-IN-NeerjaNeural">Neerja (female preference)</option>
+                      <option value="en-IN-PrabhatNeural">Prabhat (male preference)</option>
                     </select>
                   </label>
+                  <p className="account-settings-note">Voice names are preferences: Azure uses the named neural voice; Google and Sarvam use the closest supported female/male voice; device fallback uses a matching installed voice when available.</p>
                 </div>
               )}
 
