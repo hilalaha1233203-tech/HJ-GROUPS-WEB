@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, phase2/containerless-pages-migration-20261008]
+    branches: [main, phase2/containerless-pages-migration-20261008, phase5u-cover-assets-20261012]
   workflow_dispatch:
 
 permissions:
