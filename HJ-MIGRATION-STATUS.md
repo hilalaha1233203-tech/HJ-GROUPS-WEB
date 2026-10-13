@@ -874,7 +874,7 @@ This section supersedes earlier TTS capability statements in Sections 16–18 wh
 
 - Target: PR #9 branch `phase2/containerless-pages-migration-20261008`; PR #9 remains OPEN, UNMERGED, based on `main`.
 - Code/test head verified before this status-only update: `58e50b664ac4db1a4509e580719ff4e446d28dfb`.
-- Quality Check **#1106**, run ID `38262539588`, completed **SUCCESS** on that head. Job steps passed: dependency audit, lint, production build, unit tests, migration filenames, startup exports, Pages routes manifest, no-container production-path guard, Pages route smoke, frontend secret scan, auth/settings sanity, appearance/security-monitoring sanity and final source sanity. Run: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38262539588
+- Quality Check **#1107**, run ID `38347108998`, completed **SUCCESS** on the status-document update head `4c47c1b1e1019a4877ce14f1ce9d3c16526e9ef3`; the code/test tree is unchanged from code head `58e50b664ac4db1a4509e580719ff4e446d28dfb`. Job steps passed: dependency audit, lint, production build, unit tests, migration filenames, startup exports, Pages routes manifest, no-container production-path guard, Pages route smoke, frontend secret scan, auth/settings sanity, appearance/security-monitoring sanity and final source sanity. Run: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38347108998
 - Real outbound Edge TTS probe **#17**, run ID `38262539570`, completed **SUCCESS as a negative viability test**. The success result means the probe correctly classified the rejection; it does not mean Edge TTS audio works. Actual output:
   `{"classification":"not_viable_current_workers_handshake","httpStatus":502,"ok":false,"code":"EDGE_TTS_HANDSHAKE_FAILED","upstreamStatus":403,"bytes":0,"voice":"ta-IN-PallaviNeural","runtime":"wrangler-dev-local-workers-runtime"}`
   The Microsoft consumer endpoint rejected the handshake with HTTP 403, and no audio bytes were returned. Run: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/actions/runs/38262539570
@@ -883,7 +883,7 @@ This section supersedes earlier TTS capability statements in Sections 16–18 wh
 ### TTS behavior implemented on the PR #9 branch
 
 - `POST /api/tts` requires a signed-in Supabase user, validates text, and defaults to `TTS_MAX_CHARS=2000` (hard code ceiling 10,000 characters).
-- Daily per-user quota defaults to `TTS_DAILY_LIMIT=30`. The counter uses conditional writes and reads in the already-existing `MEDIA_CACHE` R2 binding under `tts-usage/`; it adds no PostgREST table/read for quota tracking. R2 operations are still metered.
+- Daily per-user quota defaults to `TTS_DAILY_LIMIT=30`. The counter uses conditional reads/writes in the existing `MEDIA_CACHE` R2 binding under `tts-usage/`, so quota tracking adds no PostgREST table or row reads/writes. Each TTS request still performs the necessary Supabase Auth user-validation call; the R2 approach avoids additional database egress for a quota table but does not mean zero Supabase requests. R2 operations are still metered.
 - Audio key: SHA-256 of the normalized text, chosen voice and format; object prefix `tts/`. HIT returns cached MP3; MISS tries each configured provider once, validates MP3, writes to R2 and responds. Cached/ranged audio advertises `audio/mpeg`, `Content-Length`, `Accept-Ranges`, 206 + `Content-Range`, and 416 for invalid ranges.
 - Provider secret names recognized by code: `SARVAM_API_KEY`, `GOOGLE_CLOUD_TTS_API_KEY`, and paired `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION`. Provider calls have no automatic retry loop; each configured provider is attempted at most once per request.
 - **Edge TTS is NOT VIABLE on the tested handshake and is disabled by a code-level viability gate** (`EDGE_TTS_WORKERS_VIABLE=false)). Setting `EDGE_TTS_ENABLED=true` cannot override this gate. `/health` reports the result honestly; no optional provider key is reported as configured unless that secret is present.
@@ -935,8 +935,12 @@ Optional provider settings are **not required** for browser speech fallback. If 
 
 - **Sarvam Bulbul v3:** current official docs advertise ₹100 signup credits, then ₹30 per 10,000 characters; Bulbul v3 Starter is limited to 30 requests/minute. Credits are limited; usage after exhaustion is billable. Sources: https://docs.sarvam.ai/api/getting-started/pricing and https://docs.sarvam.ai/api/getting-started/ratelimits
 - **Google Cloud Text-to-Speech:** official pricing lists a monthly free usage allowance for Standard voices (up to 4 million characters in the currently published pricing table) and bills usage after the allowance. A billing account must be enabled, and charges can apply beyond free usage. Verify current SKU, billing account, budget alerts and quota before enabling: https://cloud.google.com/text-to-speech/pricing
-- **Azure Speech:** official docs bill TTS per character and list a distinct F0 free tier/quotas; the exact allowance should be checked on the current pricing page for the chosen region/resource before enabling. The official quota page lists F0 standard-voice real-time TTS at 20 transactions per 60 seconds and max 10 minutes generated audio per request. Do not treat F0 as unlimited: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-services-quotas-and-limits and https://azure.microsoft.com/en-us/pricing/details/cognitive-services/speech-services/
+- **Azure Speech:** official pricing currently lists the F0 neural TTS allowance as 0.5 million characters/month; the official quota page lists F0 standard-voice real-time TTS at 20 transactions per 60 seconds and max 10 minutes generated audio per request. This is a capped allowance, not unlimited use; review current regional resource pricing and budget before enabling: https://azure.microsoft.com/en-us/pricing/details/speech/ and https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-services-quotas-and-limits
 - Cloudflare Workers/R2, Supabase plan/egress, provider billing, rate limits and GitHub Actions allowances are separate limit systems. Check each dashboard; no “free forever” or unlimited claim is made.
+
+### Optional later idea — not implemented
+
+A future, separately scoped manual `workflow_dispatch` in `HJ-GROUPS-OF-FILES` could pre-generate TTS only for fixed story text chosen by the owner. It must be an opt-in maintenance job, use explicit provider keys/usage caps, report cost/usage, and remain independent of HJ Web/streaming runtime. No workflow or HJ-GROUPS-OF-FILES source was changed for this idea; it is documentation only.
 
 ### Web Push — explicitly deferred
 
@@ -949,7 +953,7 @@ Optional provider settings are **not required** for browser speech fallback. If 
 
 | Test surface | Result | Evidence / remaining caveat |
 |---|---|---|
-| Quality Check | VERIFIED PASS | Run #1106 / `38262539588`; lint, build, unit tests, route smoke, source guard and secret scan passed on code head `58e50b664ac4db1a4509e580719ff4e446d28dfb`. |
+| Quality Check | VERIFIED PASS | Run #1107 / `38347108998`; lint, build, unit tests, route smoke, source guard and secret scan passed on current branch head `4c47c1b1e1019a4877ce14f1ce9d3c16526e9ef3` (documentation update on top of the tested code head). |
 | Real Edge WebSocket probe | VERIFIED NOT VIABLE on tested runtime path | Run #17 / `38262539570`: 502 `EDGE_TTS_HANDSHAKE_FAILED`, upstream 403, 0 audio bytes. CI passed because it correctly classified this expected negative outcome. |
 | Edge production provider | DISABLED | `EDGE_TTS_WORKERS_VIABLE=false`; explicit config cannot override the evidence-based gate. |
 | `/api/tts` auth/limits/provider errors | VERIFIED at unit/source level | Tests cover auth rejection, configurable char cap, one-attempt provider failure, R2 usage quota, cache hit/miss and Range. Live Pages Preview is NOT VERIFIED. |
