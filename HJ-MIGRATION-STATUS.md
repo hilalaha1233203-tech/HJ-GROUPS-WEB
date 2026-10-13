@@ -1038,5 +1038,11 @@ Code commit: `1e2905e8c45d7a95973846661e30d2fed52cbf53`.
 
 - The audio player no longer auto-advances to another episode, even if an old local/cloud setting still contains `audioAutoplay: true`. The Account Settings default is aligned to false and the old audio auto-next checkbox is replaced by a clear bandwidth note.
 - Video autoplay behavior/settings remain unchanged.
-- Manual source diff confirms this change is limited to the audio ended-handler and its account-settings presentation. Build/deployment of this source commit was still in progress at the last control-plane read; a subsequent Cloudflare build success record and a real browser playback test are required before marking it deployed/tested. Production was not promoted.
+- Manual source diff confirms this change is limited to the audio ended-handler and its account-settings presentation. Cloudflare Pages check returned **Deploy successful** for source commit `1e2905e8c45d7a95973846661e30d2fed52cbf53`, Preview `https://0d3f661f.hj-groups-web.pages.dev`, deployment ID `0d3f661f-eca5-49b3-b041-8b36c3bd6f04`. Its build log recorded `✓ built in 812ms`, `Compiled Worker successfully`, and `Success: Your site was deployed!`. This proves build/deploy only; real browser playback remains NOT VERIFIED. Production was not promoted.
+
+#### Latest code-bearing Preview evidence (2026-10-13)
+
+- Cloudflare confirmed deployment of audio preload/auto-next code commit `1e2905e8c45d7a95973846661e30d2fed52cbf53`: `0d3f661f-eca5-49b3-b041-8b36c3bd6f04`, URL https://0d3f661f.hj-groups-web.pages.dev, successful build log at 2026-10-13 05:40 UTC.
+- The latest branch HEAD after the status-only documentation commit is `84813dbc603d69b100e0e33fff67f010830fdeb2`; its Pages deployment was created at `f9bff42a-f977-46d4-bf81-7ac9d5bf1f64` (URL https://f9bff42a.hj-groups-web.pages.dev) and was still in progress at the latest status query. Use the completed code-bearing Preview above for testing, but verify the latest branch deployment before treating the branch HEAD's deployment as complete.
+- No GitHub Actions Quality Check run was recorded for these latest commits. Cloudflare's build is not a replacement for lint/unit/source-guard/asset-gate tests. Run the branch's Quality Check manually; it should block merge while the required 26 WebP files and manifests are absent.
 
