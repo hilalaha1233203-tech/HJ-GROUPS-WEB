@@ -926,3 +926,109 @@ CI evidence: Quality Check #1081 (`38239348824`) on commit `d904fb9d9482587b01bc
 7. Only after existing static assets are generated, current-head CI passes, a real Phase 5U Preview is deployed and the user accepts all tests should PR #10 be changed from draft and reviewed. Do not merge PR #10 or PR #9, and do not promote Production without explicit user approval.
 
 Safety ledger: NO production database writes; NO Storage object uploads/deletes; NO production Pages setting changes; NO Episode Analytics changes; NO Telegram session/media changes; NO `hj-groups-media` binding changes. Preview-only `COVERS_BUCKET` binding and separate bucket creation are the only Cloudflare configuration/resource changes in this phase.
+
+## 20. Phase 5U latest-head verification and audio request guard (2026-10-13)
+
+### VERIFIED — PR and Preview control-plane evidence
+
+Repository: `hilalaha1233203-tech/HJ-GROUPS-WEB`  
+PR: https://github.com/hilalaha1233203-tech/HJ-GROUPS-WEB/pull/10  
+Branch: `phase5u-cover-assets-20261012`  
+Code-bearing verification head before this status-only commit: `789a1380ebc8cd1e636a1e05782c70fa2c6b3fe7`
+
+- PR #10 remains **OPEN / DRAFT / UNMERGED**, stacked on the still-unmerged Phase 2 branch. Do not merge #10 before #9.
+- Cloudflare Pages project `hj-groups-web` reports the Git repository source enabled, preview deployment setting `all`, and preview branch include pattern `*`.
+- A Preview deployment exists for the exact code-bearing head above:
+  - Deployment ID: `849ff315-ec49-4bfb-9037-dec69b60a0c7`
+  - Preview URL: https://849ff315.hj-groups-web.pages.dev
+  - Branch alias returned by Cloudflare: https://phase5u-cover-assets-2026101.hj-groups-web.pages.dev
+  - Cloudflare deployment check: SUCCESS at 2026-10-13 05:37:08 UTC.
+  - Build log: Vite `✓ built in 905ms`; Wrangler compiled the Functions Worker successfully; Cloudflare reported `Success: Your site was deployed!`.
+- This is a real Pages deployment/build record, not evidence that page images, live storage, HTTP headers, or authenticated upload were tested.
+- The same Cloudflare check query returned no separate GitHub Actions Quality Check run for the latest SHA. The earlier Quality Check #1082 belongs to the prior commit `d75e6f85f9b9135046556ec50f182cc33071ed62` and must not be reported as tests for the current head. Latest-head full test suite / new source guards: **NOT VERIFIED**. Manually run Actions → Quality Check → Run workflow → select `phase5u-cover-assets-20261012`. The cover asset gate is expected to fail until the actual 26 generated files are committed.
+
+### VERIFIED — committed cover inventory on the code-bearing head
+
+A read-only Git tree query for `789a1380ebc8cd1e636a1e05782c70fa2c6b3fe7` returned 209 tree entries and:
+
+- `public/covers/*.webp`: **0 files**.
+- `tools/cover-source/stories/*`: **0 tracked original binaries**.
+- `src/lib/cover-manifest.json`: `{"version":1,"covers":{}}`.
+- `public/cover-manifest.json`: `{"version":1,"covers":{}}`.
+- `.gitignore` excludes downloaded source originals under `tools/cover-source/*` (while retaining the README and `.gitkeep`).
+
+Therefore the 13 originals have **not** yet been converted/committed in this branch. It is NOT VERIFIED that the requested 26 WebP files, per-file measurements, or 13-source manifest exist. The updated `scripts/verify-cover-assets.mjs` now checks the exact 13 filenames, identical manifests, 26 referenced WebP files, no unreferenced WebP files, thumbnail <=80 KiB, large variant <=2 MiB, Pages <=25 MiB/file, Free-plan <=20,000 files, and no tracked source originals. Its expected file list was checked against `tools/cover-source/README.md`. The guard cannot pass while the manifests/assets remain empty.
+
+Official Cloudflare limits checked 2026-10-13:
+- Pages Free: maximum 20,000 files per site; individual site asset <=25 MiB: https://developers.cloudflare.com/pages/platform/limits/
+- Pages Function requests count against the Workers Free shared limit of 100,000 requests/day; requests that are served as static assets without invoking Functions are free/unlimited: https://developers.cloudflare.com/pages/functions/pricing/
+- Production R2 delivery should use a user-owned custom domain; `r2.dev` is rate-limited and intended for development: https://developers.cloudflare.com/r2/buckets/public-buckets/
+
+### IMPLEMENTED IN BRANCH — source URL and audio-load protections (test execution NOT VERIFIED)
+
+Code-bearing commits:
+- `77f6ad69ff356ecbadd2b66eb4d8e3b4efca786f` — audio URL selection/preload change and source guards.
+- `789a1380ebc8cd1e636a1e05782c70fa2c6b3fe7` — exact 13-path cover inventory correction in the verification script.
+
+Changes:
+- Existing episode `<audio>` now sets `preload="none"`; default `audioAutoplay` is false. The separate video player is unchanged. TTS uses a different generated Blob audio path after a TTS request; that is not either of the two Supabase Storage audio objects.
+- `src/lib/telegramContent.js` now prioritizes the Cloudflare Streaming Worker route when an episode has a Telegram message ID. Audio source selection refuses to fall back to a Supabase Storage object URL; an asset without a verified Cloudflare/non-Supabase source can therefore fail playback rather than silently re-download from Storage. This is intentional safety behavior, not a claim that every legacy audio asset is now routable.
+- `public/hj-push-sw.js` contains Web Push event handling only; no audio fetch/preload behavior was found. `index.html` has no audio preload/prefetch link. No hard-coded request for either of the two unknown `audio` object keys was found. The exact two stored filenames and their catalogue references remain **NOT VERIFIED** because no production DB query or Storage object download was authorized/performed.
+- The generic `uploadFileToBucket('audio', ...)` path in `src/lib/storageUpload.js` still uses Supabase Storage for new uploads and asks for `cacheControl: '3600'` (one hour). This is a remaining migration blocker for any audio uploads that do not have an established Worker/R2 route; do not use that path for new public audio until a Cloudflare destination and URL/metadata contract are verified and approved.
+- New `scripts/check-cover-source-urls.mjs` scans runtime source for hard-coded Supabase Storage object URLs and fails on `wsrv.nl` references except the single documented legacy URL un-wrapper in `src/lib/coverAssets.js`. It also prevents Supabase URLs in manifest `src`/`srcSet` and allows the original story-cover URL only as a matching `originalUrl` fallback. The new scripts/tests were committed, but their execution on the latest head is **NOT VERIFIED** until Quality Check is run.
+
+### NOT VERIFIED — HTTP headers, browser and egress measurements
+
+The execution environment could not resolve these hostnames when attempting `curl -I`: the current Preview, production Pages hostname, and the Supabase hostname. This records a DNS limitation of that execution environment; it does not prove the public sites are down.
+
+- Latest-preview HTTP `Cache-Control`, `Content-Type`, `Content-Length`, 404 behavior and cache-hit headers: **NOT VERIFIED**.
+- Actual manifest hit/miss and broken-image placeholder in the deployed browser: **NOT VERIFIED**. Unit fixtures exist, but were not executed against a real manifest or deployed browser.
+- Cold/warm image transfer bytes on home and a story page, desktop/mobile rendering, real authenticated admin upload producing exactly two variants in `hj-groups-covers`: **NOT VERIFIED**.
+- Live audio-object `Cache-Control`/size, Supabase image/audio request referers, bot/hotlink traffic, cache-miss counts and reason for the reported ~700 downloads: **NOT VERIFIED / UNCONFIRMED**. The generator's empty manifest means old cover URLs are presently manifest misses and can use the original-URL fallback, which is a concrete route for continued Supabase requests; it does not prove this caused all reported downloads. The previous log window's repeated HTTP 402 catalog/push-state requests evidence an API retry/poll problem, not proof of Storage object traffic. `storageUpload.js`'s one-hour cache-control value applies to uploads created through that code path only; it is not evidence for the response headers of the two existing objects. Service-worker audio fetches and prefetch links were not found.
+- Production Pages settings, live Supabase rows/objects, and bucket publicity were not changed. No DB query, Storage write/delete, R2 upload, or production promotion was performed.
+
+#### Owner HTTP checks (run from PowerShell on a network that resolves the domains)
+
+For the current Preview manifest and health endpoint:
+```powershell
+curl.exe -sS -I "https://849ff315.hj-groups-web.pages.dev/cover-manifest.json"
+curl.exe -sS -I "https://849ff315.hj-groups-web.pages.dev/health"
+```
+
+For one existing cover:
+```powershell
+curl.exe -sS -I "https://yajkfglagnyvenddyvok.supabase.co/storage/v1/object/public/story-covers/stories/1788411106863-file_0000000014e882068f423cd2bef840db.png"
+```
+
+For each audio file, first copy its exact object key from Supabase Dashboard → Storage → Files → `audio` (do not guess the keys), then:
+```powershell
+$audioUrl = "https://yajkfglagnyvenddyvok.supabase.co/storage/v1/object/public/audio/<EXACT-OBJECT-PATH>"
+curl.exe -sS -I $audioUrl
+```
+Record `Cache-Control`, `Content-Type`, `Content-Length`, `ETag` and any cache status header. For a converted cover, also test `curl.exe -sS -I "https://<current-preview-host>/covers/<real-sha256>-800.webp"`; the 26 files must actually exist first. Open the Preview in a logged-out desktop/mobile browser to compare cold-load/warm-reload Network transferred bytes for home and one story page. Never claim measurements without saving the actual outputs.
+
+#### Preview admin-upload checklist (requires owner login; NOT VERIFIED)
+
+1. Sign in as an admin in the current PR Preview and use one non-sensitive test cover image.
+2. Confirm upload returns success and exactly two objects appear in the separate `hj-groups-covers` bucket: `*-400.webp` <=80 KiB and `*-800.webp` <=2 MiB.
+3. Confirm both objects use `image/webp` and `public, max-age=31536000, immutable`, and returned URLs do not point to `supabase.co/storage`.
+4. Do not perform this test against Production; do not delete any original Storage object.
+
+### Interim Function-request cost and future R2 custom domain
+
+- `/api/covers/*` uses a Pages Function and therefore shares the Workers Free allowance of 100,000 requests/day. Budget each request that reaches Function runtime as a counted request until deployed traffic measurements prove otherwise. By contrast `/covers/*` static assets do not invoke Functions and are free under the Pages static-asset rule. The no-domain interim route is therefore for Preview/controlled use; after existing cover WebPs are generated, the preferred route is static `/covers/` for those assets.
+- After obtaining a user-owned domain and adding it as a Cloudflare zone in the same Cloudflare account: R2 → `hj-groups-covers` → Settings → Custom Domains → Add → enter `covers.<your-domain>` → Connect Domain → wait for Active. Then set/test `COVER_PUBLIC_BASE_URL=https://covers.<your-domain>` in Preview only. Verify real GET/HEAD, MIME, immutable cache headers and upload output before any Production change. Do not use `r2.dev` for production.
+- Production bucket settings and the `audio` bucket must remain unchanged until paths are tested and the owner explicitly approves the exact change.
+
+### PREPARED ONLY — reversible Supabase Storage privacy plan (DO NOT APPLY)
+
+Apply only after the corresponding Cloudflare path is verified with real public traffic and owner gives an exact `APPROVED: ...` instruction.
+
+1. Save the current settings and policies for `story-covers` and `audio`. Verify every catalogue cover resolves from the manifest/static `/covers/` or approved R2 path, and every public audio item resolves through the Cloudflare Worker/R2 route with Range/HEAD behavior where applicable. Verify the two legacy audio objects are accounted for individually.
+2. For `story-covers` only, switch the bucket to Private in the Supabase Storage dashboard; remove/disable only public-read access that makes its objects public. Do not delete or rewrite objects/rows. Test all pages, admin upload, and cover fallback behavior.
+3. Keep `audio` public until every legacy audio reference and new-upload path is proven to work through Cloudflare. Then, in a separate owner-approved step, make `audio` private and retest each item and seek/range behavior.
+4. Expected breakage if done too early: direct `stories.cover_url`/legacy Supabase URLs, old clients, third-party hotlinks, and any audio source with no Worker/R2 mapping can start returning authorization errors. An empty manifest would send cover requests to the legacy original URL fallback and those requests will break after making `story-covers` private.
+5. Rollback: in Supabase dashboard restore the original bucket Public setting and the saved public-read policy exactly as before; verify old direct links again. Do not delete objects. Rollback does not require DB writes.
+
+Safety ledger for this checkpoint: no Episode Analytics changes; no production DB writes; no Supabase Storage object upload/delete; no Telegram session/media changes; no production Pages configuration change; no R2 upload; no merge or Production promotion.
+
