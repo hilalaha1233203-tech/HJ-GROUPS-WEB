@@ -1289,3 +1289,87 @@ Official references:
 4. Implement/test `MEDIA_CACHE` TTS caching or explicitly defer that feature. Confirm Production and Preview bindings/secrets by names in Cloudflare Dashboard.
 5. Reconcile PR #10's diverged history; run CI on the exact reconciled head. Then rebase/recreate Phase 5V against that head and rerun CI.
 6. Complete user preview matrix and capture Supabase Usage → Cached Egress, API/Storage Reports and Log Explorer evidence. No production DB migration or settings changes without the exact approval phrase for that action.
+
+
+## 25. Current-head revalidation and cutover checklist — 2026-10-14
+
+Snapshot basis: PR #11 code head `99050a14fc543e2b9d63082fcd52e1f259e5014f`. This section supersedes older volatile head/deployment IDs above when those differ. This is a status-only audit update; no application code or production state is changed here.
+
+### Current GitHub / Cloudflare control-plane evidence
+
+- PR #9: OPEN / UNMERGED; base `main`; head `2f3324147924cb2f4645f4883177b421aadf6b69`. Quality Check for this exact commit: run ID `38347626582` SUCCESS, 143 tests passed, 0 failed, 0 skipped; lint 0 errors / 2 React Hook warnings; production build and local Pages route smoke passed.
+- PR #10: OPEN / DRAFT / UNMERGED; base branch `phase2/containerless-pages-migration-20261008`, base SHA `c31f451f3132d04bd3fbedbe32ff124f37d68b9f`, head SHA `62fa1e88e907a5feeb372f323523466605d52988`; GitHub currently reports `mergeable=false`. The base is not the current PR #9 head, so this stack must be rebased/reconciled before merge.
+- PR #11: OPEN / DRAFT / UNMERGED; base branch `phase5u-cover-assets-20261012` at `62fa1e88e907a5feeb372f323523466605d52988`, head `99050a14fc543e2b9d63082fcd52e1f259e5014f`.
+- Current-head Quality Check run ID `38522124611`, job ID `115713994636`: SUCCESS. Real log output: `# tests 164`, `# pass 164`, `# fail 0`, `# skipped 0`; Vite production build succeeded (`built in 655ms`); lint reported 0 errors / 2 warnings; migration filename check passed for 31 files; cover audit passed with 4 manifest source paths, 8 committed WebP variants, 8 built WebP files, and no tracked source originals; cover-source guard passed under its current allowlist.
+- Current Phase 5V Preview deployment: ID `6aab483b-0a35-401f-9c63-e9bafd4a3fda`, URL `https://6aab483b.hj-groups-web.pages.dev`, exact code SHA `99050a14fc543e2b9d63082fcd52e1f259e5014f`; Cloudflare reports queued/init/clone/build/deploy stages SUCCESS. Browser interaction, live headers, cache HIT/MISS, request counts and transferred bytes remain NOT VERIFIED.
+- Current Production Pages deployment: ID `69a61def-c1f7-481f-bf34-26c2c2d14a1e`, URL `https://69a61def.hj-groups-web.pages.dev`, commit SHA `95e0d181e2c34ef3a17b6e31d168af101a52d275`. This confirms Production still runs the old deployment. `95e0d181...` is the commit SHA, not the Pages deployment ID.
+- Cloudflare's read-only project metadata shows Git integration enabled, production branch `main`, preview deployments enabled. No dedicated Pages deployment workflow is present in the current workflow list; Preview deployment was created by Cloudflare Pages Git integration. Do not add a GitHub Cloudflare API token solely for the existing Git integration.
+
+### New CI findings that prevent treating green CI as full merge readiness
+
+- The `Verify production path has no container backend` step in `.github/workflows/quality-check.yml` uses `! grep ...` under `set -euo pipefail`. Actual Quality Check logs for this current head printed `functions/_lib/tts.js:59`, `:113`, and `:151` matches for `HJ_WEB_BACKEND_URL`, then continued to later steps and marked the job SUCCESS. The guard is therefore defective and must be replaced with explicit `if grep ...; then ... exit 1; fi` logic, with a positive fixture that must fail and a clean fixture that must pass.
+- Confirmed in current source: `functions/[[path]].js` invokes `handleLegacyTtsProxy()` for `/api/tts`, `/api/edge-tts`, and `/api/sarvam-tts`; `functions/_lib/tts.js` reads `HJ_WEB_BACKEND_URL`. The branch's Preview/Production project metadata still lists this variable. This violates the agreed no-legacy-backend runtime and means `EDGE_TTS_ENABLED=false` is not sufficient: the inspected code does not consult that flag. Remove the legacy bridge and add tests before cutover.
+- No `typecheck` script or standalone TypeScript typecheck step exists in `package.json`/the inspected Quality Check; typecheck is NOT RUN / NOT VERIFIED. Build/lint/tests are not a substitute for a typecheck.
+- CI's frontend secret-identifier check passed, but it checks prohibited server-secret variable access in source/build; it is not a whole-repository/history secret scanner and does not prove arbitrary literal secrets are absent from all history.
+
+### Confirmed cover, audio and TTS gaps
+
+- The current Phase 5U source manifest maps four active cover source paths and the Quality Check verifies eight static WebP variants (400w/800w); this is real committed-build evidence, not a real browser transfer measurement. The other nine historical bucket inventory objects were not migrated, and their active-catalog status has not been established by this code check.
+- `src/lib/coverAssets.js` still permits a manifest miss to use the original URL as `src` and sets `fallbackSrc` from `entry.originalUrl`; `handleCoverImageError()` then switches to the direct Supabase Storage URL. `scripts/check-cover-source-urls.mjs` explicitly allows the matching `story-covers` original URL and legacy `wsrv.nl` URL un-wrapper. Thus the green guard is not proof of zero Supabase Storage requests. For the agreed design, manifest miss and WebP load failure must use Cloudflare/local placeholder only; do not delete or privatize original Storage objects in this phase.
+- `src/lib/storageUpload.js` retains the generic Supabase Storage upload path for the `audio` bucket. New public audio uploads are not proven to use the Streaming Worker/R2 route; test/replace that path before telling admins that all public audio is Cloudflare-served.
+- `functions/_lib/tts.js` calls Sarvam and returns audio directly with `Cache-Control: private, max-age=3600`; it does not use the `MEDIA_CACHE` R2 binding or the `tts/` object-cache prefix. The inspected code implements Sarvam only; Google Cloud TTS and Azure Speech are not currently wired into this module. The accepted browser-device `speechSynthesis` fallback and structured no-provider error must be verified in the real browser. Web Push delivery remains intentionally deferred (`WEB_PUSH_SEND_NOT_MIGRATED`) and is a known parity difference, not a claim of successful delivery.
+- Cloudflare Pages project's visible binding metadata shows `COVERS_BUCKET -> hj-groups-covers` in Preview only; no Pages `MEDIA_CACHE` binding is listed for Preview or Production. Production has no visible `COVERS_BUCKET` binding. The visible Production plain-variable names are `HJ_WEB_BACKEND_URL`, `VITE_STREAMING_SERVER_URL`, `VITE_SUPABASE_URL`; Preview additionally has `VITE_HJ_CLIENT_KEY`. `SUPABASE_URL`, `CORS_ALLOWED_ORIGINS`, and `SUPABASE_SERVICE_ROLE_KEY` do not appear in the visible deployment variable list; encrypted secret configuration may be omitted from this API view, so the owner must verify their names in Dashboard → Variables and Secrets. Do not infer values or print secrets.
+- `functions/api/public-catalog.js` uses explicit column lists and a five-minute Cache API response; the public catalog path accepts the public/publishable key rather than needing the service-role key. Privileged/admin Pages routes use `SUPABASE_SERVICE_ROLE_KEY`. Real deployed cache headers and warm-cache behavior remain NOT VERIFIED.
+
+### Supabase egress interpretation — no fresh dashboard export supplied
+
+- The 42.5 GB Cached Egress, 57.13 MiB total Storage, and roughly 700 re-serves are previously owner-reported observations; the current prompt's dashboard breakdown/day-graph fields were placeholders, and no fresh Usage/Reports/Log Explorer export was available to this audit.
+- Arithmetic consistency check: re-serving 57.13 MiB about 700 times is approximately 41.9 GB decimal, close to the reported 42.5 GB. This strongly supports the owner's Storage-re-serving explanation as a plausible dominant contributor, but it is not independent per-object request attribution or measured response bytes.
+- The 3,991 `/rest/v1/episodes` and 3,980 `/rest/v1/web_push_dispatch_state` GETs with HTTP 402 show repeated blocked API traffic in the supplied 24-hour snapshot. Source inspection found the old browser catalog path/Reatime refresh path and the legacy server Web Push cursor dispatcher (`server/webPush.mjs` is invoked from `server.mjs`); the current source fixes the browser-side catalog fallback/polling. The counts alone do not identify which caller made each request, do not reveal response bytes, and do not independently explain 42.5 GB. Live caller attribution, current RLS/grants, exact payload sizes and daily graphs remain NOT VERIFIED. Do not run SQL or apply the Phase 5V dispatch-state migration without the exact production approval phrase.
+
+### Required owner actions before merge or production promotion
+
+1. Fill in and run the complete Preview regression matrix: login (Google/email OTP/password reset), admin login, settings, Ads, shortener, Premium/VIP, TTS provider/no-provider fallback, catalog, covers, Episode Analytics, books/video/audio playback, and exact Network request count/Transferred KB for Home, Story, and Player. The supplied matrix/dashboard entries remain placeholders in this audit.
+2. Remove the legacy TTS proxy from Pages code; prove `/api/edge-tts` cannot call the old backend and that `EDGE_TTS_ENABLED=false` cannot be bypassed. Implement and test R2 `MEDIA_CACHE` TTS caching, or explicitly defer it and do not claim the final cache exists.
+3. Change every cover failure/missing-manifest branch to `/cover-placeholder.svg` or another checked-in Cloudflare asset, never a direct Supabase Storage URL. Update tests/guard accordingly. Replace or deliberately block new audio uploads that currently write public media into Supabase Storage until an approved Cloudflare audio destination/path is implemented.
+4. Fix and positively test the CI grep guard. Reconcile/rebase PR #10 onto the latest PR #9 head and rerun checks on that exact commit; after PR #9 and PR #10 are merged, rebase Phase 5V on the exact updated Phase 5U head and rerun checks. Do not merge PR #10 while GitHub reports `mergeable=false`.
+5. In Pages → Settings → Variables and Secrets and Settings → Bindings, verify/configure Preview and Production separately by **names only**: `SUPABASE_URL`, encrypted `SUPABASE_SERVICE_ROLE_KEY`, `CORS_ALLOWED_ORIGINS`, the public auth key name the code uses (`VITE_HJ_CLIENT_KEY` or a deliberately mapped accepted publishable-key name), `VITE_SUPABASE_URL`, `VITE_STREAMING_SERVER_URL`, `COVERS_BUCKET` bound to existing `hj-groups-covers`, and `MEDIA_CACHE` bound to the existing approved media-cache bucket only after the Pages TTS code is implemented. Set `EDGE_TTS_ENABLED=false`, but remember current code does not enforce it. Configure `SARVAM_API_KEY` only if enabling the provider currently implemented; Google/Azure keys must not be treated as supported until code exists and is tested. Configure `COVER_PUBLIC_BASE_URL` only after a user-owned custom domain has been configured and verified. Do not create another bucket or change Production before explicit approval.
+6. Keep the current `HJ_WEB_BACKEND_URL` project variable available only as a rollback aid until the legacy deployment is no longer needed, while ensuring the new Pages code does not read or fetch it. Keep Voroa running. The project's Cloudflare Git integration will deploy Preview pushes and will promote merges to `main`, so each merge may create an intermediate Production deployment.
+7. Only after the Preview gates pass, merge in the required order: PR #9 → rebase/reconcile and merge PR #10 → rebase/rebuild and merge Phase 5V. Observe each resulting Production deployment and run the smoke checks immediately; do not skip the review between steps.
+
+### Cutover smoke tests (owner-run; NOT VERIFIED until outputs are saved)
+
+Use PowerShell on a network that resolves the Pages hostname. Replace `$base` with the latest successful Phase 5V Preview URL (the URL in this audit was `https://6aab483b.hj-groups-web.pages.dev`; a documentation-only commit can create a newer Preview). After cutover repeat against the current production URL.
+
+```powershell
+$base = 'https://<latest-successful-pages-url>'
+curl.exe -sS -D - "$base/health" -o NUL
+curl.exe -sS -D - "$base/api/public-settings" -o NUL
+curl.exe -sS -D - "$base/api/public-catalog" -o "$env:TEMP\hj-catalog.json"
+curl.exe -sS -D - "$base/api/public-catalog" -o NUL
+curl.exe -sS -I "$base/cover-manifest.json"
+curl.exe -sS -I "$base/covers/9f9518a728bb35d5b37ee783643c6f00ed95912949ea1b86da0e8b1e226ff64d-400.webp"
+curl.exe -sS -I "$base/covers/9f9518a728bb35d5b37ee783643c6f00ed95912949ea1b86da0e8b1e226ff64d-800.webp"
+curl.exe -sS -D - "$base/api/admin/analytics" -o NUL
+```
+
+Expected after proper configuration: `/health` 200 with Pages runtime and `containerRuntime:false`; `/api/public-settings` 200; first `/api/public-catalog` 200 with cache `MISS` (or `HIT` if already warm) and `Cache-Control: public, max-age=300, s-maxage=300`; a same-POP second request should return `HIT`; cover manifest/WebPs 200, WebP MIME and immutable cache header; unauthenticated `/api/admin/analytics` 401. The catalog must not be accepted as healthy if it is 503, empty unexpectedly, or still returns 402 from Supabase. Run authenticated flows in the browser, not by pasting tokens into shell history.
+
+Also test the player with a verified existing message ID (do not invent one):
+
+```powershell
+$worker = 'https://hj-telegram-streaming.hilalaha1233203.workers.dev'
+curl.exe -sS -D - -H 'Range: bytes=0-0' "$worker/audio/message/<verified-message-id>" -o NUL
+```
+
+Expected for a valid publicly accessible item: an appropriate `206 Partial Content`, `Content-Range` and one-byte payload; authenticated/ticket-protected items must be tested through the logged-in application with its normal ticket flow. Do not put bot tokens, service-role keys, session material or tickets in screenshots/logs.
+
+### Rollback — no action executed
+
+- Cloudflare Pages → `hj-groups-web` → Deployments → All deployments → select the successful Production deployment whose source commit is `95e0d181e2c34ef3a17b6e31d168af101a52d275`; its current deployment ID is `69a61def-c1f7-481f-bf34-26c2c2d14a1e` and URL is `https://69a61def.hj-groups-web.pages.dev`. Choose **Rollback to this deployment** and confirm. Do not enter the commit SHA as the deployment ID. The older successful deployment `7624f08c-1894-4792-b5f0-6b51590ba8e9` uses the same commit. Cloudflare does not allow Preview deployments as rollback targets.
+- Keep `HJ_WEB_BACKEND_URL` configured and the old backend available during the rollback window so the old proxy deployment can work. If that variable was removed in a later owner action, restore its previous value before expecting the old proxy/TTS path to work; the new Pages source must never use it.
+- If the Pages rollback itself is unavailable or broken, keep the Voroa service `hj-groups-website` running and restore the established Voroa entry URL/origin using its existing operator procedure. No Cloudflare custom domain/zone was present in the current account metadata, so do not claim a DNS switch is available; no Voroa setting or deployment was changed in this audit.
+
+### Final decision
+
+**NO-GO**. CI/build/unit tests are green, but the legacy TTS bridge and defective grep gate are confirmed; cover fallback and audio-upload path still permit Supabase Storage requests; the TTS R2 cache is absent; Production R2/auth/CORS settings and live Preview/regression/egress measurements are unverified; and PR #10 is not mergeable. No merge, Production promotion, database query/write, migration application, Cloudflare Production setting change, Storage object deletion, media migration, Telegram session operation or Episode Analytics change occurred in this audit.
