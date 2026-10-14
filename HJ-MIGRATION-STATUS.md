@@ -1228,3 +1228,64 @@ Official references: https://supabase.com/docs/guides/platform/manage-your-usage
 - Retry/circuit-breaker/cache/header/column behavior: dynamic tests added; latest-run output pending.
 - Live RLS/grants, SQL payload sizes, API/Storage service breakdown, log-ingestion per-day graph: NOT VERIFIED — user action needed.
 - No production DB writes/migrations, production deployment/settings, Episode Analytics edits, original media/Storage deletions, or Telegram session changes.
+
+
+## 24. Independent merge-readiness re-audit — 2026-10-14
+
+### Decision: NO-GO — do not merge PR #9/#10/#11 or promote to production yet
+
+This checkpoint supersedes any earlier optimistic merge-readiness wording in this status document where it conflicts with the evidence below. Audit-only work: no code logic, production setting, production database, original media, Telegram session, or Episode Analytics was changed by this checkpoint.
+
+### GitHub and CI evidence re-checked on 2026-10-14
+
+- PR #9 is OPEN / UNMERGED; GitHub head `2f3324147924cb2f4645f4883177b421aadf6b69`, base `main`. Quality Check run #1112 / ID `38347626582` succeeded: `143 tests, 143 pass, 0 fail, 0 skipped`; lint had 0 errors and 2 React Hook warnings; build and local Pages route smoke passed.
+- PR #10 is OPEN / DRAFT / UNMERGED and GitHub reports `mergeable=false`. Its base SHA is `c31f451f3132d04bd3fbedbe32ff124f37d68b9f`, head SHA `62fa1e88e907a5feeb372f323523466605d52988`. A branch comparison reports `diverged`, `ahead_by=58`, `behind_by=23`. Reconcile the branch history and obtain fresh CI before attempting to merge it.
+- PR #11 is OPEN / DRAFT / UNMERGED; base is Phase 5U SHA `62fa1e88e907a5feeb372f323523466605d52988`, head `6eb2861ff77a405971f0d13332f100cd5efb56d8`. Quality Check run #1114 / ID `38424518223` succeeded: `164 tests, 164 pass, 0 fail, 0 skipped`. Build and Pages route smoke passed; lint had 0 errors and 2 React Hook warnings. Cover assets audit reported 4 active source covers mapped, 8 optimized WebP files, and the asset-limit check passed.
+- Latest confirmed Phase 5V Preview deployment in Cloudflare control-plane: ID `ccd3cb7c-5905-4236-9ffd-b1b5bbafdba0`, URL `https://ccd3cb7c.hj-groups-web.pages.dev`, deploy stage SUCCESS. This is deployment evidence only, not successful browser or live HTTP acceptance.
+- No dedicated Pages deploy workflow exists in the listed `.github/workflows/` directory. Preview deployments are being created by the Cloudflare Pages Git integration. Production branch remains `main`; do not add a Cloudflare API token to GitHub Actions unless an explicit Wrangler-based deploy workflow is deliberately added.
+
+### Confirmed source/config blockers
+
+1. **Legacy backend/TTS bridge remains in the Pages production path.** `functions/[[path]].js` invokes `handleLegacyTtsProxy()` before `handleTtsRequest()` for `/api/tts`, `/api/edge-tts`, and `/api/sarvam-tts`. `functions/_lib/tts.js` reads `HJ_WEB_BACKEND_URL` and fetches the legacy backend. The read-only Cloudflare Pages project configuration currently lists `HJ_WEB_BACKEND_URL` in both Production and Preview. This conflicts with the agreed requirement that Pages TTS must not depend on the legacy backend and Edge TTS remain disabled. `EDGE_TTS_ENABLED` is not consulted by this bridge. Remove/disable the bridge in a code PR and add a regression test before merge.
+2. **The CI no-container/backend grep gate is defective.** `.github/workflows/quality-check.yml` uses `! grep ... HJ_WEB_BACKEND_URL ...` under `set -euo pipefail`. When a match is found, Bash exempts the negated command from `errexit`; the workflow can continue. Real run #1114 printed the three `HJ_WEB_BACKEND_URL` references in `functions/_lib/tts.js` while the overall run still passed. Replace the gate with explicit `if grep ...; then exit 1; fi` logic, and test both positive and negative cases.
+3. **Cover images can still request Supabase Storage at runtime.** `src/lib/coverAssets.js` returns an unmapped original `source` as `src`; mapped entries set `fallbackSrc` from `entry.originalUrl`; `handleCoverImageError` switches to that fallback. Current tests explicitly expect an unmapped cover to fall back to the direct original URL rather than `wsrv.nl`. The URL guard permits the matching `story-covers` original URL for this reason. This conflicts with the agreed rule that covers must not be re-served from Supabase Storage at request time. Use a Cloudflare asset or local placeholder instead; preserve original objects untouched.
+4. **TTS R2 caching is not implemented in the inspected Pages TTS module.** `functions/_lib/tts.js` requests Sarvam audio and returns it directly; it has no `MEDIA_CACHE` binding use, R2 read/write, or `tts/` cache path. `Cache-Control: private, max-age=3600` is not the agreed R2 cache. Implement and test the approved provider cache, or explicitly mark that functionality deferred and do not claim it is implemented.
+5. **Production/Preview bindings differ.** Read-only Cloudflare project metadata lists `COVERS_BUCKET -> hj-groups-covers` only for Preview; Production has no R2 bucket binding returned. No `MEDIA_CACHE` binding is returned for either environment. Production's exposed plain environment-variable names were `HJ_WEB_BACKEND_URL`, `VITE_STREAMING_SERVER_URL`, and `VITE_SUPABASE_URL`; Preview additionally lists `VITE_HJ_CLIENT_KEY`. Do not infer secret values from this metadata. Confirm the publishable key and all required encrypted secrets in the Dashboard: public catalog requires a publishable/anon key at runtime, and privileged Pages routes require `SUPABASE_SERVICE_ROLE_KEY`. Production cover uploads will return `503 COVER_STORAGE_NOT_CONFIGURED` until the Production `COVERS_BUCKET` binding is set.
+6. **Branch stack is not merge-ready.** Do not use the green PR #11 status as proof that PR #10 can merge. After PR #9 merges, reconcile/rebase Phase 5U onto the new main, inspect the changed-file diff to prevent duplicate/out-of-order history, run Quality Check on the exact updated head, then rebase/rebuild Phase 5V on that exact Phase 5U head and re-run CI.
+
+### Checks with real output
+
+- PR #9 run #1112: Quality Check SUCCESS; 143/143 tests; 0 failed; build PASS; lint PASS with two warnings; Pages local route smoke PASS; source/secret checks reported PASS.
+- PR #11 run #1114: Quality Check SUCCESS; 164/164 tests; 0 failed; build PASS; lint PASS with two warnings; Pages local route smoke PASS; cover asset validation PASS; source URL guard PASS; server-only secret-access identifier scan PASS.
+- No standalone TypeScript typecheck command is defined in `package.json`; typecheck is therefore NOT RUN / NOT VERIFIED.
+- The source URL guard allows exactly the legacy `wsrv.nl` URL un-wrapper in `src/lib/coverAssets.js` and matching `story-covers` `originalUrl` manifest fallbacks. It does not prove a zero-Supabase-Storage runtime path; source behavior above disproves that stronger claim.
+- The secret scan checks for forbidden secret-environment identifier access in the frontend/build. It does not prove that no arbitrary real secret value exists anywhere in repository history.
+- Live preview HTTP headers, cache MISS/HIT in real Cloudflare requests, browser request counts/bytes, all auth/admin and monetization regression flows, and live Supabase settings/log attribution remain NOT VERIFIED — user action required.
+
+### Reconciled Cloudflare deployment/rollback identifiers
+
+- Latest current Production deployment ID: `69a61def-c1f7-481f-bf34-26c2c2d14a1e`, URL `https://69a61def.hj-groups-web.pages.dev`, commit SHA `95e0d181e2c34ef3a17b6e31d168af101a52d275`.
+- Earlier successful Production deployment ID: `7624f08c-1894-4792-b5f0-6b51590ba8e9`, same commit SHA `95e0d181e2c34ef3a17b6e31d168af101a52d275`. `95e0d181...` is a commit SHA, not a Pages deployment ID.
+- An older successful deployment ID is `07e89db1-b418-4c08-b895-794321e7a1ba`, commit `f3416210bed6c91866057d063b898aa2835c8c76`. Before using any rollback target, open the Cloudflare Deployments record and verify its content/settings. Cloudflare's rollback feature targets successful Production deployments; Preview deployments are not valid rollback targets.
+- Keep Voroa available and do not delete/change its settings during cutover. Production promotion/rollback is a manual owner operation; no production promotion was performed in this audit.
+
+### Supabase egress evidence and limits
+
+The owner-provided dashboard numbers and 24-hour failed-call counts are historical observations, not a fresh dashboard read in this audit. The available repository logs cannot identify the source of the 3,980 dispatch-state reads or quantify response bytes. Supabase's official documentation says API Gateway logs do not currently include response-byte data and recommends Usage, Reports/Explorer, frequent-query, and Storage-report analysis. Cached Egress and uncached egress have separate quotas. The overall 42.5 GB Cached Egress root cause therefore remains **NOT CONFIRMED by this audit**.
+
+Official references:
+- https://supabase.com/docs/guides/platform/manage-your-usage/egress
+- https://supabase.com/docs/guides/observability/reports
+- https://supabase.com/docs/guides/database/postgres/row-level-security
+- https://developers.cloudflare.com/pages/functions/bindings/
+- https://developers.cloudflare.com/workers/runtime-apis/cache/
+- https://developers.cloudflare.com/pages/configuration/rollbacks/
+
+### Exact next steps before any merge
+
+1. Remove the legacy `HJ_WEB_BACKEND_URL` TTS bridge from the Pages runtime, respect `EDGE_TTS_ENABLED=false`, and add tests proving the bridge is never called.
+2. Fix the grep guard; test it against an intentionally matching fixture and a clean fixture.
+3. Change cover fallback so manifest miss/load error returns a Cloudflare asset or `/cover-placeholder.svg`, never a Supabase Storage URL. Update tests accordingly.
+4. Implement/test `MEDIA_CACHE` TTS caching or explicitly defer that feature. Confirm Production and Preview bindings/secrets by names in Cloudflare Dashboard.
+5. Reconcile PR #10's diverged history; run CI on the exact reconciled head. Then rebase/recreate Phase 5V against that head and rerun CI.
+6. Complete user preview matrix and capture Supabase Usage → Cached Egress, API/Storage Reports and Log Explorer evidence. No production DB migration or settings changes without the exact approval phrase for that action.
