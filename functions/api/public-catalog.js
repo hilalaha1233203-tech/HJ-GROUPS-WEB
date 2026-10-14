@@ -34,7 +34,7 @@ function getEnv(env, ...keys) {
 function baseHeaders() {
   return new Headers({
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=60",
+    "Cache-Control": "public, max-age=300, s-maxage=300",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Vary": "Accept-Encoding",

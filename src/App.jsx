@@ -1652,6 +1652,7 @@ export function App() {
   const [telegramStories, setTelegramStories] = useState([])
   const [telegramBooks, setTelegramBooks] = useState([])
   const [telegramVideoStories, setTelegramVideoStories] = useState([])
+  const [catalogLoadWarning, setCatalogLoadWarning] = useState(false)
 
   const publicTelegramStories = telegramStories.map((story) => ({
     ...story,
@@ -3213,10 +3214,9 @@ export function App() {
   }, [user])
 
   /* =======================================================
-     TELEGRAM-BACKED CONTENT (Supabase + Realtime)
-     Fetches once on mount, then refetches whenever the
-     webhook writes a change — so new Telegram uploads show
-     up on the site without a manual refresh.
+     TELEGRAM-BACKED CONTENT (cached public catalog)
+     Fetch once on mount through the five-minute Pages cache.
+     A page refresh after cache expiry fetches newer content.
   ======================================================= */
 
   useEffect(() => {
@@ -3229,16 +3229,14 @@ export function App() {
           setTelegramStories(data.stories)
           setTelegramBooks(data.books)
           setTelegramVideoStories(data.videoStories)
+          setCatalogLoadWarning(false)
         })
         .catch((error) => {
-          // Realtime content is additive — if Supabase isn't
-          // configured yet (e.g. local dev without the
-          // migration applied), the site still works fine on
-          // seed/localStorage content alone.
-          console.warn(
-            'Telegram content unavailable:',
-            error?.message || error
-          )
+          if (!mounted) return
+          setCatalogLoadWarning(true)
+          if (error?.message !== 'PUBLIC_CATALOG_COOLDOWN') {
+            console.warn('Public story catalog temporarily unavailable.')
+          }
         })
     }
 
@@ -8043,6 +8041,11 @@ export function App() {
   return (
     <div className={accountSettings.reducedMotion ? 'app reduced-motion' : 'app'}>
       <WebPushPrompt user={user} />
+      {catalogLoadWarning && (
+        <div className="catalog-load-warning" role="status" aria-live="polite">
+          The story catalog is temporarily unavailable. Some content may be missing; please refresh in a few minutes.
+        </div>
+      )}
       <canvas
         ref={
           particleCanvasRef
