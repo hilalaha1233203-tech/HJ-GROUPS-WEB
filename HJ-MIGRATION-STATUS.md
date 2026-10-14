@@ -1373,3 +1373,29 @@ Expected for a valid publicly accessible item: an appropriate `206 Partial Conte
 ### Final decision
 
 **NO-GO**. CI/build/unit tests are green, but the legacy TTS bridge and defective grep gate are confirmed; cover fallback and audio-upload path still permit Supabase Storage requests; the TTS R2 cache is absent; Production R2/auth/CORS settings and live Preview/regression/egress measurements are unverified; and PR #10 is not mergeable. No merge, Production promotion, database query/write, migration application, Cloudflare Production setting change, Storage object deletion, media migration, Telegram session operation or Episode Analytics change occurred in this audit.
+
+## 26. Approval-gated production cutover preflight — 2026-10-14
+
+Read-only preflight only. No numbered cutover step was executed because the required exact `APPROVED: <step>` instruction was not supplied. No merge, production promotion, Production configuration mutation, production database query/write, migration application, smoke-test step, Voroa change, media change, Telegram session operation, or Episode Analytics change occurred.
+
+### Fresh GitHub verification
+
+- PR #9 remains OPEN / UNMERGED / not draft; base `main`, head commit `2f3324147924cb2f4645f4883177b421aadf6b69`; mergeable reported true. Latest connector-returned relevant checks on that exact head: Quality Check run ID `38347626582` SUCCESS and Edge TTS Workers viability probe run ID `38347626491` SUCCESS.
+- PR #10 remains OPEN / DRAFT / UNMERGED; base `phase2/containerless-pages-migration-20261008`, base SHA `c31f451f3132d04bd3fbedbe32ff124f37d68b9f`, head `62fa1e88e907a5feeb372f323523466605d52988`; GitHub reports `mergeable=false`. The commit-specific workflow-run lookup returned no run for this exact head during this check, so a current green CI result on its exact head is NOT VERIFIED.
+- PR #11 remains OPEN / DRAFT / UNMERGED; base `phase5u-cover-assets-20261012` at `62fa1e88e907a5feeb372f323523466605d52988`; head was `63c0d9ce9a212acaeccf0737f390c70b05e41f8c` at audit start. Quality Check run ID `38543378074` SUCCESS for that exact code/status commit; log showed 164 passed / 0 failed / 0 skipped, build succeeded, lint 0 errors / 2 warnings, and cover assets audit passed. These automated checks do not clear the confirmed runtime blockers in Section 24/25.
+
+### Fresh Cloudflare control-plane verification (names only for configuration)
+
+- Pages project `hj-groups-web`, production branch `main`, Git integration enabled.
+- Production deployment still reports commit SHA `95e0d181e2c34ef3a17b6e31d168af101a52d275`, deployment ID `69a61def-c1f7-481f-bf34-26c2c2d14a1e`, URL `https://69a61def.hj-groups-web.pages.dev`, final stage SUCCESS.
+- Latest Preview deployment at preflight time: commit `63c0d9ce9a212acaeccf0737f390c70b05e41f8c`, deployment ID `2ede5329-efd7-4d0b-90b2-d7c7b0a14869`, URL `https://2ede5329.hj-groups-web.pages.dev`, final stage SUCCESS.
+- Visible Preview variable names: `HJ_WEB_BACKEND_URL`, `VITE_HJ_CLIENT_KEY`, `VITE_STREAMING_SERVER_URL`, `VITE_SUPABASE_URL`. Visible Production variable names: `HJ_WEB_BACKEND_URL`, `VITE_STREAMING_SERVER_URL`, `VITE_SUPABASE_URL`. These are names only; no variable values are copied into this status.
+- Preview R2 bindings list `COVERS_BUCKET` → existing `hj-groups-covers`. Production R2 binding list is empty. No `MEDIA_CACHE` binding appears in either list.
+- The Cloudflare metadata API may omit encrypted secrets; therefore `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`, `CORS_ALLOWED_ORIGINS`, and the publishable auth key configuration still require an owner check by name in the Pages dashboard. This is NOT proof that encrypted secrets are absent.
+
+### Approval gate / next eligible action
+
+- No exact approval phrase was present in the current user instruction. Do not merge PR #9 or perform any of the five numbered cutover steps until the user explicitly supplies the exact action phrase.
+- If the owner approves step 1, merge PR #9 only, capture the resulting merge SHA and Production deployment ID/URL, stop, update this status, and report evidence. Do not continue to PR #10 without a separate approval.
+- Existing NO-GO blockers remain: the legacy Pages TTS bridge / `HJ_WEB_BACKEND_URL`, defective CI grep guard, possible Supabase Storage cover fallback, Supabase-backed audio upload path, absent Pages TTS R2 cache, missing Production R2 bindings in metadata, and unverified manual regression/egress evidence.
+- The latest Preview ID above is a snapshot prior to this status-only commit; Cloudflare Git integration may create a new Preview deployment for this documentation update. Refresh control-plane metadata before referring to the newest Preview URL.
